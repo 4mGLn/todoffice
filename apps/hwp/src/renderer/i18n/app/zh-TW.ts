@@ -106,6 +106,8 @@ export const zhTW = {
   aiToolDelete: '已刪除段落 · {text}',
   aiToolTable: '已插入表格 · {rows} 列 {cols} 欄',
   aiToolImageSearchDone: '圖片搜尋「{query}」（{count} 張）',
+  aiToolWebSearch: '網路搜尋',
+  aiToolWebSearchDone: '網路搜尋「{query}」（{count} 筆結果）',
   aiToolInsertImage: '已插入圖片 {what}',
   aiToolImport: '已將「{name}」作為新的 HWP 文件開啟',
   aiToolFormat: '已變更格式 · {text}',

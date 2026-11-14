@@ -109,6 +109,8 @@ export const ar = {
   aiToolDelete: 'تم حذف فقرة · {text}',
   aiToolTable: 'تمت إضافة جدول · {rows} × {cols}',
   aiToolImageSearchDone: 'البحث عن صور "{query}" ({count} صورة)',
+  aiToolWebSearch: 'بحث في الويب',
+  aiToolWebSearchDone: 'بحث في الويب عن "{query}" ({count} نتيجة)',
   aiToolInsertImage: 'تم إدراج الصورة {what}',
   aiToolImport: 'تم فتح "{name}" كمستند HWP جديد',
   aiToolFormat: 'تم تغيير التنسيق · {text}',

@@ -110,6 +110,8 @@ export const tr = {
   aiToolDelete: 'Bir paragraf kaldırıldı · {text}',
   aiToolTable: 'Tablo eklendi · {rows} × {cols}',
   aiToolImageSearchDone: '"{query}" görsel araması ({count} görsel)',
+  aiToolWebSearch: 'Web araması',
+  aiToolWebSearchDone: '"{query}" web araması ({count} sonuç)',
   aiToolInsertImage: '{what} görseli eklendi',
   aiToolImport: '"{name}" yeni bir HWP belgesi olarak açıldı',
   aiToolFormat: 'Biçimlendirildi · {text}',

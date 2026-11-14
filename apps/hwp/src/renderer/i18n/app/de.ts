@@ -114,6 +114,8 @@ export const de = {
   aiToolDelete: 'Absatz entfernt · {text}',
   aiToolTable: 'Tabelle eingefügt · {rows} × {cols}',
   aiToolImageSearchDone: 'Bildersuche „{query}“ ({count} Bilder)',
+  aiToolWebSearch: 'Websuche',
+  aiToolWebSearchDone: 'Websuche „{query}“ ({count} Treffer)',
   aiToolInsertImage: 'Bild eingefügt {what}',
   aiToolImport: '„{name}“ als neues HWP-Dokument geöffnet',
   aiToolFormat: 'Formatierung geändert · {text}',

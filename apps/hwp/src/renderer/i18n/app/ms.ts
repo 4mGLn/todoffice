@@ -111,6 +111,8 @@ export const ms = {
   aiToolDelete: 'Perenggan dibuang · {text}',
   aiToolTable: 'Jadual ditambah · {rows} × {cols}',
   aiToolImageSearchDone: 'Carian imej "{query}" ({count} imej)',
+  aiToolWebSearch: 'Carian web',
+  aiToolWebSearchDone: 'Carian web "{query}" ({count} hasil)',
   aiToolInsertImage: 'Imej disisipkan {what}',
   aiToolImport: 'Membuka "{name}" sebagai dokumen HWP baharu',
   aiToolFormat: 'Format diubah · {text}',
