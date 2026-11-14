@@ -1538,7 +1538,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'read_page_layout',
     edits: false,
     description:
-      'Show how many pages the document has and where its body falls on them as printed: per page the first words of its first and of its last paragraph on it ("continues" when that paragraph began on the page before), and what to mind (a heading or caption left alone at the foot of a page, tables over two pages or past the foot, empty pages, text past the foot). Also the columns its text runs in, the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
+      'Show how many pages the document has and where its body falls on them as printed: first what to mind (a heading or caption left alone at the foot of a page, tables past the foot or over two pages, text past the foot, empty pages), then per page the first words of its first and of its last paragraph on it ("continues" when that paragraph began on the page before). Also the columns its text runs in, the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -2248,33 +2248,40 @@ const pageEndText = (end: AgentPageEnd): string =>
       ? `${end.continues ? 'continues ' : ''}“${end.text}”`
       : '(no text)'
 
+/**
+ * The page map as lines: what to mind first, so that an answer cut short keeps it, then a
+ * line per page.
+ */
 function pageMapLines(map: AgentPageMap): string[] {
-  const alone = new Map<number, string[]>()
-  for (const line of map.alone) {
+  const alone = map.alone.map((line) => {
     const where = line.column === undefined ? '' : ` of column ${line.column}`
     const after = line.kind === 'caption' ? 'its table' : 'the text after it'
-    const what = line.kept
-      ? `the ${line.kind} “${line.text}” stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it`
-      : `the ${line.kind} “${line.text}” is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with ${after}`
-    alone.set(line.page, [...(alone.get(line.page) ?? []), what])
-  }
-  const pages = map.pages.map((page) => {
-    if ('empty' in page) return `page ${page.page}: empty`
-    const notes = [
-      ...(alone.get(page.page) ?? []),
-      ...(page.pastFoot
-        ? [
-            `${page.pastFoot} line(s) of text lie below the foot of the page and are cut off in print`,
-          ]
-        : []),
-    ]
-    return `page ${page.page}: ${pageEndText(page.first)} to ${pageEndText(page.last)}${notes.length > 0 ? `; ${notes.join('; ')}` : ''}`
+    return line.kept
+      ? `Page ${line.page}: the ${line.kind} “${line.text}” stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it.`
+      : `Page ${line.page}: the ${line.kind} “${line.text}” is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with ${after}.`
   })
+  const below = map.pages.flatMap((page) =>
+    'pastFoot' in page && page.pastFoot
+      ? [
+          `Page ${page.page}: ${page.pastFoot} line(s) of text lie below the foot of the page and are cut off in print.`,
+        ]
+      : [],
+  )
+  const empty = map.pages.flatMap((page) =>
+    'empty' in page ? [`Page ${page.page} is empty.`] : [],
+  )
   return [
-    'Pages as printed:',
-    ...pages,
-    ...map.spans.map((span) => `Table ${span.table} runs over pages ${span.from} to ${span.to}.`),
+    ...alone,
     ...map.past.map(pastFootNote),
+    ...below,
+    ...map.spans.map((span) => `Table ${span.table} runs over pages ${span.from} to ${span.to}.`),
+    ...empty,
+    'Pages as printed:',
+    ...map.pages.map((page) =>
+      'empty' in page
+        ? `page ${page.page}: empty`
+        : `page ${page.page}: ${pageEndText(page.first)} to ${pageEndText(page.last)}`,
+    ),
   ]
 }
 

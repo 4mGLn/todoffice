@@ -5007,11 +5007,15 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     expect(JSON.parse(lines[0]!)).toMatchObject({ pages: 3 })
     expect(JSON.parse(lines[0]!)).not.toHaveProperty('map')
     expect(lines.slice(1)).toEqual([
-      'Pages as printed:',
-      'page 1: “보고서” to “<표 1> 이용자 수”; the caption “<표 1> 이용자 수” is left alone at the foot, its table starts on page 2: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with its table',
-      'page 2: continues “마디가 이어집니다” to “맺음”; the line “□ 소요 예산” stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it; 4 line(s) of text lie below the foot of the page and are cut off in print',
-      'page 3: empty',
+      'Page 1: the caption “<표 1> 이용자 수” is left alone at the foot, its table starts on page 2: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with its table.',
+      'Page 2: the line “□ 소요 예산” stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it.',
+      'Page 2: 4 line(s) of text lie below the foot of the page and are cut off in print.',
       'Table 2 runs over pages 2 to 3.',
+      'Page 3 is empty.',
+      'Pages as printed:',
+      'page 1: “보고서” to “<표 1> 이용자 수”',
+      'page 2: continues “마디가 이어집니다” to “맺음”',
+      'page 3: empty',
     ])
   })
 
