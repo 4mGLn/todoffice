@@ -2334,4 +2334,20 @@ describe('what a change leaves on the pages', () => {
     plugin.fillCells(2, [{ row: 3, col: 3, text: '국립중앙박물관어린이박물관체험학습실' }], true)
     expect(plugin.checkLayout(2, 3, 3).wrapped).toEqual([])
   })
+
+  it('does not count a line that starts at a bracket or beside Hangul as a broken word', () => {
+    const { plugin } = open()
+    const made = plugin.insertTable(
+      '□ 세부 일정',
+      null,
+      'after',
+      [
+        ['참가비(입장료)체험비(버스비)간식비(보험료)기념품비(교통비)'],
+        ['도시락, 물, 편한 복장, 우비, 모자, 개인 상비약, 필기도구'],
+      ],
+      { widthPercent: 25 },
+    )
+    expect(made).toMatchObject({ ok: true })
+    expect(plugin.checkLayout(null, null).wrapped).toEqual([])
+  })
 })

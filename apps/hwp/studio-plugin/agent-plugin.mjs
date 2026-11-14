@@ -3990,11 +3990,26 @@ function overflowIn(runs, box, paragraphs) {
 /** Hangul and other CJK script: text written in it breaks between any two characters. */
 const BREAKS_ANYWHERE = /[ᄀ-ᇿ぀-ヿ㄰-㆏一-鿿가-힯]/
 
+/** A bracket or a punctuation mark: a line may start or end at one without breaking a word. */
+const WORD_EDGE = /[\p{P}\p{S}]/u
+
 /**
- * Whether one of the cell's lines of `runs` starts inside a word: no space on either side
- * of the break, and at least one side not in a script that breaks between any two
- * characters (Korean text breaks per syllable when its paragraph says so, as Hangul's
- * default does). Lines are the runs of one paragraph that start at another height.
+ * Whether a line break between the characters `before` and `after` splits a word: no space
+ * or punctuation mark on either side, and neither side in a script that breaks between any
+ * two characters (Korean text breaks per syllable when its paragraph says so, as Hangul's
+ * default does), except a number cut from the Hangul word it goes with (2026|년).
+ */
+function splitsWord(before, after) {
+  if (!/\S/.test(before) || !/\S/.test(after)) return false
+  if (WORD_EDGE.test(before) || WORD_EDGE.test(after)) return false
+  const anywhere = [before, after].filter((char) => BREAKS_ANYWHERE.test(char)).length
+  if (anywhere === 0) return true
+  return anywhere === 1 && (/\d/.test(before) || /\d/.test(after))
+}
+
+/**
+ * Whether one of the cell's lines of `runs` starts inside a word (splitsWord). Lines are
+ * the runs of one paragraph that start at another height.
  */
 function breaksInsideWord(runs, box, paragraphs) {
   const own = runs.filter(
@@ -4011,10 +4026,9 @@ function breaksInsideWord(runs, box, paragraphs) {
     const text = paragraphs()[para]
     const ordered = [...lines].sort((a, b) => a[0] - b[0])
     for (const [, start] of ordered.slice(1)) {
-      const before = engineSlice(text, start - 1, start)
-      const after = engineSlice(text, start, start + 1)
-      if (!/\S/.test(before) || !/\S/.test(after)) continue
-      if (!(BREAKS_ANYWHERE.test(before) && BREAKS_ANYWHERE.test(after))) return true
+      if (splitsWord(engineSlice(text, start - 1, start), engineSlice(text, start, start + 1))) {
+        return true
+      }
     }
   }
   return false
