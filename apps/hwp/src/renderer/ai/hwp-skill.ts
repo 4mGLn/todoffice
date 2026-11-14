@@ -3000,7 +3000,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     renumberTables((table) =>
       table < removed ? table : table <= removed + inner ? null : table - 1 - inner,
     )
-  /** Rows or columns `at` on of `table` moved by `by`; those removed are dropped. */
+  /** Rows or columns of `table` from `at` on moved by `by`; those removed are dropped. */
   const linesMoved = (table: number, what: AgentTableLines, at: number, by: number): void => {
     const key = what === 'rows' ? 'row' : 'col'
     pastThisRun.delete(table)
