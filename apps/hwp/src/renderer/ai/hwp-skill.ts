@@ -1538,7 +1538,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'read_page_layout',
     edits: false,
     description:
-      'Show how many pages the document has and where its body falls on them as printed (the words each page starts and ends with, a heading or caption left alone at the foot of a page, tables over two pages or past the foot, empty pages, text past the foot), the columns its text runs in, the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
+      'Show how many pages the document has and where its body falls on them as printed: per page the first words of its first and of its last paragraph on it ("continues" when that paragraph began on the page before), and what to mind (a heading or caption left alone at the foot of a page, tables over two pages or past the foot, empty pages, text past the foot). Also the columns its text runs in, the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -2242,7 +2242,11 @@ const wideTablesNote = (wide: readonly number[] | undefined): string => {
 }
 
 const pageEndText = (end: AgentPageEnd): string =>
-  'table' in end ? `table ${end.table}` : end.text ? `“${end.text}”` : '(no text)'
+  'table' in end
+    ? `table ${end.table}`
+    : end.text
+      ? `${end.continues ? 'continues ' : ''}“${end.text}”`
+      : '(no text)'
 
 function pageMapLines(map: AgentPageMap): string[] {
   const alone = new Map<number, string[]>()

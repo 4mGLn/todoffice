@@ -4131,11 +4131,16 @@ function pageMapOf(doc) {
       controls = parse(doc.getPageControlLayout(page)).controls ?? []
     } catch {}
     const items = []
+    const starts = new Map()
     let objects = 0
     const lowLines = new Set()
     for (const run of runs) {
       if (run.cellPath || !isBody(run.secIdx, run.paraIdx) || !/\S/.test(run.text ?? '')) continue
       items.push({ sec: run.secIdx, para: run.paraIdx, column: columnOf(run.x), table: null })
+      const key = `${run.secIdx}/${run.paraIdx}`
+      if (Number.isInteger(run.charStart)) {
+        starts.set(key, Math.min(starts.get(key) ?? Infinity, run.charStart))
+      }
       if (run.y + run.h - foot > run.h * LAYOUT_SLACK_LINE) lowLines.add(Math.round(run.y))
     }
     for (const control of controls) {
@@ -4179,8 +4184,10 @@ function pageMapOf(doc) {
     }
     const sorted = [...items].sort(order)
     const ends = (item) => {
-      const text = paragraphText(doc, item.sec, item.para)
-      return item.table !== null && !text ? { table: item.table } : { text }
+      const from = starts.get(`${item.sec}/${item.para}`) ?? 0
+      const text = paragraphText(doc, item.sec, item.para, from)
+      if (item.table !== null && !text) return { table: item.table }
+      return from > 0 ? { text, continues: true } : { text }
     }
     pages.push({
       page: page + 1,
@@ -4236,11 +4243,17 @@ function pageMapOf(doc) {
   }
 }
 
-/** The first words of body paragraph `para`, or '' when it has no text. */
-function paragraphText(doc, sec, para) {
+/** The first words of body paragraph `para` from character `from` on, or '' when it has none. */
+function paragraphText(doc, sec, para, from = 0) {
   const length = doc.getParagraphLength(sec, para)
-  if (length === 0) return ''
-  return clip(doc.getTextRange(sec, para, 0, length).replace(/\s+/g, ' ').trim(), PREVIEW_CHARS)
+  if (length <= from) return ''
+  return clip(
+    doc
+      .getTextRange(sec, para, from, length - from)
+      .replace(/\s+/g, ' ')
+      .trim(),
+    PREVIEW_CHARS,
+  )
 }
 
 /**

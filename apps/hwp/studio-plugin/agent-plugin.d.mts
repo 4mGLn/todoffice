@@ -324,8 +324,11 @@ export interface AgentPageLayout {
   map: AgentPageMap
 }
 
-/** The first or last body paragraph of a page: its first words, or the table it holds. */
-export type AgentPageEnd = { text: string } | { table: number }
+/**
+ * The first or last paragraph of a page by its first words on that page (`continues`: it
+ * began on the page before), or a table with no text beside it.
+ */
+export type AgentPageEnd = { text: string; continues?: true } | { table: number }
 
 /** One page of the page map; `pastFoot` counts lines of body text below its text area. */
 export type AgentMapPage =

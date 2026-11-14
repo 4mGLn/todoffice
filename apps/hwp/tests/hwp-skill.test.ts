@@ -4980,7 +4980,12 @@ describe('what an edit did to the pages and tables, in its answer', () => {
         map: {
           pages: [
             { page: 1, first: { text: '보고서' }, last: { text: '<표 1> 이용자 수' } },
-            { page: 2, first: { table: 1 }, last: { text: '맺음' }, pastFoot: 4 },
+            {
+              page: 2,
+              first: { text: '마디가 이어집니다', continues: true as const },
+              last: { text: '맺음' },
+              pastFoot: 4,
+            },
             { page: 3, empty: true as const },
           ],
           alone: [
@@ -5004,7 +5009,7 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     expect(lines.slice(1)).toEqual([
       'Pages as printed:',
       'page 1: “보고서” to “<표 1> 이용자 수”; the caption “<표 1> 이용자 수” is left alone at the foot, its table starts on page 2: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with its table',
-      'page 2: table 1 to “맺음”; the line “□ 소요 예산” stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it; 4 line(s) of text lie below the foot of the page and are cut off in print',
+      'page 2: continues “마디가 이어집니다” to “맺음”; the line “□ 소요 예산” stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it; 4 line(s) of text lie below the foot of the page and are cut off in print',
       'page 3: empty',
       'Table 2 runs over pages 2 to 3.',
     ])

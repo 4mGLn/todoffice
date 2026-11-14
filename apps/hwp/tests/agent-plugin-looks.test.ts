@@ -10,7 +10,11 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import init, { HwpDocument } from '@rhwp/core'
-import { agentPlugin, type AgentPluginHost } from '../studio-plugin/agent-plugin.mjs'
+import {
+  agentPlugin,
+  type AgentMapPage,
+  type AgentPluginHost,
+} from '../studio-plugin/agent-plugin.mjs'
 import { installFontPresence } from '../studio-plugin/pc-fonts.mjs'
 
 const require = createRequire(import.meta.url)
@@ -2180,6 +2184,23 @@ describe('what a change leaves on the pages', () => {
     expect(before.plugin.pageLayout().map.alone).toEqual([
       { page: 1, kind: 'line', text: '이용자 수는 아래와 같다', nextPage: 2, kept: true },
     ])
+  })
+
+  it('quotes the words a page starts with when its paragraph began on the page before', () => {
+    const long = Array.from(
+      { length: 30 },
+      (_, k) => `긴 문단의 ${k + 1}번째 마디가 이어집니다.`,
+    ).join(' ')
+    const { plugin } = open(blank([...lines(36), long, '마지막 줄']))
+    const { map } = plugin.pageLayout()
+    expect(map.pages).toHaveLength(2)
+    const [one, two] = map.pages as Extract<AgentMapPage, { first: unknown }>[]
+    expect(one!.last).toEqual({ text: expect.stringMatching(/^긴 문단의 1번째/) })
+    expect(two!.first).toEqual({
+      text: expect.not.stringMatching(/^긴 문단의 1번째/),
+      continues: true,
+    })
+    expect('text' in two!.first && long.includes(two!.first.text.replace(/…$/, ''))).toBe(true)
   })
 
   it('tells a page with nothing on it', () => {
