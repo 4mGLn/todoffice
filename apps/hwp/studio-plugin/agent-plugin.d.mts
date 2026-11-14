@@ -335,14 +335,20 @@ export type AgentMapPage =
 /** Where the body falls on the pages, as print lays them out; tables as listTables numbers them. */
 export interface AgentPageMap {
   pages: AgentMapPage[]
-  /** a heading or a one-line caption that ends a page (or a column) apart from what follows it */
+  /**
+   * A caption (a `<표 n>` start or the caption style) before a table, an outline heading, or
+   * a line kept with the next one, that ends a page (or a column) apart from what follows it,
+   * empty paragraphs between them aside. `kept`: it keeps with the next line, which Hangul
+   * honours in print and the engine's layout does not.
+   */
   alone: {
     page: number
     column?: number
-    kind: 'heading' | 'caption'
+    kind: 'heading' | 'caption' | 'line'
     text: string
     /** the page the paragraph after it starts on */
     nextPage: number
+    kept?: true
   }[]
   /** tables drawn over more than one page, from page to page */
   spans: { table: number; from: number; to: number }[]

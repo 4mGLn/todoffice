@@ -4023,6 +4023,18 @@ function breaksInsideWord(runs, box, paragraphs) {
 /** How a table's caption line starts: <표 1>, [표 2], 표 3., 〈그림 1〉, Table 4. */
 const CAPTION_START = /^[<[〈《(]?\s*(표|그림|도표|Table|Figure)\s*\d/i
 
+/** The names Hangul gives its caption style. */
+const CAPTION_STYLES = new Set(['캡션', 'Caption'])
+
+/** The name of the style of body paragraph `para`, or '' when it cannot be read. */
+function styleNameAt(doc, sec, para) {
+  try {
+    return parse(doc.getStyleAt(sec, para)).name ?? ''
+  } catch {
+    return ''
+  }
+}
+
 /** Where the text area of page `page` ends and begins, in CSS px from the top of the page. */
 function bodyAreaOf(doc, page) {
   const info = parse(doc.getPageInfo(page))
@@ -4192,20 +4204,26 @@ function pageMapOf(doc) {
   for (let k = 0; k + 1 < slots.length; k++) {
     const { last } = slots[k]
     const { first } = slots[k + 1]
-    if (last.table !== null || first.sec !== last.sec || first.para !== last.para + 1) continue
-    if (!paragraphText(doc, last.sec, last.para)) continue
+    if (last.table !== null || first.sec !== last.sec || first.para <= last.para) continue
+    const text = paragraphText(doc, last.sec, last.para)
+    if (!text) continue
+    let between = last.para + 1
+    while (between < first.para && doc.getParagraphLength(last.sec, between) === 0) between++
+    if (between < first.para) continue
     const props = parse(doc.getParaPropertiesAt(last.sec, last.para))
-    const heading = props.keepWithNext === true || props.headType === 'Outline'
+    const kept = props.keepWithNext === true
     const caption =
       first.table !== null &&
-      (heading || CAPTION_START.test(paragraphText(doc, last.sec, last.para)))
-    if (!heading && !caption) continue
+      (CAPTION_START.test(text) || CAPTION_STYLES.has(styleNameAt(doc, last.sec, last.para)))
+    const heading = props.headType === 'Outline'
+    if (!kept && !caption && !heading) continue
     alone.push({
       page: slots[k].page,
       ...(slots[k].columns > 1 ? { column: slots[k].column } : {}),
-      kind: caption ? 'caption' : 'heading',
-      text: paragraphText(doc, last.sec, last.para),
+      kind: caption ? 'caption' : heading ? 'heading' : 'line',
+      text,
       nextPage: slots[k + 1].page,
+      ...(kept ? { kept: true } : {}),
     })
   }
   return {

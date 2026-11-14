@@ -2156,7 +2156,29 @@ describe('what a change leaves on the pages', () => {
       apply: [{ style: '머리', find: foot.last.text }],
     })
     expect(plugin.pageLayout().map.alone).toEqual([
-      { page: 1, kind: 'heading', text: foot.last.text, nextPage: 2 },
+      { page: 1, kind: 'line', text: foot.last.text, nextPage: 2, kept: true },
+    ])
+  })
+
+  it('looks past empty lines after a lone line, and calls a caption only what is one', () => {
+    const { plugin } = open(blank([...lines(40), '□ 머리 제목', '', ...lines(20, '다음 줄')]))
+    plugin.styleParagraphs({
+      styles: [{ name: '머리', format: {}, keepWithNext: true }],
+      apply: [{ style: '머리', find: '□ 머리 제목' }],
+    })
+    const { map } = plugin.pageLayout()
+    expect(map.pages[1]).toMatchObject({ first: { text: '다음 줄 1' } })
+    expect(map.alone).toEqual([
+      { page: 1, kind: 'line', text: '□ 머리 제목', nextPage: 2, kept: true },
+    ])
+    const before = open(blank([...lines(36), '이용자 수는 아래와 같다']))
+    before.plugin.insertTable('이용자 수는 아래와 같다', null, 'after', rows(10), false)
+    before.plugin.styleParagraphs({
+      styles: [{ name: '앞줄', format: {}, keepWithNext: true }],
+      apply: [{ style: '앞줄', find: '이용자 수는 아래와 같다' }],
+    })
+    expect(before.plugin.pageLayout().map.alone).toEqual([
+      { page: 1, kind: 'line', text: '이용자 수는 아래와 같다', nextPage: 2, kept: true },
     ])
   })
 

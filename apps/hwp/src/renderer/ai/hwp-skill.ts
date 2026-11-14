@@ -2248,10 +2248,10 @@ function pageMapLines(map: AgentPageMap): string[] {
   const alone = new Map<number, string[]>()
   for (const line of map.alone) {
     const where = line.column === undefined ? '' : ` of column ${line.column}`
-    const what =
-      line.kind === 'caption'
-        ? `the caption “${line.text}” is left alone at the foot${where}, its table starts on page ${line.nextPage}`
-        : `the heading “${line.text}” is left alone at the foot${where}, the text after it starts on page ${line.nextPage}`
+    const after = line.kind === 'caption' ? 'its table' : 'the text after it'
+    const what = line.kept
+      ? `the ${line.kind} “${line.text}” stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it`
+      : `the ${line.kind} “${line.text}” is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with ${after}`
     alone.set(line.page, [...(alone.get(line.page) ?? []), what])
   }
   const pages = map.pages.map((page) => {
@@ -2271,11 +2271,6 @@ function pageMapLines(map: AgentPageMap): string[] {
     ...pages,
     ...map.spans.map((span) => `Table ${span.table} runs over pages ${span.from} to ${span.to}.`),
     ...map.past.map(pastFootNote),
-    ...(map.alone.length > 0
-      ? [
-          'insert_break with kind page on a heading or caption left alone moves it to the next page.',
-        ]
-      : []),
   ]
 }
 
