@@ -4167,8 +4167,9 @@ function paragraphText(doc, sec, para) {
  * only table `fromTable` is measured, up to that row. Reads only.
  *
  * Beside the cut cells: `wrapped`, the cells a line of which starts inside a word, and
- * `past`, per table the first row drawn below the foot of a page's text area (a table
- * stands whole on its page here, and one taller than the page runs off it, `taller`).
+ * `past`, per table the first row drawn below the foot of a page's text area, whatever rows
+ * were measured (a table stands whole on its page here, and one taller than the page runs
+ * off it, `taller`).
  */
 function overflowsOf(doc, fromTable, fromRow, toRow = null) {
   const { tables, partial } = tablesOf(doc)
@@ -4225,7 +4226,7 @@ function overflowsOf(doc, fromTable, fromRow, toRow = null) {
       rows.get(box.row).push(box)
     }
     const below = boxes
-      .filter((box) => rows.has(box.row) && box.y + box.h > areaOf(box.pageIndex).foot + 1)
+      .filter((box) => box.y + box.h > areaOf(box.pageIndex).foot + 1)
       .sort((a, b) => a.row - b.row)
     if (below.length > 0) {
       const { pageIndex } = below[0]

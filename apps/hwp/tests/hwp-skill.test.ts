@@ -4908,6 +4908,35 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     )
   })
 
+  it('tells where a table runs off the page only when a call moved it', async () => {
+    let past = [{ table: 1, page: 2, row: 35, taller: true as const }]
+    const { call } = setup({
+      insertTable: vi.fn(async () => ({
+        ok: true as const,
+        rows: 70,
+        cols: 2,
+        inTable: false,
+        place: PLACE,
+        table: 1,
+        tables: 1,
+      })),
+      checkLayout: vi.fn(async () => measured([], past)),
+    })
+    const off = 'Table 1 is drawn below the foot of page 2 from row 35 on'
+    expect((await call('insert_table', { where: 'end', rows: [['가', '나']] })).output).toContain(
+      off,
+    )
+    const fill = { table: 1, cells: [{ row: 65, col: 1, text: '가' }] }
+    expect((await call('fill_cells', fill)).output).not.toContain('below the foot')
+    expect((await call('check_layout')).output).toContain(off)
+    past = [{ table: 1, page: 2, row: 34, taller: true }]
+    expect(
+      (await call('format_cells', { table: 1, cells: [{ row: 60, col: 1 }], size: 14 })).output,
+    ).toContain('Table 1 is drawn below the foot of page 2 from row 34 on')
+    past = []
+    expect((await call('fill_cells', fill)).output).not.toContain('below the foot')
+  })
+
   it('names the tables wider than a column when the text is set in columns', async () => {
     const { call } = setup({
       setColumns: vi.fn(async () => ({

@@ -2971,6 +2971,8 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   let refusedDeletes = new Set<string>()
   /** the table cells this run wrote that were cut off when last measured */
   let cutThisRun: TableCell[] = []
+  /** per table this run measured, where it last ran below a page's foot ('' within the page) */
+  let pastThisRun = new Map<number, string>()
 
   /** Moves the record to the numbers the tables have after a call; null drops a table. */
   const renumberTables = (now: (table: number) => number | null): void => {
@@ -2978,6 +2980,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
       const table = now(cell.table)
       return table === null ? [] : [{ ...cell, table }]
     })
+    pastThisRun = new Map(
+      [...pastThisRun].flatMap(([table, where]) => {
+        const moved = now(table)
+        return moved === null ? [] : [[moved, where] as const]
+      }),
+    )
   }
   /** A table was made as number `made`; unknown, nothing recorded can be followed. */
   const tableAdded = (made: number | undefined): void =>
@@ -2989,6 +2997,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   /** Rows or columns `at` on of `table` moved by `by`; those removed are dropped. */
   const linesMoved = (table: number, what: AgentTableLines, at: number, by: number): void => {
     const key = what === 'rows' ? 'row' : 'col'
+    pastThisRun.delete(table)
     cutThisRun = cutThisRun.flatMap((cell) => {
       if (cell.table !== table || cell[key] < at) return [cell]
       if (by < 0 && cell[key] < at - by) return []
@@ -2998,6 +3007,15 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   /** A merge or a split moved the cells of `table`: what was cut there is measured anew. */
   const forgetTable = (table: number): void => {
     cutThisRun = cutThisRun.filter((cell) => cell.table !== table)
+    pastThisRun.delete(table)
+  }
+  /** Keeps where `table` runs off the page; true when that is new to this run. */
+  const pastMoved = (table: number, past: readonly AgentTablePastFoot[]): boolean => {
+    const off = past.find((entry) => entry.table === table)
+    const where = off ? `${off.page}/${off.row}/${off.taller === true}` : ''
+    const moved = where !== '' && pastThisRun.get(table) !== where
+    pastThisRun.set(table, where)
+    return moved
   }
   const sameCell = (a: TableCell, b: TableCell): boolean =>
     a.table === b.table && a.row === b.row && a.col === b.col
@@ -3056,7 +3074,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         `The text of ${checked.cells.length} cell(s) of table ${table} does not fit and is cut off: ${shown.join('; ')}${more > 0 ? `; ${more} more (check_layout lists them)` : ''}. Give the row more height (format_cells row_height_mm) or write a shorter text.`,
       )
     }
-    notes.push(...checked.past.map(pastFootNote))
+    if (pastMoved(table, checked.past)) {
+      notes.push(...checked.past.filter((entry) => entry.table === table).map(pastFootNote))
+    }
     return notes.length > 0 ? ` ${notes.join(' ')}` : ''
   }
 
@@ -4088,6 +4108,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
               : `Every table cell's text fits${scope}${until} (${counted}).`
         const reached = (cell: TableCell, place: AgentLayoutPlace): boolean =>
           cell.table > place.table || (cell.table === place.table && cell.row >= place.row)
+        for (let table = from.table; table <= (checked.next?.table ?? checked.tables); table++) {
+          pastMoved(table, checked.past)
+        }
         cutThisRun = cutThisRun.filter(
           (cell) =>
             !reached(cell, from) ||
@@ -5809,6 +5832,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
       addedThisRun = []
       refusedDeletes = new Set()
       cutThisRun = []
+      pastThisRun = new Map()
     },
     refreshContext: async () => {
       try {

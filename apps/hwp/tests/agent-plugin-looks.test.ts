@@ -2181,6 +2181,13 @@ describe('what a change leaves on the pages', () => {
     const cut = plugin.checkLayout(null, null)
     expect(cut.cells).toEqual([])
     expect(cut.past).toEqual([{ table: 1, page: 2, row: tall.past[0]!.row, taller: true }])
+    for (const [from, to] of [
+      [60, 62],
+      [65, 65],
+      [1, 1],
+    ] as const) {
+      expect(plugin.checkLayout(1, from, to).past).toEqual(cut.past)
+    }
     const { control } = tableIn(doc(), 3)
     doc().setTableProperties(0, 3, control, JSON.stringify({ treatAsChar: false, pageBreak: 1 }))
     const split = plugin.pageLayout().map
