@@ -2249,6 +2249,19 @@ describe('what a change leaves on the pages', () => {
     expect(plugin.setColumns({ count: 1 })).not.toHaveProperty('wide')
   })
 
+  it('names a wide table Hangul anchored to its paragraph, and not one laid across the page', () => {
+    const form = new HwpDocument(
+      readFileSync(join(__dirname, 'fixtures', 'generated-form-tables-hancom.hwpx')),
+    )
+    expect(open(form).plugin.setColumns({ count: 2 })).toMatchObject({ ok: true, wide: [1, 2, 3] })
+    const { plugin } = open(blank(LINES))
+    plugin.setColumns({ count: 2 })
+    expect(
+      plugin.insertTable(TITLE, null, 'before', ROWS, { header: true, acrossColumns: true }),
+    ).toMatchObject({ ok: true, acrossColumns: true })
+    expect(plugin.setColumns({ count: 3 })).not.toHaveProperty('wide')
+  })
+
   it('measures one table from a row to a row, and counts cells that break inside a word', () => {
     const { plugin } = withTable()
     plugin.insertTable('□ 추진 배경', null, 'after', ROWS, true)

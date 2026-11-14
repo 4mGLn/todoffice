@@ -4949,7 +4949,7 @@ describe('what an edit did to the pages and tables, in its answer', () => {
       })),
     })
     expect((await call('set_columns', { count: 2 })).output).toContain(
-      'Tables 1, 3 are wider than a column and lie over the text of the next one: delete each with delete_table',
+      'Tables 1, 3 are wider than a column and lie over the text of the next one. No tool makes a table narrower: to fit one into a column, read it with read_table, delete it with delete_table and write it again with insert_table (its rows, merged cells and look are made anew), which makes it one column wide.',
     )
   })
 

@@ -2938,10 +2938,29 @@ function tableNumberOf(doc, sec, para, control = null) {
   return index < 0 ? {} : { table: index + 1, tables: tables.length }
 }
 
+/** Where an object can be anchored so that it stands on the page, not in the text. */
+const PAGE_ANCHORS = new Set(['Page', 'Paper'])
+
 /**
- * The listTables numbers of the body tables that stand in the line of text and are wider
- * than a column of their section: in columns they lie over the text of the next column.
- * A table that hangs from the page (one laid across the columns) is meant to be wide.
+ * How a body table is placed: `across`, its left and right are set on the page (the way
+ * floatAcrossColumns lays a table over the columns); `fixed`, its height on the page is
+ * set, so it does not move with the text. A table in the line of text or anchored to its
+ * paragraph or column is neither.
+ */
+function placementOf(doc, sec, para, control) {
+  try {
+    const props = parse(doc.getTableProperties(sec, para, control))
+    if (props.treatAsChar !== false) return { across: false, fixed: false }
+    return { across: PAGE_ANCHORS.has(props.horzRelTo), fixed: PAGE_ANCHORS.has(props.vertRelTo) }
+  } catch {
+    return { across: false, fixed: false }
+  }
+}
+
+/**
+ * The listTables numbers of the body tables laid out wider than a column of their section:
+ * in columns they lie over the text of the next column. A table set across the page is
+ * meant to be wide.
  */
 function tablesWiderThanColumn(doc) {
   const wide = []
@@ -2949,9 +2968,7 @@ function tablesWiderThanColumn(doc) {
     if (table.path.length !== 1) return
     const control = table.path[0].controlIndex
     try {
-      if (parse(doc.getTableProperties(table.sec, table.para, control)).treatAsChar === false) {
-        return
-      }
+      if (placementOf(doc, table.sec, table.para, control).across) return
       const { width } = parse(doc.getTableBBox(table.sec, table.para, control))
       if (width > (columnWidthPt(doc, table.sec) * 96) / 72 + 1) wide.push(index + 1)
     } catch {}

@@ -2236,9 +2236,9 @@ const inCells =
 
 const wideTablesNote = (wide: readonly number[] | undefined): string => {
   if (!wide || wide.length === 0) return ''
-  const named =
-    wide.length > 1 ? `Tables ${wide.join(', ')} are wider` : `Table ${wide[0]} is wider`
-  return ` ${named} than a column and lie${wide.length > 1 ? '' : 's'} over the text of the next one: delete ${wide.length > 1 ? 'each' : 'it'} with delete_table and add it again with insert_table, which makes it one column wide (or as wide as the page with across_columns).`
+  const many = wide.length > 1
+  const named = many ? `Tables ${wide.join(', ')} are wider` : `Table ${wide[0]} is wider`
+  return ` ${named} than a column and lie${many ? '' : 's'} over the text of the next one. No tool makes a table narrower: to fit ${many ? 'one' : 'it'} into a column, read it with read_table, delete it with delete_table and write it again with insert_table (its rows, merged cells and look are made anew), which makes it one column wide.`
 }
 
 const pageEndText = (end: AgentPageEnd): string =>
