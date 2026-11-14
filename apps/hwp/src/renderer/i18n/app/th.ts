@@ -110,6 +110,8 @@ export const th = {
   aiToolDelete: 'ลบย่อหน้าแล้ว · {text}',
   aiToolTable: 'เพิ่มตารางแล้ว · {rows} × {cols}',
   aiToolImageSearchDone: 'ค้นหารูปภาพ "{query}" ({count} รูป)',
+  aiToolWebSearch: 'ค้นหาเว็บ',
+  aiToolWebSearchDone: 'ค้นหาเว็บ "{query}" ({count} รายการ)',
   aiToolInsertImage: 'แทรกรูปภาพแล้ว {what}',
   aiToolImport: 'เปิด "{name}" เป็นเอกสาร HWP ใหม่แล้ว',
   aiToolFormat: 'เปลี่ยนรูปแบบแล้ว · {text}',

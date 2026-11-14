@@ -112,6 +112,8 @@ export const cs = {
   aiToolDelete: 'Odstavec odstraněn · {text}',
   aiToolTable: 'Tabulka přidána · {rows} × {cols}',
   aiToolImageSearchDone: 'Hledání obrázků „{query}“ ({count} obrázků)',
+  aiToolWebSearch: 'Hledání na webu',
+  aiToolWebSearchDone: 'Hledání na webu „{query}“ ({count} výsledků)',
   aiToolInsertImage: 'Obrázek vložen {what}',
   aiToolImport: 'Soubor „{name}“ otevřen jako nový dokument HWP',
   aiToolFormat: 'Formát změněn · {text}',

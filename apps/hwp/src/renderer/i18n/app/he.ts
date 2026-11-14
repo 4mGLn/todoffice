@@ -108,6 +108,8 @@ export const he = {
   aiToolDelete: 'פסקה נמחקה · {text}',
   aiToolTable: 'נוספה טבלה · {rows} × {cols}',
   aiToolImageSearchDone: 'חיפוש תמונות "{query}" ({count} תמונות)',
+  aiToolWebSearch: 'חיפוש ברשת',
+  aiToolWebSearchDone: 'חיפוש ברשת "{query}" ({count} תוצאות)',
   aiToolInsertImage: 'התמונה נוספה {what}',
   aiToolImport: '"{name}" נפתח כמסמך HWP חדש',
   aiToolFormat: 'העיצוב שונה · {text}',

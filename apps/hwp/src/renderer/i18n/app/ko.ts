@@ -110,6 +110,8 @@ export const ko = {
   aiToolDelete: '문단 지움 · {text}',
   aiToolTable: '표 넣음 · {rows}행 {cols}열',
   aiToolImageSearchDone: '"{query}" 이미지 검색 ({count}장)',
+  aiToolWebSearch: '웹 검색',
+  aiToolWebSearchDone: '"{query}" 웹 검색 (결과 {count}개)',
   aiToolInsertImage: '그림 넣기 {what}',
   aiToolImport: '새 한글 문서로 열기 "{name}"',
   aiToolFormat: '서식 바꿈 · {text}',

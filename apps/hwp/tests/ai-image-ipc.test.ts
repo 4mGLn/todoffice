@@ -81,6 +81,20 @@ describe('hwp image channels', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal)
   })
 
+  it('hands the model the user named to the shared tool, and none when none was named', async () => {
+    register()
+    generateImageTool.mockResolvedValue({ url: 'file:///store/a.png' })
+    const generate = handlers.get(HWP_CHANNELS.aiGenerateImage)!
+    await generate({ sender }, { prompt: 'a red kite', model: 'gpt-image-2' })
+    expect(generateImageTool.mock.calls[0]![1]).toEqual({
+      prompt: 'a red kite',
+      aspectRatio: undefined,
+      model: 'gpt-image-2',
+    })
+    await generate({ sender }, { prompt: 'a red kite', model: '' })
+    expect(generateImageTool.mock.calls[1]![1]).not.toHaveProperty('model')
+  })
+
   it('gives an untitled document only the pasted-picture folder', async () => {
     register(null)
     generateImageTool.mockResolvedValue({})

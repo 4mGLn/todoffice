@@ -111,6 +111,8 @@ export const id = {
   aiToolDelete: 'Paragraf dihapus · {text}',
   aiToolTable: 'Tabel ditambahkan · {rows} × {cols}',
   aiToolImageSearchDone: 'Pencarian gambar "{query}" ({count} gambar)',
+  aiToolWebSearch: 'Pencarian web',
+  aiToolWebSearchDone: 'Pencarian web "{query}" ({count} hasil)',
   aiToolInsertImage: 'Gambar disisipkan {what}',
   aiToolImport: 'Membuka "{name}" sebagai dokumen HWP baru',
   aiToolFormat: 'Format diubah · {text}',
