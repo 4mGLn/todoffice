@@ -4908,6 +4908,67 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     )
   })
 
+  it('measures the rows format_cells touched, and names what it cut off', async () => {
+    const { call, bridge } = setup({ checkLayout: vi.fn(async () => measured([cut(1, 3, 2)])) })
+    const block = await call('format_cells', {
+      table: 1,
+      range: { from_row: 2, from_col: 1, to_row: 3, to_col: 2 },
+      size: 16,
+    })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 2, 3)
+    expect(block.output).toContain(
+      'The text of 1 cell(s) of table 1 does not fit and is cut off: row 3, col 2 (5.9 mm past its bottom).',
+    )
+    await call('format_cells', {
+      table: 1,
+      cells: [
+        { row: 4, col: 1 },
+        { row: 2, col: 2 },
+      ],
+      bold: true,
+    })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 2, 4)
+    await call('format_cells', { table: 1, size: 9 })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 1, Number.MAX_SAFE_INTEGER)
+  })
+
+  it('measures the whole table after add_to_table, and names what it cut off', async () => {
+    const { call, bridge } = setup({ checkLayout: vi.fn(async () => measured([cut(1, 2, 1)])) })
+    const added = await call('add_to_table', { table: 1, what: 'columns', at: 1 })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 1, 5)
+    expect(added.output).toContain(
+      'The text of 1 cell(s) of table 1 does not fit and is cut off: row 2, col 1 (5.9 mm past its bottom).',
+    )
+  })
+
+  it('gives the number of a new table of contents, and follows a cut cell past it', async () => {
+    const { call, skill, beginRun, bridge } = setup({
+      checkLayout: vi.fn(async () => measured([cut(1, 1, 1)])),
+      insertToc: vi.fn(async () => ({
+        ok: true as const,
+        count: 2,
+        pages: [1, 3],
+        place: PLACE,
+        table: 1,
+        tables: 2,
+      })),
+    })
+    beginRun()
+    await call('fill_cells', { table: 1, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
+    vi.mocked(bridge.checkLayout).mockClear()
+    const toc = await call('insert_toc', {
+      anchor: '□ 추진 배경',
+      where: 'before',
+      title: '차 례',
+      entries: [{ find: '□ 추진 배경', level: 1 }],
+    })
+    expect(toc.output).toMatch(/ It is table 1; tables after it are numbered one higher\.$/)
+    expect(bridge.checkLayout).not.toHaveBeenCalled()
+    expect(skill.verifyResponse!('다 했습니다.', [{ name: 'fill_cells', ok: true }])).toContain(
+      'table 2, row 1, col 1',
+    )
+  })
+
   it('tells where a table runs off the page only when a call moved it', async () => {
     let past = [{ table: 1, page: 2, row: 35, taller: true as const }]
     const { call } = setup({
