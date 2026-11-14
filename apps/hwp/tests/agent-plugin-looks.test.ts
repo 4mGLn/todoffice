@@ -2195,6 +2195,20 @@ describe('what a change leaves on the pages', () => {
     expect([split.past, plugin.checkLayout(null, null).past]).toEqual([[], []])
   })
 
+  it('maps the body alone, not what the master page draws with the same numbers', () => {
+    for (const name of ['master-page-duplex-both.hwpx', 'master-page-duplex-odd-even.hwpx']) {
+      const doc = new HwpDocument(readFileSync(join(__dirname, 'fixtures', name)))
+      const { plugin } = open(doc)
+      const { map } = plugin.pageLayout()
+      expect(map.pages).toEqual([
+        { page: 1, first: { text: 'Body page one' }, last: { text: 'Body page one' } },
+        { page: 2, first: { text: 'Body page 2' }, last: { text: 'Body page 2' } },
+      ])
+      expect([map.alone, map.spans, map.past]).toEqual([[], [], []])
+      expect(plugin.checkLayout(null, null)).toMatchObject({ cells: [], past: [] })
+    }
+  })
+
   it('gives a title the height of the lines it takes, so that nothing of it is cut', () => {
     const long = '2026년 상반기 신규 직원 직무 역량 강화를 위한 연수 운영 계획 및 예산 집행 방안'
     for (const [title, size, lineCount] of [

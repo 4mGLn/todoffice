@@ -4031,6 +4031,57 @@ function bodyAreaOf(doc, page) {
   return { top, foot, columns: Array.isArray(info.columns) ? info.columns : [] }
 }
 
+/**
+ * Whether an object of a page's control layout can be the body's: the engine lays out the
+ * master page's objects with the numbers of the master page's own paragraphs, and those
+ * numbers can name a body paragraph. That paragraph must hold an object of that number.
+ */
+function holdsObjectAt(doc, control) {
+  try {
+    const box = containerOf(doc, { sec: control.secIdx, para: control.paraIdx })
+    return box.objectPositions(control.paraIdx).length > control.controlIdx
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Whether the table `control` of a page's control layout is the body table of its numbers,
+ * not a master page's table numbered like it: the text drawn in its box is the body table's
+ * cell text (drawsTextOf, as checkLayout tells a cell's own lines). A table with no text in
+ * its box is taken as the body's.
+ */
+function drawsOwnCells(doc, control, runs) {
+  const inBox = runs.filter(
+    (run) =>
+      Array.isArray(run.cellPath) &&
+      run.cellPath.length === 1 &&
+      run.secIdx === control.secIdx &&
+      run.parentParaIdx === control.paraIdx &&
+      run.cellPath[0].controlIndex === control.controlIdx &&
+      /\S/.test(run.text ?? '') &&
+      run.x >= control.x - 1 &&
+      run.x < control.x + control.w &&
+      run.y >= control.y - 1 &&
+      run.y < control.y + control.h,
+  )
+  if (inBox.length === 0) return true
+  return inBox.some((run) => {
+    const { cellIndex, cellParaIndex } = run.cellPath[0]
+    try {
+      const box = containerOf(doc, {
+        sec: control.secIdx,
+        para: control.paraIdx,
+        cellPath: [{ controlIndex: control.controlIdx, cellIndex, cellParaIndex }],
+      })
+      const text = box.text(cellParaIndex, box.length(cellParaIndex))
+      return drawsTextOf({ ...run, para: 0, start: run.charStart }, [text])
+    } catch {
+      return false
+    }
+  })
+}
+
 /** The AgentPageMap of the document as it is laid out now. Reads only. */
 function pageMapOf(doc) {
   const numbers = new Map()
@@ -4082,9 +4133,10 @@ function pageMapOf(doc) {
           ? (numbers.get(`${control.secIdx}/${control.paraIdx}/${control.controlIdx}`) ?? null)
           : null
       if (number === null) {
-        objects += 1
+        if (holdsObjectAt(doc, control)) objects += 1
         continue
       }
+      if (!drawsOwnCells(doc, control, runs)) continue
       items.push({
         sec: control.secIdx,
         para: control.paraIdx,
@@ -4092,7 +4144,10 @@ function pageMapOf(doc) {
         table: number,
       })
       spans.set(number, [...(spans.get(number) ?? []), page + 1])
-      if (control.y + control.h > foot + 1) {
+      if (
+        control.y + control.h > foot + 1 &&
+        !placementOf(doc, control.secIdx, control.paraIdx, control.controlIdx).fixed
+      ) {
         const low = (control.cells ?? []).filter((cell) => cell.y + cell.h > foot + 1)
         past.push({
           table: number,
@@ -4186,7 +4241,7 @@ function paragraphText(doc, sec, para) {
  * Beside the cut cells: `wrapped`, the cells a line of which starts inside a word, and
  * `past`, per table the first row drawn below the foot of a page's text area, whatever rows
  * were measured (a table stands whole on its page here, and one taller than the page runs
- * off it, `taller`).
+ * off it, `taller`); a table set at a height on the page stands where it was put.
  */
 function overflowsOf(doc, fromTable, fromRow, toRow = null) {
   const { tables, partial } = tablesOf(doc)
@@ -4245,7 +4300,13 @@ function overflowsOf(doc, fromTable, fromRow, toRow = null) {
     const below = boxes
       .filter((box) => box.y + box.h > areaOf(box.pageIndex).foot + 1)
       .sort((a, b) => a.row - b.row)
-    if (below.length > 0) {
+    if (
+      below.length > 0 &&
+      !(
+        table.path.length === 1 &&
+        placementOf(doc, table.sec, table.para, table.path[0].controlIndex).fixed
+      )
+    ) {
       const { pageIndex } = below[0]
       const { top, foot } = areaOf(pageIndex)
       const onPage = boxes.filter((box) => box.pageIndex === pageIndex)
