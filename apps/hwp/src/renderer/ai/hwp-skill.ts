@@ -21,6 +21,7 @@ import type {
   AgentCheckBox,
   AgentLayoutCheck,
   AgentLayoutOverflow,
+  AgentLayoutPlace,
   AgentMatch,
   AgentPageEnd,
   AgentPageMap,
@@ -42,6 +43,7 @@ import type {
   AgentStyleFormat,
   AgentStyleRule,
   AgentTableCell,
+  AgentTableLines,
   AgentTableLinesRefusal,
   AgentTableLook,
   AgentTableSummary,
@@ -2192,6 +2194,15 @@ function unusedNote(tool: HwpToolDef, { undeclared, facts }: PreparedInput): str
 
 const MAX_CUT_CELLS_NAMED = 10
 
+/** A cell of a table: the table as listTables numbers it, 1-based row and column. */
+interface TableCell {
+  table: number
+  row: number
+  col: number
+}
+
+const everyCell = (): boolean => true
+
 const TABLE_WRITERS = new Set([
   'fill_cells',
   'insert_table',
@@ -2213,6 +2224,15 @@ const rowsOf = (cells: { row: number }[] | AgentCellBlock | null): [from: number
   const rows = Array.isArray(cells) ? cells.map((cell) => cell.row) : [cells.fromRow, cells.toRow]
   return [Math.min(...rows), Math.max(...rows)]
 }
+
+/** Whether a cell is one of `cells`, a list or a block; null is the whole table. */
+const inCells =
+  (cells: { row: number; col: number }[] | AgentCellBlock | null) =>
+  ({ row, col }: TableCell): boolean =>
+    cells === null ||
+    (Array.isArray(cells)
+      ? cells.some((cell) => cell.row === row && cell.col === col)
+      : row >= cells.fromRow && row <= cells.toRow && col >= cells.fromCol && col <= cells.toCol)
 
 const wideTablesNote = (wide: readonly number[] | undefined): string => {
   if (!wide || wide.length === 0) return ''
@@ -2949,21 +2969,59 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   let addedThisRun: string[] = []
   /** delete_paragraph calls (find, occurrence) refused for hitting one of those, this run */
   let refusedDeletes = new Set<string>()
-  let cutThisRun = new Map<string, string>()
+  /** the table cells this run wrote that were cut off when last measured */
+  let cutThisRun: TableCell[] = []
 
-  const forgetCuts = (table: number, from: number, to: number): void => {
-    for (const key of cutThisRun.keys()) {
-      const [t, row] = key.split('/').map(Number)
-      if (t === table && row >= from && row <= to) cutThisRun.delete(key)
-    }
+  /** Moves the record to the numbers the tables have after a call; null drops a table. */
+  const renumberTables = (now: (table: number) => number | null): void => {
+    cutThisRun = cutThisRun.flatMap((cell) => {
+      const table = now(cell.table)
+      return table === null ? [] : [{ ...cell, table }]
+    })
   }
-  const keepCuts = (cells: readonly AgentLayoutOverflow[]): void => {
-    for (const cell of cells) {
-      cutThisRun.set(
-        `${cell.table}/${cell.row}/${cell.col}`,
-        `table ${cell.table}, row ${cell.row}, col ${cell.col}`,
-      )
-    }
+  /** A table was made as number `made`; unknown, nothing recorded can be followed. */
+  const tableAdded = (made: number | undefined): void =>
+    renumberTables((table) => (made === undefined ? null : table >= made ? table + 1 : table))
+  const tableRemoved = (removed: number, inner: number): void =>
+    renumberTables((table) =>
+      table < removed ? table : table <= removed + inner ? null : table - 1 - inner,
+    )
+  /** Rows or columns `at` on of `table` moved by `by`; those removed are dropped. */
+  const linesMoved = (table: number, what: AgentTableLines, at: number, by: number): void => {
+    const key = what === 'rows' ? 'row' : 'col'
+    cutThisRun = cutThisRun.flatMap((cell) => {
+      if (cell.table !== table || cell[key] < at) return [cell]
+      if (by < 0 && cell[key] < at - by) return []
+      return [{ ...cell, [key]: cell[key] + by }]
+    })
+  }
+  /** A merge or a split moved the cells of `table`: what was cut there is measured anew. */
+  const forgetTable = (table: number): void => {
+    cutThisRun = cutThisRun.filter((cell) => cell.table !== table)
+  }
+  const sameCell = (a: TableCell, b: TableCell): boolean =>
+    a.table === b.table && a.row === b.row && a.col === b.col
+
+  /**
+   * Rows `from` to `to` of `table` were measured after a write: those of its cells the call
+   * wrote, or the run wrote before, that are cut off make the record of those rows.
+   */
+  const measuredAfterWrite = (
+    table: number,
+    from: number,
+    to: number,
+    cells: readonly AgentLayoutOverflow[],
+    wrote: (cell: TableCell) => boolean,
+  ): void => {
+    const before = cutThisRun
+    const cut = cells
+      .filter((cell) => cell.table === table)
+      .map(({ table, row, col }) => ({ table, row, col }))
+      .filter((cell) => wrote(cell) || before.some((kept) => sameCell(kept, cell)))
+    cutThisRun = [
+      ...before.filter((cell) => cell.table !== table || cell.row < from || cell.row > to),
+      ...cut,
+    ]
   }
 
   const pagesNow = async (): Promise<number | null> => {
@@ -2975,15 +3033,19 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     }
   }
 
-  const cutNote = async (table: number, from: number, to: number): Promise<string> => {
+  const cutNote = async (
+    table: number,
+    from: number,
+    to: number,
+    wrote: (cell: TableCell) => boolean,
+  ): Promise<string> => {
     let checked: AgentLayoutCheck
     try {
       checked = await bridge.checkLayout(table, from, to)
     } catch {
       return ''
     }
-    forgetCuts(table, from, to)
-    keepCuts(checked.cells)
+    measuredAfterWrite(table, from, to, checked.cells, wrote)
     const notes: string[] = []
     if (checked.cells.length > 0) {
       const shown = checked.cells
@@ -3669,8 +3731,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const headerText = result.headerTextColor
           ? ' The words of the header row were written white to show on its fill.'
           : ''
+        tableAdded(result.table)
         return {
-          output: `Added a table of ${result.rows} row(s) and ${result.cols} column(s)${result.acrossColumns ? ', lying across the columns of the page' : ''}.${headerText}${unused.join('')}${standInNote(result.standIn)}${OCCURRENCE_SHIFT_NOTE}${tableNumberNote(result)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
+          output: `Added a table of ${result.rows} row(s) and ${result.cols} column(s)${result.acrossColumns ? ', lying across the columns of the page' : ''}.${headerText}${unused.join('')}${standInNote(result.standIn)}${OCCURRENCE_SHIFT_NOTE}${tableNumberNote(result)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows, everyCell)}`,
           mutated: true,
           summary: label('aiToolTable', { rows: result.rows, cols: result.cols }),
         }
@@ -4023,8 +4086,14 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             : checked.past.length > 0
               ? `No cell's text runs past its cell${scope}${until} (${counted}), but a table runs off the page:`
               : `Every table cell's text fits${scope}${until} (${counted}).`
-        if (from.table === 1 && from.row === 1 && !checked.next) cutThisRun = new Map()
-        keepCuts(checked.cells)
+        const reached = (cell: TableCell, place: AgentLayoutPlace): boolean =>
+          cell.table > place.table || (cell.table === place.table && cell.row >= place.row)
+        cutThisRun = cutThisRun.filter(
+          (cell) =>
+            !reached(cell, from) ||
+            (checked.next !== undefined && reached(cell, checked.next)) ||
+            checked.cells.some((still) => sameCell(still, cell)),
+        )
         const wrapped = checked.wrapped.slice(0, MAX_CUT_CELLS_NAMED)
         const tail = [
           ...checked.past.map(pastFootNote),
@@ -4137,6 +4206,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: 1,
           place: result.place,
         })
+        forgetTable(table!)
         return {
           output: `Merged ${result.merged} cell(s) into one.`,
           mutated: true,
@@ -4218,6 +4288,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: 1,
           place: result.place,
         })
+        forgetTable(table as number)
         return {
           output: result.unmerged
             ? 'Split the merged cell back into the cells it covered; the text stays in the first.'
@@ -4466,7 +4537,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             (result.crossed
               ? ` The diagonal runs through the words of ${result.crossed.map((cell) => `${cell.row}.${cell.col}`).join(', ')}: empty those cells with fill_cells (text "") unless the user wants the words kept.`
               : '') +
-            (fillOnly ? '' : await cutNote(table, ...rowsOf(cells))),
+            (fillOnly ? '' : await cutNote(table, ...rowsOf(cells), inCells(cells))),
           mutated: true,
           summary: label(fillOnly ? 'aiToolCellFill' : 'aiToolCellLook', {
             table,
@@ -4502,7 +4573,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           })
           const rows = cells.map((cell) => cell.row)
           return {
-            output: `Filled ${result.count} cell(s) of table ${table}.${await cutNote(table, Math.min(...rows), Math.max(...rows))}`,
+            output: `Filled ${result.count} cell(s) of table ${table}.${await cutNote(table, Math.min(...rows), Math.max(...rows), inCells(cells))}`,
             mutated: true,
             summary: label('aiToolFillCells', { table, count: result.count }),
           }
@@ -4617,9 +4688,10 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: result.count,
           place: result.place,
         })
+        linesMoved(args.table, args.what, result.first, result.count)
         const last = result.first + result.count - 1
         return {
-          output: `Added ${result.count} of the ${args.what}: number ${result.first}${last > result.first ? ` to ${last}` : ''}, empty. Table ${args.table} now has ${result.rows} row(s) and ${result.cols} column(s).${await cutNote(args.table, 1, result.rows)}`,
+          output: `Added ${result.count} of the ${args.what}: number ${result.first}${last > result.first ? ` to ${last}` : ''}, empty. Table ${args.table} now has ${result.rows} row(s) and ${result.cols} column(s).${await cutNote(args.table, 1, result.rows, () => false)}`,
           mutated: true,
           summary: `${name} · ${what}`,
         }
@@ -4646,6 +4718,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: result.count,
           place: result.place,
         })
+        linesMoved(args.table, args.what, args.at, -result.count)
         return {
           output: `Removed ${result.count} of the ${args.what}. Table ${args.table} now has ${result.rows} row(s) and ${result.cols} column(s).`,
           mutated: true,
@@ -4684,6 +4757,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: 1,
           place: result.place,
         })
+        tableRemoved(table, result.inner)
         const inner = result.inner > 0 ? `, with the ${result.inner} table(s) inside its cells` : ''
         return {
           output: `Removed table ${table} (${result.rows} row(s) × ${result.cols} column(s))${inner}. The tables after it are numbered anew: call list_tables before the next table call.`,
@@ -4799,6 +4873,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: 1,
           place: result.place,
         })
+        tableAdded(result.table)
         return {
           output: `Added a table of contents of ${result.count} heading(s), on pages ${result.pages.join(', ')}.${OCCURRENCE_SHIFT_NOTE}${tableNumberNote(result)}`,
           mutated: true,
@@ -5271,8 +5346,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: 1,
           place: result.place,
         })
+        tableAdded(result.table)
         return {
-          output: `Made the title a ${result.look} title box.${tableNumberNote(result)}${titleColourNote(result)}${standInNote(result.standIn)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
+          output: `Made the title a ${result.look} title box.${tableNumberNote(result)}${titleColourNote(result)}${standInNote(result.standIn)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows, everyCell)}`,
           mutated: true,
           summary: label('aiToolTitleBox'),
         }
@@ -5694,9 +5770,11 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
       },
       buildContext: () => [context, selectionContext()].filter(Boolean).join('\n\n'),
       verifyResponse: (_text, executed) => {
-        if (cutThisRun.size === 0) return null
+        if (cutThisRun.length === 0) return null
         if (!executed.some((done) => done.ok && TABLE_WRITERS.has(done.name))) return null
-        const cells = [...cutThisRun.values()]
+        const cells = cutThisRun.map(
+          (cell) => `table ${cell.table}, row ${cell.row}, col ${cell.col}`,
+        )
         return `Table cells written in this run were cut off when last measured: ${cells.slice(0, MAX_CUT_CELLS_NAMED).join('; ')}${cells.length > MAX_CUT_CELLS_NAMED ? '; …' : ''}. Make them fit (format_cells row_height_mm, or a shorter text), call check_layout to see that they do, then answer.`
       },
       executeTool: async (given, signal) => {
@@ -5730,7 +5808,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     beginRun: () => {
       addedThisRun = []
       refusedDeletes = new Set()
-      cutThisRun = new Map()
+      cutThisRun = []
     },
     refreshContext: async () => {
       try {

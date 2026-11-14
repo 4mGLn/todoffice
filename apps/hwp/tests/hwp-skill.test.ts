@@ -4999,4 +4999,79 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     await call('check_layout')
     expect(skill.verifyResponse!('x', [{ name: 'fill_cells', ok: false }])).toBeNull()
   })
+
+  it('does not blame the run for a cut cell it did not write', async () => {
+    let cells = [cut(1, 2, 3)]
+    const { call, skill, beginRun } = setup({
+      checkLayout: vi.fn(async () => measured(cells)),
+    })
+    beginRun()
+    await call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '짧은 값' }] })
+    cells = [cut(1, 2, 3), cut(3, 1, 1)]
+    await call('check_layout')
+    expect(
+      skill.verifyResponse!('다 했습니다.', [
+        { name: 'fill_cells', ok: true },
+        { name: 'check_layout', ok: true },
+      ]),
+    ).toBeNull()
+  })
+
+  it('follows a cut cell to the number its table has after tables are added or removed', async () => {
+    let cells = [cut(2, 1, 1)]
+    const { call, skill, beginRun, bridge } = setup({
+      checkLayout: vi.fn(async () => measured(cells)),
+      insertTable: vi.fn(async () => ({
+        ok: true as const,
+        rows: 1,
+        cols: 1,
+        inTable: false,
+        place: PLACE,
+        table: 1,
+        tables: 3,
+      })),
+      deleteTable: vi.fn(async () => ({
+        ok: true as const,
+        table: 1,
+        rows: 2,
+        cols: 2,
+        inner: 0,
+        text: '',
+        place: PLACE,
+      })),
+    })
+    const verify = () => skill.verifyResponse!('다 했습니다.', [{ name: 'fill_cells', ok: true }])
+    beginRun()
+    await call('fill_cells', { table: 2, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
+    cells = []
+    await call('insert_table', { where: 'end', rows: [['가']] })
+    expect(verify()).toContain('table 3, row 1, col 1')
+    await call('delete_table', { table: 1 })
+    expect(verify()).toContain('table 2, row 1, col 1')
+    vi.mocked(bridge.deleteTable).mockResolvedValueOnce({
+      ok: true as const,
+      table: 2,
+      rows: 3,
+      cols: 1,
+      inner: 0,
+      text: '',
+      place: PLACE,
+    })
+    await call('delete_table', { table: 2 })
+    expect(verify()).toBeNull()
+  })
+
+  it('lets check_layout clear only the cut cells it measured as fitting', async () => {
+    let checked = measured([cut(2, 1, 1)])
+    const { call, skill, beginRun } = setup({ checkLayout: vi.fn(async () => checked) })
+    const verify = () => skill.verifyResponse!('다 했습니다.', [{ name: 'fill_cells', ok: true }])
+    beginRun()
+    await call('fill_cells', { table: 2, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
+    checked = { ...measured([]), next: { table: 2, row: 1 } }
+    await call('check_layout')
+    expect(verify()).toContain('table 2, row 1, col 1')
+    checked = { ...measured([]), from: { table: 2, row: 1 } }
+    await call('check_layout', { from_table: 2 })
+    expect(verify()).toBeNull()
+  })
 })
