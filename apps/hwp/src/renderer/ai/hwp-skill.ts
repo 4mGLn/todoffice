@@ -5663,7 +5663,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Put in ${result.count} equation(s), each where its text was. read_document does not show equations, so their places look empty there: do not put them in again.`,
+          output: `Put in ${result.count} equation(s), each where its text was. read_document does not show equations, so their places look empty there: do not put them in again. list_equations shows them.`,
           mutated: true,
           summary: label('aiToolEquationsInsert', { count: result.count }),
         }
