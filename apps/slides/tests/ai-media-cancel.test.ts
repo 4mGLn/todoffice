@@ -154,4 +154,18 @@ describe('ai:generate-image, model', () => {
       model: 'gpt-image-2',
     })
   })
+
+  it("trims a named model, leaves a blank one out, and answers with the tool's note", async () => {
+    generateImageTool.mockResolvedValue({ url: 'file:///fake/out.png', note: 'Codex picks' })
+    const generate = handlers.get('ai:generate-image')!
+    const sender = new FakeContents()
+    const result = await generate({ sender }, { prompt: 'a red kite', model: ' gpt-image-2 ' })
+    expect(generateImageTool.mock.calls.at(-1)![1]).toMatchObject({ model: 'gpt-image-2' })
+    expect(result).toEqual({ url: 'file:///fake/out.png', note: 'Codex picks' })
+    // a non-string or blank model from the renderer is not a model name
+    await generate({ sender }, { prompt: 'a red kite', model: 42 })
+    expect(generateImageTool.mock.calls.at(-1)![1]).not.toHaveProperty('model')
+    await generate({ sender }, { prompt: 'a red kite', model: '   ' })
+    expect(generateImageTool.mock.calls.at(-1)![1]).not.toHaveProperty('model')
+  })
 })

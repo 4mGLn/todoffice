@@ -188,6 +188,23 @@ describe('generate_image', () => {
     expect(tool.inputSchema.required).toEqual(['prompt'])
   })
 
+  it("passes the image tool's note on to the model with the inserted picture", async () => {
+    const doc = fakeAccess(DOC)
+    const core = createHtmlSkillCore(doc.access)
+    core.buildContext()
+    bridge.aiGenerateImage.mockResolvedValue({
+      url: 'https://cdn.example/gen.png',
+      note: 'Codex picks the image model on this route',
+    })
+    bridge.fetchImage.mockResolvedValue({ base64: PNG_BASE64, mime: 'image/png' })
+    bridge.saveImage.mockResolvedValue('assets/gen.png')
+    const r = await core.executeTool(
+      call('generate_image', { prompt: 'a chart mascot', model: 'gpt-image-2' }),
+    )
+    expect(r.mutated).toBe(true)
+    expect(r.output).toContain('\nNote: Codex picks the image model on this route')
+  })
+
   it('inlines a data URL when the document is unsaved and hot-links when the download fails', async () => {
     const unsaved = fakeAccess(DOC)
     const core = createHtmlSkillCore(unsaved.access)

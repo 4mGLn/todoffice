@@ -403,6 +403,28 @@ describe('generate_image', () => {
     expect(tool.inputSchema.properties).toHaveProperty('model')
     expect(tool.inputSchema.required).toEqual(['prompt'])
   })
+
+  it("passes the image tool's note on to the model with the inserted picture", async () => {
+    ;(window as unknown as { markdownApi: unknown }).markdownApi = {
+      aiGenerateImage: async () => ({
+        url: 'https://example.com/gen.png',
+        note: 'Codex picks the image model on this route',
+      }),
+      fetchImage: async () => ({
+        base64:
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        mime: 'image/png',
+      }),
+      saveImage: async () => 'assets/gen.png',
+    }
+    const editor = createEditor('# A')
+    const result = await executeTool(
+      editor,
+      call('generate_image', { prompt: 'a lighthouse', model: 'gpt-image-2' }),
+    )
+    expect(result.isError).toBeUndefined()
+    expect(result.output).toContain('\nNote: Codex picks the image model on this route')
+  })
 })
 
 describe('blank/selection edge cases (Bugbot #871)', () => {

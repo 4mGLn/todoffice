@@ -95,6 +95,16 @@ describe('hwp image channels', () => {
     expect(generateImageTool.mock.calls[1]![1]).not.toHaveProperty('model')
   })
 
+  it("answers with the tool's note, so the panel can pass it on to the model", async () => {
+    register()
+    generateImageTool.mockResolvedValue({ url: 'file:///store/a.png', note: 'Codex picks' })
+    const result = await handlers.get(HWP_CHANNELS.aiGenerateImage)!(
+      { sender },
+      { prompt: 'a red kite', model: 'gpt-image-2' },
+    )
+    expect(result).toEqual({ url: 'file:///store/a.png', note: 'Codex picks' })
+  })
+
   it('gives an untitled document only the pasted-picture folder', async () => {
     register(null)
     generateImageTool.mockResolvedValue({})

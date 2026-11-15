@@ -2032,18 +2032,19 @@ function registerHtmlIpc(): void {
   // shell-registered, but image generation is gated per app
   ipcMain.handle(
     HTML_CHANNELS.aiGenerateImage,
-    (e, op: { prompt?: unknown; aspectRatio?: unknown; model?: unknown }) =>
+    (e, op: { prompt?: unknown; aspectRatio?: unknown; model?: unknown }) => {
+      // the model the user named, as given: the shared tool decides whether the route offers it
+      const model = typeof op?.model === 'string' ? op.model.trim() : ''
       // refused while AI is off, else one running AI job; ends with its tab,
       // or when the tab's AI run is stopped
-      aiImageCall(e.sender.id, () =>
+      return aiImageCall(e.sender.id, () =>
         withMediaCallSignal(e.sender, (signal) =>
           generateImageTool(
             join(app.getPath('userData'), 'ai-settings.json'),
             {
               prompt: String(op?.prompt ?? ''),
               aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
-              // passed through as given; generateImageTool decides what the name means
-              model: op?.model ? String(op.model) : undefined,
+              ...(model ? { model } : {}),
             },
             {
               mediaRoots: documentMediaRoots(
@@ -2056,7 +2057,8 @@ function registerHtmlIpc(): void {
             },
           ),
         ),
-      ),
+      )
+    },
   )
 
   const MIME_BY_EXT: Record<string, ImageData['mime']> = {

@@ -572,10 +572,14 @@ export function executeTool(
           if (!generated.url) {
             return fail(generated.error ?? 'image generation failed', t('aiToolGenImage'))
           }
+          const note = generated.note
           return insertImageFromUrl(editor, generated.url, call.input, signal, {
             fail: t('aiToolGenImage'),
             done: t('aiToolGenImageDone'),
-          })
+          }).then((inserted) =>
+            // the shared tool's remark (e.g. Codex picked the image model) reaches the model
+            note ? { ...inserted, output: `${inserted.output}\nNote: ${note}` } : inserted,
+          )
         })
     }
 

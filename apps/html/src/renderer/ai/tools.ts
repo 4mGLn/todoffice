@@ -884,7 +884,9 @@ export function createHtmlSkillCore(access: HtmlDocAccess): {
           ? 'inlined as a data URL because the document has no saved location yet'
           : `hot-linked (${src}); the host may expire it`
     return {
-      output: `Inserted the image at L${at} (${landed}). Document is now version ${access.getVersion()}.`,
+      output:
+        `Inserted the image at L${at} (${landed}). Document is now version ${access.getVersion()}.` +
+        (generated.note ? `\nNote: ${generated.note}` : ''),
       mutated: true,
       summary: t('aiToolGenImageDone'),
     }

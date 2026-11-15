@@ -1263,6 +1263,26 @@ describe('pictures', () => {
     expect(received).toEqual({ prompt: 'a kite', model: 'gpt-image-2' })
   })
 
+  it("generate_image passes the image tool's note on to the model with the picture", async () => {
+    const r = await rigOf(richSheet())
+    ;(window as unknown as { mindmapApi: unknown }).mindmapApi = {
+      generateImage: async () => ({
+        url: 'file:///generated/kite.png',
+        note: 'Codex picks the image model on this route',
+      }),
+      fetchImage: async () => ({ base64: PNG_BASE64, mime: 'image/png' }),
+    }
+    const skill = createMindmapSkill({ host: () => r.host, turn: () => null })
+    const out = await skill.executeTool({
+      id: '1',
+      name: 'generate_image',
+      input: { topicId: IDS.a1, prompt: 'a kite', model: 'gpt-image-2' },
+    } satisfies AgentToolCall)
+    expect(out.isError).toBeFalsy()
+    expect(out.output).toContain('\nNote: Codex picks the image model on this route')
+    expect(findTopic(r.sheet(1).rootTopic, IDS.a1)!.image).toBeDefined()
+  })
+
   it('offers generate_image only while the main process reports an image route', () => {
     const deps = {
       host: () => ({}) as MapAiHost,

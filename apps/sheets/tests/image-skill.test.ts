@@ -85,6 +85,19 @@ describe('image skill: generate_image', () => {
     expect(result.output).toContain('https://cdn.example.com/gen/1.png')
     expect(result.output).toContain('add_image')
   })
+
+  it("passes the image tool's note on to the model with the URL", async () => {
+    const generateImage = vi.fn().mockResolvedValue({
+      url: 'https://cdn.example.com/gen/1.png',
+      note: 'Codex picks the image model on this route',
+    })
+    stubDesktopApi({ generateImage })
+    const result = await createImageSkill().executeTool(
+      call('generate_image', { prompt: 'minimal logo', model: 'gpt-image-2' }),
+    )
+    expect(result.isError).toBeUndefined()
+    expect(result.output).toContain('\nNote: Codex picks the image model on this route')
+  })
 })
 
 describe('image skill: generate_image model and availability', () => {

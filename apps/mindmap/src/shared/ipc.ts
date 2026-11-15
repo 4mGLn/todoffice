@@ -518,6 +518,8 @@ export interface MindmapAiApi {
     url?: string
     error?: string
     errorCode?: string
+    /** the shared tool's remark for the model (e.g. Codex picked the image model) */
+    note?: string
   }>
   /** Download an image URL (or a file of the generated-image store) in the main process */
   fetchImage(url: string): Promise<{ base64: string; mime: string } | null>

@@ -1080,7 +1080,7 @@ async function executeAsyncTool(
       if (!generated.url) {
         return fail(t('aiSumGenerateImage'), generated.error ?? 'image generation failed')
       }
-      return insertImageFromUrl(
+      const inserted = await insertImageFromUrl(
         editor,
         generated.url,
         Number(call.input.maxWidthPx) || 480,
@@ -1091,6 +1091,10 @@ async function executeAsyncTool(
           blockLabel: 'Image (AI)',
         },
       )
+      // the shared tool's remark (e.g. Codex picked the image model) reaches the model
+      return generated.note
+        ? { ...inserted, output: `${inserted.output}\nNote: ${generated.note}` }
+        : inserted
     }
     case 'create_document': {
       const typeRaw = call.input.type === undefined ? 'docx' : String(call.input.type)
