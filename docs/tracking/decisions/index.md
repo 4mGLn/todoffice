@@ -142,3 +142,4 @@
 | [0144](0144-hwp-print-draws-screen-fonts.md)                  | 한글의 화면은 문서의 글꼴로, 인쇄와 PDF는 화면이 보여 주는 글꼴과 줄 나눔으로 그린다                 | 2026-11-14 |
 | [0145](0145-codex-image-app-server-thread.md)                 | Codex 그림은 app-server의 일회용 스레드로 만들고 응답의 `result`로 받는다                            | 2026-11-15 |
 | [0146](0146-hwp-save-writes-fresh-preview.md)                 | 한글 문서를 저장할 때 미리보기 글과 첫 쪽 그림을 지금 문서로 다시 쓴다                               | 2026-11-15 |
+| [0147](0147-map-edit-from-command-line.md)                    | 터미널 명령어로 마인드맵을 읽고 고치고 만든다. 고치기는 앱 편집과 같은 길을 탄다                     | 2026-11-15 |
