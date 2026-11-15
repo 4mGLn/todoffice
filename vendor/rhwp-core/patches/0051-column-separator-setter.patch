@@ -8,34 +8,50 @@ Subject: [PATCH 35/35] feat(column): 단 구분선을 정하는 호출과 머리
 
 - setColumnSeparator(구역, JSON): `{"type":종류,"width":굵기,"color":"#rrggbb"}`.
   setColumnDef 가 고치는 구역의 첫 단 정의에 쓰고, 없으면 첫 문단에 한 단짜리 단 정의를
-  만든다. 종류는 HWPX colLine 이 되읽는 0~7(0 은 선 없음), 굵기는 선 굵기 표의 0~15 만
-  받는다. width·color 를 빼면 그 값은 그대로다.
+  만든다. 종류는 0~7(0 은 선 없음)의 정수, 굵기는 선 굵기 표의 0~15 의 정수, 색은
+  #rrggbb 만 받는다. 음수, 소수, 문자열, null, 16진 숫자가 아닌 색은 오류로 돌려준다.
+  width·color 를 빼면 그 값은 그대로다.
 - getColumnDef 가 separatorType, separatorWidth, separatorColor(#rrggbb)를 더 알린다.
 
 그리기: 쪽 기준·위 정렬·오프셋 0 으로 본문 맨 위에 매단, 본문 폭에 걸친 위아래 배치
 개체(시험지의 머리 표)가 있는 쪽에서 첫 단 영역의 구분선을 그 개체의 예약 끝(아래 끝 +
-바깥 아래 여백)부터 긋는다. 모든 단의 글이 시작하는 곳이다. 고치기 전에는 본문 맨
-위부터 그 표를 뚫고 그었다. 한컴 한글 2024 의 쪽 그림(B4 2단, 3행 8열 머리 표, 바깥
-여백 283HU, 폭 971px)에서 표의 아래 테두리는 158px, 구분선의 첫 점은 162px 이고, 엔진은
-162.1px 에서 시작한다. 그런 개체가 없는 쪽과 그 아래 단 영역은 그대로다.
+바깥 아래 여백)부터 긋는다. 모든 단의 글이 시작하는 곳이다. 글이 왼쪽 단에만 있는 짧은
+쪽(짧은 퀴즈)도 같다. 고치기 전에는 본문 맨 위부터 그 표를 뚫고 그었다. 한컴 한글 2024 의
+쪽 그림(B4 2단, 3행 8열 머리 표, 바깥 여백 283HU, 폭 971px)에서 표의 아래 테두리는 158px,
+구분선의 첫 점은 162px 이고, 엔진은 162.1px 에서 시작한다. 그런 개체가 없는 쪽과 그 아래
+단 영역은 그대로다.
 
-구분선을 정한 문서만 저장 결과가 바뀐다. samples 의 1,513개(14,805쪽, 구분선이 있는 쪽
-662)에서 구분선이 단 영역의 위끝이 아닌 곳에서 시작하는 쪽은 고친 뒤에도 없다. 이 판정에
-걸리는 견본이 없다.
+HWPX 의 구분선 종류 이름: colLine 은 테두리와 같은 LineType2 다. 한컴 한글 2024 는 종류
+2(파선)를 DOT, 3(점선)을 DASH 로 쓰고 읽는다. 종류 1~7 을 담은 .hwp 를 한컴이 HWPX 로
+저장한 결과가 SOLID, DOT, DASH, DASH_DOT, DASH_DOT_DOT, LONG_DASH, CIRCLE 이고, 한컴은
+두 파일 모두에서 2 를 파선, 3 을 점선으로 그린다. 테두리의 짝(parse_border_line_type)과
+같다. 엔진의 colLine 은 둘을 바꿔 써서, 엔진이 HWPX 로 저장한 파선이 한컴에서 점선으로
+보였고 한컴이 저장한 점선을 파선으로 읽었다. 이제 읽기와 쓰기가 한컴과 같다.
+
+저장: 구분선을 정한 문서, 그리고 파선·점선 구분선이 있는 문서를 HWPX 에서 .hwp 로,
+.hwp 에서 HWPX 로 저장한 결과가 바뀐다(HWPX 에서 HWPX 는 그대로다).
+
+samples 의 1,513개(14,805쪽, 구분선이 있는 쪽 662)에서 구분선이 단 영역의 위끝이 아닌 곳에서
+시작하는 쪽은 고친 뒤에도 없다. 다단 쪽 875개의 구분선 위치는 고치기 전과 같다. 선 모양은
+colLine 이 DASH 인 한컴산 SO-SUEOP.hwpx 의 네 쪽(43~46)만 파선에서 점선으로 바뀌고, 한컴도
+그 선을 점선으로 그린다.
 ---
- src/document_core/commands/text_editing.rs |  78 ++++++++++
- src/renderer/layout.rs                     |   9 +-
+ src/document_core/commands/text_editing.rs |  85 ++++++
+ src/parser/hwpx/section.rs                 |  10 +-
+ src/renderer/layout.rs                     |  19 +-
  src/renderer/layout/shape_layout.rs        |  15 +-
- src/wasm_api.rs                            |  21 ++-
- tests/cases/column_separator_setter.rs     | 238 +++++++++++++++++++++++++++++
- 5 files changed, 355 insertions(+), 6 deletions(-)
+ src/serializer/hwpx/section.rs             |   4 +-
+ src/serializer/hwpx/table.rs               |   4 +-
+ src/wasm_api.rs                            |  24 +-
+ tests/cases/column_separator_setter.rs     | 409 +++++++++++++++++++++++++++++
+ 8 files changed, 552 insertions(+), 18 deletions(-)
  create mode 100644 tests/cases/column_separator_setter.rs
 
 diff --git a/src/document_core/commands/text_editing.rs b/src/document_core/commands/text_editing.rs
-index 38c0834943c63f51650f717fae1923c7b5b477cd..82d2c005c0fea5c67a5ef6a7141c230cec741fab 100644
+index 38c0834943c63f51650f717fae1923c7b5b477cd..fd206372abb793297e37590fb5b9f55c6608c520 100644
 --- a/src/document_core/commands/text_editing.rs
 +++ b/src/document_core/commands/text_editing.rs
-@@ -4811,6 +4811,84 @@ impl DocumentCore {
+@@ -4811,6 +4811,91 @@ impl DocumentCore {
          Ok("{\"ok\":true}".to_string())
      }
  
@@ -50,7 +66,7 @@ index 38c0834943c63f51650f717fae1923c7b5b477cd..82d2c005c0fea5c67a5ef6a7141c230c
 +        section_idx: usize,
 +        json: &str,
 +    ) -> Result<String, HwpError> {
-+        use super::super::helpers::{json_color, json_str, json_u32};
++        use super::super::helpers::css_color_to_bgr;
 +        use crate::model::page::ColumnDirection;
 +
 +        if section_idx >= self.document.sections.len() {
@@ -59,25 +75,32 @@ index 38c0834943c63f51650f717fae1923c7b5b477cd..82d2c005c0fea5c67a5ef6a7141c230c
 +                section_idx
 +            )));
 +        }
-+        let line_type = json_u32(json, "type")
++        let refuse = |message: &str| HwpError::RenderError(message.to_string());
++        let value: serde_json::Value =
++            serde_json::from_str(json).map_err(|_| refuse("JSON 객체여야 합니다"))?;
++        let line_type = value
++            .get("type")
++            .and_then(serde_json::Value::as_u64)
 +            .filter(|t| *t <= 7)
-+            .ok_or_else(|| HwpError::RenderError("type 은 0~7 이어야 합니다".to_string()))?
-+            as u8;
-+        let width = match json_u32(json, "width") {
-+            Some(w) if w <= 15 => Some(w as u8),
-+            Some(_) => {
-+                return Err(HwpError::RenderError(
-+                    "width 는 0~15 이어야 합니다".to_string(),
-+                ))
-+            }
-+            None => None,
-+        };
-+        let color = match json_str(json, "color") {
-+            Some(_) => Some(json_color(json, "color").ok_or_else(|| {
-+                HwpError::RenderError("color 는 #rrggbb 이어야 합니다".to_string())
-+            })?),
-+            None => None,
-+        };
++            .ok_or_else(|| refuse("type 은 0~7 이어야 합니다"))? as u8;
++        let width = value
++            .get("width")
++            .map(|w| {
++                w.as_u64()
++                    .filter(|w| *w <= 15)
++                    .map(|w| w as u8)
++                    .ok_or_else(|| refuse("width 는 0~15 이어야 합니다"))
++            })
++            .transpose()?;
++        let color = value
++            .get("color")
++            .map(|c| {
++                c.as_str()
++                    .filter(|c| c.len() == 7 && c.bytes().skip(1).all(|b| b.is_ascii_hexdigit()))
++                    .and_then(css_color_to_bgr)
++                    .ok_or_else(|| refuse("color 는 #rrggbb 이어야 합니다"))
++            })
++            .transpose()?;
 +
 +        let paragraphs = &mut self.document.sections[section_idx].paragraphs;
 +        if paragraphs.is_empty() {
@@ -120,28 +143,60 @@ index 38c0834943c63f51650f717fae1923c7b5b477cd..82d2c005c0fea5c67a5ef6a7141c230c
      /// 문단 병합 (네이티브 에러 타입)
      pub fn merge_paragraph_native(
          &mut self,
+diff --git a/src/parser/hwpx/section.rs b/src/parser/hwpx/section.rs
+index 2b75c684edd9a66d60e53a46f065cbd77076a379..cfa0f9fa784bc5a78c7eec294ca4c6f90e95b15a 100644
+--- a/src/parser/hwpx/section.rs
++++ b/src/parser/hwpx/section.rs
+@@ -2042,8 +2042,10 @@ fn parse_hwpx_line_type(value: &str) -> u8 {
+     match value {
+         "NONE" => 0,
+         "SOLID" => 1,
+-        "DASH" => 2,
+-        "DOT" => 3,
++        // colLine 도 테두리와 같은 LineType2 다. 한컴은 코드 2(파선)를 DOT, 3(점선)을
++        // DASH 로 쓴다(parse_border_line_type 와 같은 짝).
++        "DOT" => 2,
++        "DASH" => 3,
+         "DASH_DOT" => 4,
+         "DASH_DOT_DOT" => 5,
+         "LONG_DASH" => 6,
+@@ -10815,8 +10817,8 @@ mod tests {
+     fn test_task1124_col_line_type_and_width_mapping() {
+         assert_eq!(parse_hwpx_line_type("NONE"), 0);
+         assert_eq!(parse_hwpx_line_type("SOLID"), 1);
+-        assert_eq!(parse_hwpx_line_type("DASH"), 2);
+-        assert_eq!(parse_hwpx_line_type("DOT"), 3);
++        assert_eq!(parse_hwpx_line_type("DOT"), 2);
++        assert_eq!(parse_hwpx_line_type("DASH"), 3);
+         assert_eq!(parse_hwpx_line_type("DASH_DOT"), 4);
+         assert_eq!(parse_hwpx_line_type("DASH_DOT_DOT"), 5);
+         assert_eq!(parse_hwpx_line_type("LONG_DASH"), 6);
 diff --git a/src/renderer/layout.rs b/src/renderer/layout.rs
-index 6fd958f9ac2882e26dc479fd3c1708fd5da92e40..7bc3f55239d158a3f60d21b3a77137e66885d535 100644
+index 6fd958f9ac2882e26dc479fd3c1708fd5da92e40..26cd5fd2207ed6893d144d603d45aec189f4583a 100644
 --- a/src/renderer/layout.rs
 +++ b/src/renderer/layout.rs
-@@ -6982,14 +6982,14 @@ impl LayoutEngine {
+@@ -6982,12 +6982,14 @@ impl LayoutEngine {
  
          // 다단 레이아웃: body_area 전체에 걸치는 TopAndBottom 개체의 예약 높이
          // (한 단에만 할당되더라도 모든 단에 적용)
 -        let body_wide_reserved: Vec<(usize, f64)> = if page_content.column_contents.len() > 1 {
-+        let (body_wide_reserved, page_head_bottom) = if page_content.column_contents.len() > 1 {
-             self.calculate_body_wide_shape_reserved(
-                 paragraphs,
-                 &page_content.column_contents,
-                 &layout.body_area,
-             )
+-            self.calculate_body_wide_shape_reserved(
+-                paragraphs,
+-                &page_content.column_contents,
+-                &layout.body_area,
+-            )
++        // 머리 개체의 예약 끝은 글이 한 단에만 있어도 구분선의 시작이다.
++        let (body_wide_reserved, page_head_bottom) = self.calculate_body_wide_shape_reserved(
++            paragraphs,
++            &page_content.column_contents,
++            &layout.body_area,
++        );
++        let body_wide_reserved = if page_content.column_contents.len() > 1 {
++            body_wide_reserved
          } else {
--            Vec::new()
-+            (Vec::new(), None)
+             Vec::new()
          };
- 
-         for (col_content_idx, col_content) in page_content.column_contents.iter().enumerate() {
-@@ -7140,6 +7140,11 @@ impl LayoutEngine {
+@@ -7140,6 +7142,11 @@ impl LayoutEngine {
                  if zone_layout.column_areas.len() >= 2 && zone_layout.separator_type > 0 {
                      prev_zone_layout_for_sep = Some(zone_layout.clone());
                      prev_zone_sep_y_start = current_zone_start_y.max(zone_layout.body_area.y);
@@ -201,17 +256,56 @@ index 80288c319d352ad387b51711b8b2605384678368..165de216c55bb1ffde6e57d9012b8571
      }
  
      /// 개체가 단 영역과 수평으로 겹치는지 확인
+diff --git a/src/serializer/hwpx/section.rs b/src/serializer/hwpx/section.rs
+index 73b9c9ba37cd5fe740581e02cec902eec653e032..c39bd11e08afc03c1765ba09e64a550d3ba3dd32 100644
+--- a/src/serializer/hwpx/section.rs
++++ b/src/serializer/hwpx/section.rs
+@@ -3826,8 +3826,8 @@ where
+ /// `parse_hwpx_line_type` 역매핑 (colLine type).
+ fn col_line_type_str(t: u8) -> &'static str {
+     match t {
+-        2 => "DASH",
+-        3 => "DOT",
++        2 => "DOT",
++        3 => "DASH",
+         4 => "DASH_DOT",
+         5 => "DASH_DOT_DOT",
+         6 => "LONG_DASH",
+diff --git a/src/serializer/hwpx/table.rs b/src/serializer/hwpx/table.rs
+index 40caeeb451ac82d34881e0fee8ef39b36a86f9cf..aa8ea654365309f590fae02fa01258b8576dc146 100644
+--- a/src/serializer/hwpx/table.rs
++++ b/src/serializer/hwpx/table.rs
+@@ -2022,14 +2022,14 @@ mod tests {
+             cd.column_count = 2;
+             cd.same_width = true;
+             cd.spacing = 1134;
+-            cd.separator_type = 2; // DASH
++            cd.separator_type = 2; // 파선, HWPX DOT
+             cd.separator_width = 1; // 0.12 mm
+             para.controls
+                 .push(crate::model::control::Control::ColumnDef(cd));
+         }
+         let xml = serialize(&t);
+         assert!(
+-            xml.contains(r##"<hp:colLine type="DASH" width="0.12 mm" color="#000000"/>"##),
++            xml.contains(r##"<hp:colLine type="DOT" width="0.12 mm" color="#000000"/>"##),
+             "separator 있는 ColumnDef 는 hp:colLine 을 방출해야 함: {}",
+             xml
+         );
 diff --git a/src/wasm_api.rs b/src/wasm_api.rs
-index f7881e83e5cec3e112eef3aeb5a987c4df02f61e..cff6e2fc15b1c8adba20bf43139ef4a4103b2e48 100644
+index f7881e83e5cec3e112eef3aeb5a987c4df02f61e..58df77229be2ca54c8a52996ffef99b73d40c9d5 100644
 --- a/src/wasm_api.rs
 +++ b/src/wasm_api.rs
-@@ -1663,8 +1663,14 @@ impl HwpDocument {
+@@ -1663,8 +1663,17 @@ impl HwpDocument {
              crate::model::page::ColumnType::Parallel => 2,
          };
          Ok(format!(
 -            "{{\"columnCount\":{},\"columnType\":{},\"sameWidth\":{},\"spacing\":{}}}",
 -            col_def.column_count, col_type, col_def.same_width, col_def.spacing,
-+            "{{\"columnCount\":{},\"columnType\":{},\"sameWidth\":{},\"spacing\":{},             \"separatorType\":{},\"separatorWidth\":{},\"separatorColor\":\"{}\"}}",
++            concat!(
++                "{{\"columnCount\":{},\"columnType\":{},\"sameWidth\":{},\"spacing\":{},",
++                "\"separatorType\":{},\"separatorWidth\":{},\"separatorColor\":\"{}\"}}",
++            ),
 +            col_def.column_count,
 +            col_type,
 +            col_def.same_width,
@@ -222,7 +316,7 @@ index f7881e83e5cec3e112eef3aeb5a987c4df02f61e..cff6e2fc15b1c8adba20bf43139ef4a4
          ))
      }
  
-@@ -2996,6 +3002,17 @@ impl HwpDocument {
+@@ -2996,6 +3005,17 @@ impl HwpDocument {
          .map_err(|e| e.into())
      }
  
@@ -242,10 +336,10 @@ index f7881e83e5cec3e112eef3aeb5a987c4df02f61e..cff6e2fc15b1c8adba20bf43139ef4a4
      /// para_idx의 텍스트가 para_idx-1에 결합되고 para_idx는 삭제된다.
 diff --git a/tests/cases/column_separator_setter.rs b/tests/cases/column_separator_setter.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f41937eb6
+index 0000000000000000000000000000000000000000..3bb2ff75158a26e698a458657b2f51eafacdeeb1
 --- /dev/null
 +++ b/tests/cases/column_separator_setter.rs
-@@ -0,0 +1,238 @@
+@@ -0,0 +1,409 @@
 +#![cfg(not(target_arch = "wasm32"))]
 +//! 단 구분선 설정(`setColumnSeparator`)과 `getColumnDef` 의 구분선 값, 그리고 쪽 맨 위에 매단
 +//! 위아래 배치 표 아래에서 구분선을 시작하는 그리기.
@@ -255,6 +349,7 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +//! 표의 바깥 아래 여백(1mm, 3.8px)이고, 단의 글도 그 자리에서 시작한다.
 +use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
 +use rhwp::wasm_api::HwpDocument;
++use std::io::{Cursor, Read, Write};
 +
 +const EIGHT_MM_COLUMN_GAP: i16 = 2268;
 +const LINES: usize = 60;
@@ -265,8 +360,8 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +    doc
 +}
 +
-+fn fill_lines(doc: &mut HwpDocument, first_para: usize) {
-+    for index in 0..LINES {
++fn fill_lines(doc: &mut HwpDocument, first_para: usize, lines: usize) {
++    for index in 0..lines {
 +        let para = first_para + index;
 +        if index > 0 {
 +            doc.insert_paragraph_native(0, para).unwrap();
@@ -356,7 +451,7 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +#[test]
 +fn the_line_set_is_reported_and_survives_hwp_and_hwpx() {
 +    let mut doc = blank();
-+    fill_lines(&mut doc, 0);
++    fill_lines(&mut doc, 0, LINES);
 +    two_columns_with_line(&mut doc);
 +    let set = ("1".to_string(), "1".to_string(), "\"#112233\"".to_string());
 +    assert_eq!(separator_fields(&doc), set);
@@ -371,7 +466,7 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +#[test]
 +fn type_zero_removes_the_line() {
 +    let mut doc = blank();
-+    fill_lines(&mut doc, 0);
++    fill_lines(&mut doc, 0, LINES);
 +    two_columns_with_line(&mut doc);
 +    assert_eq!(page(&doc, 0).separators.len(), 1);
 +
@@ -404,7 +499,7 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +#[test]
 +fn without_a_head_object_the_line_runs_from_the_body_top_between_the_columns() {
 +    let mut doc = blank();
-+    fill_lines(&mut doc, 0);
++    fill_lines(&mut doc, 0, LINES);
 +    two_columns_with_line(&mut doc);
 +    let page = page(&doc, 0);
 +    assert_eq!(page.separators.len(), 1);
@@ -440,7 +535,7 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +fn below_a_table_hung_from_the_page_top_the_line_starts_where_the_columns_text_starts() {
 +    let mut doc = blank();
 +    let (first_line, outer_bottom) = head_table(&mut doc);
-+    fill_lines(&mut doc, first_line);
++    fill_lines(&mut doc, first_line, LINES);
 +    two_columns_with_line(&mut doc);
 +
 +    let page = page(&doc, 0);
@@ -464,7 +559,7 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +fn a_page_without_the_head_object_keeps_the_line_from_the_body_top() {
 +    let mut doc = blank();
 +    let (first_line, _) = head_table(&mut doc);
-+    fill_lines(&mut doc, first_line);
++    fill_lines(&mut doc, first_line, LINES);
 +    for index in 0..LINES {
 +        let para = first_line + LINES + index;
 +        doc.insert_paragraph_native(0, para).unwrap();
@@ -483,4 +578,174 @@ index 0000000000000000000000000000000000000000..bd910ce70f414f76e7aedf2dcd86d71f
 +        "{top} vs {}",
 +        second.body_top
 +    );
++}
++
++/// A short quiz: the head table and a few questions, all in the left column. Hancom still
++/// starts the line below the table, as it does when both columns hold text.
++#[test]
++fn with_text_in_the_left_column_only_the_line_still_starts_below_the_head_table() {
++    let mut doc = blank();
++    let (first_line, outer_bottom) = head_table(&mut doc);
++    fill_lines(&mut doc, first_line, 4);
++    two_columns_with_line(&mut doc);
++
++    let page = page(&doc, 0);
++    assert_eq!(
++        page.column_text_tops.len(),
++        1,
++        "only the left column holds text"
++    );
++    assert_eq!(page.separators.len(), 1);
++    let (_, top, _) = page.separators[0];
++    let table_bottom = page.table_bottom.expect("the head table is drawn");
++    assert!(
++        (top - (table_bottom + outer_bottom)).abs() < 0.01,
++        "line {top}, table foot {table_bottom}, outer bottom margin {outer_bottom}"
++    );
++}
++
++/// What Hancom Hangul 2024 writes in `<hp:colLine type>` when it saves .hwp files holding the
++/// separator codes 1..7 as HWPX. It draws code 2 dashed and code 3 dotted, in the .hwp and in
++/// its own HWPX alike.
++const HANCOM_COL_LINE_NAMES: [(u8, &str); 7] = [
++    (1, "SOLID"),
++    (2, "DOT"),
++    (3, "DASH"),
++    (4, "DASH_DOT"),
++    (5, "DASH_DOT_DOT"),
++    (6, "LONG_DASH"),
++    (7, "CIRCLE"),
++];
++
++fn hancom_col_line(name: &str) -> String {
++    format!(r##"<hp:colLine type="{name}" width="0.2 mm" color="#000000"/>"##)
++}
++
++fn line_of_code(code: u8) -> HwpDocument {
++    let mut doc = blank();
++    fill_lines(&mut doc, 0, 4);
++    doc.set_column_def_native(0, 2, 0, true, EIGHT_MM_COLUMN_GAP)
++        .unwrap();
++    doc.set_column_separator(
++        0,
++        &format!(r##"{{"type":{code},"width":3,"color":"#000000"}}"##),
++    )
++    .unwrap();
++    doc
++}
++
++fn col_line_in(xml: &str) -> &str {
++    let start = xml.find("<hp:colLine").expect("a colLine element");
++    let end = start + xml[start..].find("/>").unwrap() + 2;
++    &xml[start..end]
++}
++
++fn section_xml(hwpx: &[u8]) -> String {
++    let mut zip = zip::ZipArchive::new(Cursor::new(hwpx)).unwrap();
++    let mut xml = String::new();
++    zip.by_name("Contents/section0.xml")
++        .unwrap()
++        .read_to_string(&mut xml)
++        .unwrap();
++    xml
++}
++
++fn with_section_xml(hwpx: &[u8], edit: impl Fn(&str) -> String) -> Vec<u8> {
++    let mut input = zip::ZipArchive::new(Cursor::new(hwpx)).unwrap();
++    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
++    for i in 0..input.len() {
++        let mut entry = input.by_index(i).unwrap();
++        let mut data = Vec::new();
++        entry.read_to_end(&mut data).unwrap();
++        let name = entry.name().unwrap().to_string();
++        if name == "Contents/section0.xml" {
++            data = edit(&String::from_utf8(data).unwrap()).into_bytes();
++        }
++        output
++            .start_file(
++                name,
++                zip::write::SimpleFileOptions::default().compression_method(entry.compression()),
++            )
++            .unwrap();
++        output.write_all(&data).unwrap();
++    }
++    output.finish().unwrap().into_inner()
++}
++
++#[test]
++fn hwpx_names_each_line_type_as_hancom_does() {
++    let wrong: Vec<String> = HANCOM_COL_LINE_NAMES
++        .iter()
++        .filter_map(|(code, name)| {
++            let xml = section_xml(&line_of_code(*code).export_hwpx_native().unwrap());
++            let written = col_line_in(&xml).to_string();
++            (written != hancom_col_line(name)).then(|| format!("{code}: {written}"))
++        })
++        .collect();
++    assert!(wrong.is_empty(), "{wrong:#?}");
++}
++
++#[test]
++fn hancoms_hwpx_line_names_read_back_as_the_code_it_draws() {
++    let hwpx = line_of_code(1).export_hwpx_native().unwrap();
++    let wrong: Vec<String> = HANCOM_COL_LINE_NAMES
++        .iter()
++        .filter_map(|(code, name)| {
++            let hancom = with_section_xml(&hwpx, |xml| {
++                xml.replacen(col_line_in(xml), &hancom_col_line(name), 1)
++            });
++            let read = separator_fields(&HwpDocument::from_bytes(&hancom).unwrap()).0;
++            (read != code.to_string())
++                .then(|| format!("{name} read as {read}, Hancom draws {code}"))
++        })
++        .collect();
++    assert!(wrong.is_empty(), "{wrong:#?}");
++}
++
++#[test]
++fn get_column_def_answers_compact_json() {
++    let mut doc = blank();
++    two_columns_with_line(&mut doc);
++    assert_eq!(
++        doc.get_column_def(0).unwrap(),
++        r##"{"columnCount":2,"columnType":0,"sameWidth":true,"spacing":2268,"separatorType":1,"separatorWidth":1,"separatorColor":"#112233"}"##
++    );
++}
++
++#[test]
++fn values_outside_the_setters_own_ranges_are_refused() {
++    let mut doc = blank();
++    two_columns_with_line(&mut doc);
++    let accepted: Vec<&str> = [
++        r#"{"type":-1}"#,
++        r#"{"type":1.5}"#,
++        r#"{"type":"1"}"#,
++        r#"{"type":1,"width":-1}"#,
++        r#"{"type":1,"width":2.5}"#,
++        r#"{"type":1,"width":"1"}"#,
++        r#"{"type":1,"width":null}"#,
++        r#"{"type":1,"color":123}"#,
++        r##"{"type":1,"color":"#12345"}"##,
++        r##"{"type":1,"color":"#+1+2+3"}"##,
++    ]
++    .into_iter()
++    .filter(|json| doc.set_column_separator_native(0, json).is_ok())
++    .collect();
++    assert!(accepted.is_empty(), "accepted: {accepted:#?}");
++    assert_eq!(
++        separator_fields(&doc),
++        ("1".to_string(), "1".to_string(), "\"#112233\"".to_string())
++    );
++}
++
++#[test]
++fn a_color_of_six_bytes_that_are_not_hex_digits_is_refused_without_a_panic() {
++    let mut doc = blank();
++    two_columns_with_line(&mut doc);
++    for json in [
++        r##"{"type":1,"color":"#가나"}"##,
++        r##"{"type":1,"color":"가abcd"}"##,
++    ] {
++        assert!(doc.set_column_separator_native(0, json).is_err(), "{json}");
++    }
 +}

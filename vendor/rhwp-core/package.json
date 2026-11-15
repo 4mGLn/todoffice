@@ -57,6 +57,6 @@
       "0051-column-separator-setter.patch"
     ],
     "wasmPack": "0.15.0",
-    "wasmSha256": "a47587a82db63a5b8a1be6a7b9b246c605de7031d8e059bccf9bc27daa2d8150"
+    "wasmSha256": "420926ad83610550c919ef9bc0531082bd2b830aa6cc3dff43c96a1960d7304d"
   }
 }
