@@ -52,7 +52,8 @@ export const imageCommand: CommandDef = {
     {
       name: 'model',
       value: 'name',
-      description: 'ignored (special-purpose image models are gone); detail.note says so',
+      description:
+        'used if the configured image route offers it; otherwise refused with the usable model names',
     },
     { name: 'force', description: 'overwrite an existing output file' },
   ],
