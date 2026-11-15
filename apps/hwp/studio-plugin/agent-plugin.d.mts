@@ -1479,6 +1479,8 @@ export type AgentInsertTocResult =
   | AgentTocHeadingRefusal
   /** the document has a table of contents already: table `table`, under the line `title` */
   | { ok: false; reason: 'toc_exists'; count: number; table: number; title: string }
+  /** the document has Hangul's contents of tab lines already, under the line `title` */
+  | { ok: false; reason: 'toc_exists'; count: number; lines: true; title: string }
 
 /** a heading could not be decided: `why` is not_found, ambiguous, no_such_occurrence or unsupported_place */
 export interface AgentTocHeadingRefusal {
@@ -1505,6 +1507,18 @@ export type AgentRefreshTocResult =
   | AgentPlaceRefusal
   | { ok: false; reason: 'in_table'; count: number }
   | { ok: false; reason: 'no_toc'; count: number }
+  /**
+   * with entries, the table after the line (number `table`) is not a table of contents:
+   * in row `row` the second cell is not a page number (`why` page) or the first starts no
+   * paragraph of the body text (`why` heading)
+   */
+  | {
+      ok: false
+      reason: 'not_toc'
+      count: number
+      table: number
+      found: { row?: number; heading?: string; page?: string; why: 'page' | 'heading' | 'shape' }
+    }
   | AgentTocHeadingRefusal
 
 export type AgentUndoResult =

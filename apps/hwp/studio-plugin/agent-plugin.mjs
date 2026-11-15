@@ -5902,34 +5902,87 @@ function bodyTitleOf(doc, font) {
   return { style, font, bold: true, color: parse(doc.getStyleDetail(style)).charProps.textColor }
 }
 
+/** What the page cell of a contents row holds: a page, or pages from one to another. */
+const PAGE_CELL = /^\s*\d+(?:\s*[~\-–]\s*\d+)?\s*$/
+
 /**
- * The tables of contents insertToc made in the document, with their numbers in listTables:
- * top-level two-column tables with no lines whose every row ends in a page number.
- * Hangul's own (lines with a tab to the page number) are not among them.
+ * The body paragraph a contents row names: one that starts with the row's heading as
+ * refreshToc looks it up (its first TOC_KEY_CHARS characters, without the … of a cut one).
+ * Null when no paragraph of the body text starts with it.
  */
-function tocsOf(doc) {
-  const isToc = (table) => {
-    if (table.path.length !== 1 || table.cols !== 2) return false
-    const grid = gridOf(doc, table)
-    const control = table.path[0].controlIndex
-    const lineless = grid.every((cell) => {
-      const props = parse(doc.getCellProperties(table.sec, table.para, control, cell.cell))
-      return [props.borderLeft, props.borderRight, props.borderTop, props.borderBottom].every(
-        (line) => !line || line.type === 0,
-      )
+function headingOfRow(doc, heading) {
+  const key = heading.replace(/…$/, '').slice(0, TOC_KEY_CHARS)
+  if (!key.trim()) return null
+  return (
+    searchAll(doc, key)
+      .filter((hit) => !cellPathOf(hit) && isReplaceable(hit))
+      .find((hit) => bodyText(doc, hit.sec, hit.para).trim().startsWith(key)) ?? null
+  )
+}
+
+/**
+ * Whether a table is a table of contents: a top-level table of two columns whose second
+ * column holds a page number in every row and whose first column, row by row, starts a
+ * paragraph of the body text (headingOfRow), whatever its lines and fill. `{ ok: true }`,
+ * or what it found against that: the row (1-based), its two texts, and which test failed.
+ */
+function contentsTest(doc, table) {
+  if (table.path.length !== 1 || table.cols !== 2) return { ok: false, why: 'shape' }
+  const grid = gridOf(doc, table)
+  const rows = []
+  for (let row = 0; row < table.rows; row++) {
+    const [heading, page] = [0, 1].map((col) => {
+      const cell = cellOf(grid, row, col)
+      return cell
+        ? paragraphsOf(cellBox(doc, table, cell.cell))
+            .join(' ')
+            .trim()
+        : ''
     })
-    if (!lineless) return false
-    for (let row = 0; row < table.rows; row++) {
-      const page = cellOf(grid, row, 1)
-      if (!page || !PAGE_NUMBER.test(paragraphsOf(cellBox(doc, table, page.cell)).join(''))) {
-        return false
-      }
-    }
-    return true
+    const found = { ok: false, row: row + 1, heading, page }
+    if (!PAGE_CELL.test(page)) return { ...found, why: 'page' }
+    rows.push(found)
   }
+  for (const row of rows) {
+    if (!headingOfRow(doc, row.heading)) return { ...row, why: 'heading' }
+  }
+  return { ok: rows.length > 0, why: 'shape' }
+}
+
+/** The tables of contents of the document by contentsTest, with their numbers in listTables. */
+function tocsOf(doc) {
   return tablesOf(doc)
     .tables.map((table, index) => ({ table, number: index + 1 }))
-    .filter(({ table }) => isToc(table))
+    .filter(({ table }) => contentsTest(doc, table).ok)
+}
+
+/** The title lines Hangul's own contents of tab lines start with, without spaces. */
+const TOC_TITLES = ['차례', '목차']
+
+/**
+ * Hangul's own contents, made of lines: a body line reading 차례 or 목차 (spaces aside)
+ * whose next line with text ends in a tab and a page number. Its title line, or null.
+ */
+function tabTocOf(doc) {
+  const seen = new Set()
+  for (const word of TOC_TITLES) {
+    for (const find of [word, [...word].join(' ')]) {
+      for (const hit of searchAll(doc, find)) {
+        const key = `${hit.sec}:${hit.para}`
+        if (cellPathOf(hit) || seen.has(key)) continue
+        seen.add(key)
+        const title = bodyText(doc, hit.sec, hit.para)
+        if (title.replace(/\s/g, '') !== word) continue
+        const count = doc.getParagraphCount(hit.sec)
+        let next = hit.para + 1
+        while (next < count && !bodyText(doc, hit.sec, next).trim()) next += 1
+        if (next < count && /\t\s*\d+\s*$/.test(bodyText(doc, hit.sec, next))) {
+          return { sec: hit.sec, para: hit.para, title: title.trim() }
+        }
+      }
+    }
+  }
+  return null
 }
 
 /**
@@ -10815,6 +10868,10 @@ export const agentPlugin = {
               title: foldText(above),
             }
           }
+          const lines = tabTocOf(doc)
+          if (lines) {
+            return { ok: false, reason: 'toc_exists', count: 1, lines: true, title: lines.title }
+          }
           return missingHeading(tocHeadingsOf(doc, entries), (hits) => listMatches(doc, hits))
         })
         if (refusal) return refusal
@@ -10913,6 +10970,17 @@ export const agentPlugin = {
           )
           if (!table) return { refusal: { ok: false, reason: 'no_toc', count: 0 } }
           if (!anew) return { table }
+          const test = contentsTest(doc, table)
+          if (!test.ok) {
+            const { ok: _ok, ...found } = test
+            const { table: number } = tableNumberOf(
+              doc,
+              sec,
+              table.para,
+              table.path[0].controlIndex,
+            )
+            return { refusal: { ok: false, reason: 'not_toc', count: 0, table: number, found } }
+          }
           const headings = tocHeadingsOf(doc, entries, table)
           const missing = missingHeading(headings, (hits) => listMatches(doc, hits))
           return missing ? { refusal: missing } : { table, headings, box: located.box }

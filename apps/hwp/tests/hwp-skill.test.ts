@@ -2343,6 +2343,43 @@ describe('a table of contents', () => {
     )
   })
 
+  it('refuses contents next to the lines of contents Hangul made', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        lines: true as const,
+        title: '목 차',
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: the document has contents already, made in Hangul as lines ending in a tab and a page number, under the line "목 차". They cannot be written again here; tell the user, who updates them in Hangul.',
+    )
+  })
+
+  it('leaves a table that is no table of contents alone and says what it found', async () => {
+    const { call } = setup({
+      refreshToc: async () => ({
+        ok: false as const,
+        reason: 'not_toc' as const,
+        count: 0,
+        table: 2,
+        found: { row: 1, heading: '성명', page: '소속', why: 'page' as const },
+      }),
+    })
+    const result = await call('refresh_toc', {
+      title: '참석자 명단',
+      entries: [{ find: '안건', level: 1 }],
+    })
+    expect(result.isError).toBe(true)
+    expect(result.output).toContain(
+      'table 2 follows that line, but it is not a table of contents (row 1 reads "성명" | "소속", and "소속" is not a page number)',
+    )
+  })
+
   it('says when no table of contents follows the line', async () => {
     const { call } = setup({
       refreshToc: async () => ({ ok: false as const, reason: 'no_toc' as const, count: 0 }),

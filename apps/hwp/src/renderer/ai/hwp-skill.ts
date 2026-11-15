@@ -1367,7 +1367,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_toc',
     edits: true,
     description:
-      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document. A document that has one already is refused: change that one with refresh_toc.',
+      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document. Refused when the document has contents already: a two-column table whose first column names headings of the body row by row and whose second holds their pages (change it with refresh_toc), or lines Hangul made under a 차례 or 목차 line, each ending in a tab and a page number.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1384,7 +1384,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'refresh_toc',
     edits: true,
     description:
-      'Write the page numbers of a table of contents again, after the document changed. Pass the text of its title line. With entries, as insert_toc takes them, its rows are written anew in the same place: for a heading added, renamed or removed.',
+      'Write the page numbers of a table of contents again, after the document changed. Pass the text of its title line. With entries, as insert_toc takes them, its rows are written anew in the same place, for a heading added; only a table whose rows still name headings of the body with their pages is written anew, any other table is refused.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -2832,6 +2832,21 @@ function tocEntriesOf(entries: unknown): AgentTocEntry[] | string {
     level: entry.level,
     ...(typeof entry.occurrence === 'number' ? { occurrence: entry.occurrence } : {}),
   }))
+}
+
+/** Why refresh_toc with entries left the table after the title line alone, with what it found there. */
+function notTocRefusal(result: {
+  table: number
+  found: { row?: number; heading?: string; page?: string; why: string }
+}): string {
+  const { row, heading, page, why } = result.found
+  const seen =
+    why === 'page'
+      ? `row ${row} reads "${heading}" | "${page}", and "${page}" is not a page number`
+      : why === 'heading'
+        ? `row ${row} reads "${heading}", and no paragraph of the body text starts with it`
+        : 'it does not have two columns'
+  return `Nothing was changed: table ${result.table} follows that line, but it is not a table of contents (${seen}). refresh_toc writes anew only a table whose rows name headings of the body with their pages. Leave this table as it is; if it is a table of contents whose headings were renamed or removed, tell the user, who can remove it so that insert_toc makes a new one.`
 }
 
 /** Why a heading named for a table of contents could not be used, as the model reads it. */
@@ -4860,6 +4875,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           if (result.reason === 'no_heading') return bad(call, tocHeadingRefusal(result))
           if (result.reason === 'toc_exists') {
             const under = result.title ? `, under the line "${result.title}"` : ''
+            if ('lines' in result) {
+              return bad(
+                call,
+                `Nothing was changed: the document has contents already, made in Hangul as lines ending in a tab and a page number${under}. They cannot be written again here; tell the user, who updates them in Hangul.`,
+              )
+            }
             return bad(
               call,
               `Nothing was changed: the document has a table of contents already (table ${result.table}${under}). To change its headings, call refresh_toc with its title line and the entries; it writes the rows anew in the same place.`,
@@ -4905,6 +4926,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
               'Nothing was changed: no table of contents follows that line. Pass the title line of a table of contents made with insert_toc.',
             )
           }
+          if (result.reason === 'not_toc') return bad(call, notTocRefusal(result))
           if (result.reason === 'in_table') return bad(call, IN_TABLE_HELP)
           if (result.reason === 'no_heading') return bad(call, tocHeadingRefusal(result))
           return bad(call, placeRefusal(result))
