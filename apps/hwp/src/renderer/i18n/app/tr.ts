@@ -6,6 +6,7 @@ export const tr = {
   openFailed: 'Belge açılamadı.',
   pdfImportCancelled: 'PDF içe aktarma iptal edildi. Bu sekmeyi kapatabilirsiniz.',
   saveFailed: 'Belge kaydedilemedi.',
+  fileOpen: 'Aç…',
   fileSave: 'Kaydet',
   fileSaveAs: 'Farklı Kaydet…',
   fileImportPdf: 'PDF içe aktar…',
