@@ -394,15 +394,54 @@ describe('insertTable: looks', () => {
       expect(cellFont(doc(), 2)).toBe('함초롬바탕 10')
     })
 
-    it('takes the look of a plain line smaller than the body it follows', () => {
+    it('takes the look of the body after a small plain line such as a unit note', () => {
       const { plugin, doc } = open(
-        blank(['본문 첫째 줄입니다.', '본문 둘째 줄입니다.', '작은 줄', '끝 줄']),
+        blank([
+          '학교 현황 보고',
+          '학생 수는 학년마다 다르다. 올해는 학생이 조금 늘었고 내년에도 늘 것이다.',
+          '교사 수는 작년과 같고 교실도 그대로이다.',
+          '(단위: 명)',
+        ]),
       )
-      plugin.formatText('본문 첫째 줄입니다.', null, false, { size: 12 })
-      plugin.formatText('본문 둘째 줄입니다.', null, false, { size: 12 })
-      plugin.formatText('작은 줄', null, false, { size: 9 })
-      plugin.insertTable('작은 줄', null, 'after', ROWS_2, true)
-      expect(cellFont(doc(), 3)).toBe('함초롬바탕 9')
+      plugin.formatText('(단위: 명)', null, false, { size: 8, font: '돋움' })
+      plugin.insertTable('(단위: 명)', null, 'after', ROWS_2, true)
+      expect(cellFont(doc(), 4)).toBe('함초롬바탕 10')
+    })
+
+    it('takes the look of text that is not bold when every line is a heading', () => {
+      const { plugin, doc } = open(
+        blank([
+          '1. 추진 배경',
+          '가. 학생 수가 늘어 교실이 모자라 수업 공간을 새로 마련해야 한다.',
+          '나. 교사 연수 공간이 필요하다.',
+          '2. 추진 계획',
+        ]),
+      )
+      plugin.styleParagraphs({
+        styles: [
+          { name: '개요 1', format: { font: '함초롬돋움', size: 15, bold: true } },
+          { name: '개요 2', format: { font: '함초롬돋움', size: 13 } },
+        ],
+        apply: [
+          { style: '개요 1', startsWith: '1.' },
+          { style: '개요 1', startsWith: '2.' },
+          { style: '개요 2', startsWith: '가.' },
+          { style: '개요 2', startsWith: '나.' },
+        ],
+      })
+      plugin.insertTable('나. 교사 연수', null, 'after', ROWS_2, true)
+      expect(cellFont(doc(), 3)).toBe('함초롬돋움 13')
+    })
+
+    it('takes the look of the line it follows when the document has only a bold line', () => {
+      const { plugin, doc } = open(blank(['2026학년도 학교 운영 계획']))
+      plugin.formatText('2026학년도 학교 운영 계획', null, false, {
+        size: 15,
+        bold: true,
+        font: '함초롬돋움',
+      })
+      plugin.insertTable('2026학년도 학교 운영 계획', null, 'after', ROWS_2, true)
+      expect(cellFont(doc(), 1)).toBe('함초롬돋움 15')
     })
 
     it('takes the look of the body after a plain line larger than the body', () => {

@@ -2910,39 +2910,49 @@ function mostCharsOf(runs, key) {
 }
 
 /**
- * The font of the body text, for a new table or table of contents. When the body paragraph
- * `beside` ({ sec, para }) the table goes after is plain body text (no heading, not bold, no
- * larger than the size most body text has), its look; else the look most characters of the
- * body have, bold paragraphs and headings left out.
+ * The font of the body text, for a new table or table of contents: the look of the body
+ * paragraph `beside` ({ sec, para }) the table goes after when it is plain body text (no
+ * heading, not bold) in the size most plain body text has; else the look most characters
+ * of the plain body paragraphs have; else the look most text that is not bold has; else
+ * `fallback()`, the look of the paragraph the table is anchored to, or the body style.
  */
-function bodyFontOf(doc, beside = null) {
+function bodyFontOf(doc, beside = null, fallback = null) {
   const styles = new Map(parse(doc.getStyleList()).map((style) => [style.id, style.name]))
-  const runs = []
+  const plain = []
+  const notBold = []
   let counted = 0
   for (let sec = 0; sec < doc.getSectionCount(); sec++) {
     const count = doc.getParagraphCount(sec)
     for (let para = 0; para < count && counted < MAX_LOOK_PARAGRAPHS; para++) {
       const look = bodyRunsOf(doc, styles, sec, para)
-      if (!look || look.heading || look.bold) continue
+      if (!look) continue
+      notBold.push(...look.runs.filter((run) => !run.bold))
+      if (look.heading || look.bold) continue
       counted += 1
-      runs.push(...look.runs)
+      plain.push(...look.runs)
     }
   }
-  const size = mostCharsOf(runs, (run) => run.size)
+  const key = (run) => `${run.props.fontFamily}|${run.size}`
+  const lookOf = (runs) => {
+    const most = mostCharsOf(runs, key)
+    const chosen = runs.find((run) => key(run) === most)
+    return chosen ? fontOf(() => JSON.stringify(chosen.props)) : null
+  }
+  const size = mostCharsOf(plain, (run) => run.size)
   const near = beside && bodyRunsOf(doc, styles, beside.sec, beside.para)
   if (near && !near.heading && !near.bold && size !== undefined) {
-    const own = mostCharsOf(near.runs, (run) => `${run.props.fontFamily}|${run.size}`)
-    const chosen = near.runs.find((run) => `${run.props.fontFamily}|${run.size}` === own)
-    if (chosen && chosen.size <= size) return fontOf(() => JSON.stringify(chosen.props))
+    const own = mostCharsOf(near.runs, key)
+    const chosen = near.runs.find((run) => key(run) === own)
+    if (chosen && chosen.size === size) return fontOf(() => JSON.stringify(chosen.props))
   }
-  const look = mostCharsOf(runs, (run) => `${run.props.fontFamily}|${run.size}`)
-  const chosen = runs.find((run) => `${run.props.fontFamily}|${run.size}` === look)
-  if (!chosen) {
-    return fontOf(() =>
+  return (
+    lookOf(plain) ??
+    lookOf(notBold) ??
+    fallback?.() ??
+    fontOf(() =>
       JSON.stringify(parse(doc.getStyleDetail(styleIdOf(doc, BODY_STYLE) ?? 0)).charProps),
     )
-  }
-  return fontOf(() => JSON.stringify(chosen.props))
+  )
 }
 
 /**
@@ -7642,7 +7652,9 @@ export const agentPlugin = {
               const body =
                 look.font && look.size
                   ? null
-                  : bodyFontOf(doc, beside >= 0 ? { sec: here, para: beside } : null)
+                  : bodyFontOf(doc, beside >= 0 ? { sec: here, para: beside } : null, () =>
+                      fontOf(() => doc.getCharPropertiesAt(here, at, 0)),
+                    )
               const font = {
                 family: look.font ?? body.family,
                 points: look.size ?? body.points,
