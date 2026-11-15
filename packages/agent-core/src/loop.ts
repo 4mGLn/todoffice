@@ -448,18 +448,18 @@ export const TOOLS_UNAVAILABLE_NOTE =
 export const TOOL_ABORTED_OUTPUT =
   '(the user stopped the run while this tool was still executing; its result was discarded)'
 
-const TOOL_ABORTED = Symbol('tool-aborted')
+const ABORTED = Symbol('aborted')
 
-async function awaitToolOrAbort(
-  tool: ToolExecution | Promise<ToolExecution>,
+async function awaitOrAbort<T>(
+  work: T | Promise<T>,
   signal: AbortSignal | undefined,
-): Promise<ToolExecution | typeof TOOL_ABORTED> {
-  if (!signal) return tool
-  if (signal.aborted) return TOOL_ABORTED
-  const running = Promise.resolve(tool)
-  return new Promise<ToolExecution | typeof TOOL_ABORTED>((resolve, reject) => {
+): Promise<T | typeof ABORTED> {
+  if (!signal) return work
+  if (signal.aborted) return ABORTED
+  const running = Promise.resolve(work)
+  return new Promise<T | typeof ABORTED>((resolve, reject) => {
     const onAbort = (): void => {
-      resolve(TOOL_ABORTED)
+      resolve(ABORTED)
       running.catch(() => undefined)
     }
     signal.addEventListener('abort', onAbort, { once: true })
@@ -1229,10 +1229,13 @@ export class AgentLoop<TSnapshot = unknown> {
       // runs more tools, and the hook must see the state at check time
       const correction =
         !this.verifyRetryUsed && this.turnText && skill.verifyResponse
-          ? await skill.verifyResponse(this.turnText, [...this.executedCalls])
+          ? await awaitOrAbort(
+              skill.verifyResponse(this.turnText, [...this.executedCalls]),
+              this.abortController?.signal,
+            )
           : null
       if (generation !== this.generation) return
-      if (correction && !this.cancelled) {
+      if (correction && correction !== ABORTED && !this.cancelled) {
         this.verifyRetryUsed = true
         this.history.push({ role: 'assistant', text: this.turnText })
         this.history.push({ role: 'user', text: correction })
@@ -1357,9 +1360,9 @@ export class AgentLoop<TSnapshot = unknown> {
       executedInTurn = true
       events?.onToolStart?.(call)
       const snapshot = !this.mutationSeen ? captureSnapshot?.() : undefined
-      let raced: ToolExecution | typeof TOOL_ABORTED
+      let raced: ToolExecution | typeof ABORTED
       try {
-        raced = await awaitToolOrAbort(
+        raced = await awaitOrAbort(
           skill.executeTool(call, this.abortController?.signal),
           this.abortController?.signal,
         )
@@ -1371,7 +1374,7 @@ export class AgentLoop<TSnapshot = unknown> {
         }
       }
       if (generation !== this.generation) return // reset while a tool was running
-      if (raced === TOOL_ABORTED) {
+      if (raced === ABORTED) {
         const aborted: ToolExecution = {
           output: TOOL_ABORTED_OUTPUT,
           isError: true,

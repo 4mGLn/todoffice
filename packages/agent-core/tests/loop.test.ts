@@ -2435,6 +2435,56 @@ describe('AgentLoop: verifyResponse (claimed-action guard)', () => {
     expect(onDone).not.toHaveBeenCalled()
   })
 
+  it('ends the run at once when stopped while a check never answers', async () => {
+    const transport = scriptedTransport([claimText, claimText])
+    const onDone = vi.fn()
+    const loop = new AgentLoop({
+      transport,
+      skill: { ...makeSkill(), verifyResponse: () => new Promise<string | null>(() => {}) },
+      events: { onDone },
+    })
+    loop.run('x')
+    await flush()
+    expect(loop.busy).toBe(true)
+    loop.cancel()
+    await flush()
+    expect(loop.busy).toBe(false)
+    expect(onDone).toHaveBeenCalledTimes(1)
+    expect(onDone).toHaveBeenCalledWith(
+      expect.objectContaining({ cancelled: true, text: 'I have selected the row for you' }),
+    )
+    expect(transport.requests).toHaveLength(1)
+  })
+
+  it('ends the run at once when stopped while a check is slow, and drops its late answer', async () => {
+    let answer: (correction: string | null) => void = () => {}
+    const transport = scriptedTransport([claimText, claimText])
+    const onDone = vi.fn()
+    const loop = new AgentLoop({
+      transport,
+      skill: {
+        ...makeSkill(),
+        verifyResponse: () =>
+          new Promise<string | null>((resolve) => {
+            answer = resolve
+          }),
+      },
+      events: { onDone },
+    })
+    loop.run('x')
+    await flush()
+    loop.cancel()
+    await flush()
+    expect(loop.busy).toBe(false)
+    expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ cancelled: true }))
+    answer('measure again')
+    await flush()
+    await flush()
+    expect(onDone).toHaveBeenCalledTimes(1)
+    expect(transport.requests).toHaveLength(1)
+    expect(loop.messages.map((m) => m.role)).toEqual(['user', 'assistant'])
+  })
+
   it('passes successful and failed executions with their ok flag', async () => {
     const transport = scriptedTransport([
       (cb) => {
