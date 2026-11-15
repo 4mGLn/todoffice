@@ -353,13 +353,76 @@ describe('insertTable: looks', () => {
     merged.plugin.addTableLines(1, 'rows', 3, 'after', 1)
     expect(lines(merged.doc())).toEqual([heavy, header, inner, inner, heavy])
 
-    // a header and one row: no line between two body rows to copy, so a thin one
+    // a header and one row: no line between two body rows to copy, so the engine's copy stays
     const short = open()
     short.plugin.insertTable('□ 세부 일정', null, 'after', ROWS.slice(0, 2), look)
     short.plugin.addTableLines(1, 'rows', 2, 'after', 1)
-    const thin = lines(short.doc())
-    expect(thin).toEqual([heavy, header, thin[2], heavy])
-    expect(thin[2]).toBeLessThan(header)
+    expect(lines(short.doc())).toEqual([heavy, header, heavy, heavy])
+  })
+
+  it('copies the line between two body rows, not the line under a head the user drew', () => {
+    const NAMES = [
+      ['번호', '이름', '부서'],
+      ['1', '김', '총무'],
+      ['2', '이', '교무'],
+      ['3', '박', '연구'],
+    ]
+    /** The line under each row of the first column, as type/width. */
+    const under = (source: HwpDocument) => {
+      const table = tableIn(source, 5)
+      return Array.from({ length: table.rows }, (_, row) => {
+        const line = table.cell(row * table.cols).borderBottom
+        return `${line.type}/${line.width}`
+      })
+    }
+    const double = { sides: 'bottom', line: 'double', width: 0.5 } as const
+    // a double line under the first row, no header flag
+    const drawn = open()
+    drawn.plugin.insertTable('□ 세부 일정', null, 'after', NAMES)
+    drawn.plugin.formatCells(
+      1,
+      { fromRow: 1, fromCol: 1, toRow: 1, toCol: 3 },
+      {
+        borders: [double],
+      },
+    )
+    const [head, thin] = under(drawn.doc())
+    drawn.plugin.addTableLines(1, 'rows', 4, 'after', 2)
+    expect(under(drawn.doc())).toEqual([head, thin, thin, thin, thin, under(drawn.doc())[5]])
+    expect(head).not.toBe(thin)
+    // the same with a grey fill on the first row
+    const grey = open()
+    grey.plugin.insertTable('□ 세부 일정', null, 'after', NAMES)
+    grey.plugin.formatCells(
+      1,
+      { fromRow: 1, fromCol: 1, toRow: 1, toCol: 3 },
+      {
+        borders: [double],
+        background: '#D9D9D9',
+      },
+    )
+    grey.plugin.addTableLines(1, 'rows', 4, 'after', 2)
+    expect(under(grey.doc()).slice(1, 5)).toEqual([thin, thin, thin, thin])
+    // a head of two flagged rows with a double line under the second
+    const two = open()
+    two.plugin.insertTable('□ 세부 일정', null, 'after', [['구분', '', ''], ...NAMES], true)
+    const table = tableIn(two.doc(), 5)
+    for (let cell = 0; cell < 6; cell++) {
+      two.doc().setCellProperties(0, 5, table.control, cell, JSON.stringify({ isHeader: true }))
+    }
+    two.plugin.formatCells(
+      1,
+      { fromRow: 2, fromCol: 1, toRow: 2, toCol: 3 },
+      {
+        borders: [double],
+      },
+    )
+    const before = under(two.doc())
+    two.plugin.addTableLines(1, 'rows', 5, 'after', 2)
+    const after = under(two.doc())
+    expect(after.slice(0, 2)).toEqual(before.slice(0, 2))
+    expect(after.slice(2, 6)).toEqual([before[2], before[2], before[2], before[2]])
+    expect(after[1]).not.toBe(after[2])
   })
 
   it('writes the words of a header row white on a dark fill, in the document and in both files', () => {

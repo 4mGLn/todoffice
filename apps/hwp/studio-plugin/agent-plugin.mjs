@@ -3073,22 +3073,22 @@ function setCellBorders(doc, table, grid, rect, rules, more = null) {
 }
 
 /**
- * The horizontal lines of a body table, as rowEdgesAfterAdding takes them, and whether its
- * first row is a header row.
+ * The horizontal lines of a body table, as rowEdgesAfterAdding takes them, and which of
+ * its rows carry the header flag.
  */
 function rowEdgesOf(doc, table, grid) {
   const control = table.path[0].controlIndex
   const edges = Array.from({ length: table.rows + 1 }, () => Array(table.cols).fill(null))
-  let header = false
+  const flagged = Array(table.rows).fill(false)
   for (const cell of grid) {
     const props = parse(doc.getCellProperties(table.sec, table.para, control, cell.cell))
-    if (cell.row === 0 && props.isHeader === true) header = true
+    if (props.isHeader === true) flagged[cell.row] = true
     for (let col = cell.col; col < cell.col + cell.colSpan; col++) {
       if (cell.row === 0) edges[0][col] = props.borderTop
       edges[cell.row + cell.rowSpan][col] = props.borderBottom
     }
   }
-  return { edges, header }
+  return { edges, flagged }
 }
 
 const sameLine = (one, other) =>
@@ -10222,10 +10222,8 @@ export const agentPlugin = {
                 cells: parse(doc.getTableDimensions(sec, para, ctrl)).cellCount,
               }
               const grid = gridOf(doc, grown)
-              if (lines) {
-                const edges = rowEdgesAfterAdding(lines.edges, lines.header, first, count)
-                setRowEdges(doc, grown, grid, edges)
-              }
+              const edges = lines && rowEdgesAfterAdding(lines.edges, lines.flagged, first, count)
+              if (edges) setRowEdges(doc, grown, grid, edges)
               const line = (cell) => (rows ? cell.row : cell.col)
               const across = (cell) => (rows ? cell.col : cell.row)
               const alignment = (cell) =>

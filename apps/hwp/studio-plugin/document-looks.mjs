@@ -183,20 +183,53 @@ export function tableLookBlocks(look, header) {
 }
 
 /**
+ * How many rows a table's head takes, from its horizontal lines (`edges`, as
+ * rowEdgesAfterAdding takes them) and which rows carry the header flag (`flagged`, one
+ * boolean per row). A row is a head row when it is flagged, or when the line under it is
+ * not the line under the next row (a first row styled by hand, a head of two rows), as
+ * long as that next line still lies between two rows. Counting stops at the first row
+ * that is neither.
+ */
+export function headRowsOf(edges, flagged) {
+  const rows = edges.length - 1
+  const same = (one, other) =>
+    one.every((line, col) => {
+      const below = other[col]
+      if (!line || !below) return true
+      if (line.type === 0 || below.type === 0) return line.type === below.type
+      return (
+        line.type === below.type &&
+        line.width === below.width &&
+        String(line.color).toLowerCase() === String(below.color).toLowerCase()
+      )
+    })
+  let head = 0
+  while (
+    head < rows &&
+    (flagged[head] === true || (head + 2 < rows && !same(edges[head + 1], edges[head + 2])))
+  ) {
+    head += 1
+  }
+  return head
+}
+
+/**
  * The horizontal lines of a table once `count` rows were added at row `first` (zero-based,
  * the first new row). `edges` are the lines before: one list per edge from the top of the
  * table (0) to its bottom (one more than the rows), each a line per column (null where a
- * merged cell runs across the edge). The outline stays with the edge of the table and the
- * line under a header row under it; every line the new rows bring is the line between two
- * body rows, or a thin one in the colour of the bottom line when the table has no two body
- * rows to read it from (none, when that line is none).
+ * merged cell runs across the edge); `flagged` says which rows carry the header flag. The
+ * outline stays with the edge of the table and the lines of the head (headRowsOf) with
+ * the head; every line the new rows bring is the line between the first two body rows.
+ * Null when the table has no two body rows to read that line from: the lines are then
+ * left as the engine copied them.
  */
-export function rowEdgesAfterAdding(edges, header, first, count) {
+export function rowEdgesAfterAdding(edges, flagged, first, count) {
   const rows = edges.length - 1
-  const between = (header ? 1 : 0) + 1
-  const inner = edges[rows].map((outer, col) => {
-    const seen = between < rows ? edges[between][col] : null
-    if (seen) return seen
+  const between = headRowsOf(edges, flagged) + 1
+  if (between >= rows) return null
+  const inner = edges[between].map((line, col) => {
+    if (line) return line
+    const outer = edges[rows][col]
     if (!outer || outer.type === 0) return outer
     return { type: 1, width: borderWidthIndex(0.12), color: outer.color }
   })
