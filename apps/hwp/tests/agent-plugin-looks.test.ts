@@ -3627,7 +3627,6 @@ describe('a test paper in two columns', () => {
     expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 10, line: 'solid' })
     expect(() => plugin.setColumns({ count: 1, line: 'solid' })).toThrow(/count 1 leaves none/)
     expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 10, line: 'solid' })
-    // one column keeps the line stored, and it comes back with the columns
     expect(plugin.setColumns({ count: 1 })).toMatchObject({
       count: 1,
       line: 'solid',
