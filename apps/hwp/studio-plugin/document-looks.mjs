@@ -310,55 +310,6 @@ export function titleBoxCells(look, color, color2) {
   }
 }
 
-/**
- * The look of a title box read back from the properties of its cells (getCellProperties,
- * top to bottom): `{ look, color, color2 }`, color2 null where both are one colour. Null
- * unless every cell is exactly what titleBoxCells draws for that look and those colours,
- * so a box made otherwise (by the user, or by Hangul) is never taken for one.
- */
-export function titleBoxLookOf(cells) {
-  const drawn = (line) => Boolean(line) && line.type !== 0
-  const second = (one, other) => (other && other !== one ? other : null)
-  const guess = () => {
-    if (cells.length === 3) {
-      const [top, , bottom] = cells
-      return {
-        look: 'bands',
-        color: top.fillColor,
-        color2: second(top.fillColor, bottom.fillColor),
-      }
-    }
-    if (cells.length !== 1) return null
-    const [cell] = cells
-    if (cell.fillType === 'solid') {
-      return {
-        look: 'shaded',
-        color: cell.fillColor,
-        color2: drawn(cell.borderTop) ? cell.borderTop.color : null,
-      }
-    }
-    if (drawn(cell.borderLeft)) return { look: 'box', color: cell.borderTop?.color, color2: null }
-    const color = cell.borderTop?.color
-    return { look: 'lines', color, color2: second(color, cell.borderBottom?.color) }
-  }
-  const found = guess()
-  if (!found || !HEX.test(found.color ?? '')) return null
-  const sameLine = (one, other) =>
-    Boolean(other) &&
-    one.type === other.type &&
-    (one.type === 0 ||
-      (one.width === other.width && one.color.toLowerCase() === other.color.toLowerCase()))
-  const same = (want, have) =>
-    Object.entries(want).every(([key, value]) => {
-      if (key.startsWith('border')) return sameLine(value, have[key])
-      if (typeof value === 'string') return value.toLowerCase() === String(have[key]).toLowerCase()
-      return value === have[key]
-    }) &&
-    (want.fillType !== undefined || have.fillType !== 'solid')
-  const { cells: want } = titleBoxCells(found.look, found.color, found.color2)
-  return want.every((props, index) => same(props, cells[index])) ? found : null
-}
-
 /** The colours a title box takes when none is given: the main one, by look. */
 export const TITLE_BOX_COLORS = {
   bands: '#1f3864',

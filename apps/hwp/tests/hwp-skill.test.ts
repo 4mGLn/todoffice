@@ -3176,29 +3176,9 @@ describe('the look of a document', () => {
     })
     const result = await call('insert_title_box', { find: '운영 계획' })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain(
-      'inside table 3, which is not a title box made by insert_title_box',
-    )
-    expect(result.output).toContain('format_cells')
-  })
-
-  it('names the box it made again round the text', async () => {
-    const { call } = setup({
-      insertTitleBox: vi.fn(async () => ({
-        ok: true as const,
-        look: 'lines',
-        rows: 1,
-        restyled: true as const,
-        table: 2,
-        tables: 3,
-        place: PLACE,
-      })),
-    })
-    const result = await call('insert_title_box', { find: '운영 계획', look: 'lines' })
     expect(result.output).toBe(
-      'The text was in a title box made here already: drew that box (table 2) again in place as a lines title box; no table was added.',
+      'Nothing was changed: that text is inside table 3. A title box is made only from a paragraph of the body text, and no table is drawn again as one, not even a title box made before: the document does not tell which tables insert_title_box made. To change the lines or fill of table 3, use format_cells. To give a title box made before another look: delete_table 3 (its words go with it), put the title back with insert_paragraphs before the line that follows, and call insert_title_box on it. The line that held the box stays, empty.',
     )
-    expect(result.mutated).toBe(true)
   })
 
   it('numbers the pages and writes a footer', async () => {

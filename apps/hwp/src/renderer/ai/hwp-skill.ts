@@ -819,7 +819,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_title_box',
     edits: true,
     description:
-      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. Called on the text of a title box this tool made, it draws that box again in place, the same table as wide as it was: the look and colours you leave out stay (a new look given without a colour takes the default colour of that look), and so do the words and their look but for what you pass. The text of any other table is refused; change that table with format_cells. One undo step.',
+      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. Text inside a table is refused, a title box made before included: a box is never drawn again in place. One undo step.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -2332,6 +2332,15 @@ const NOT_FOUND_HELP =
   'Not found; nothing was changed. The text must match exactly (letters, spaces, punctuation) and lie inside one paragraph or one table cell. Read that part of the document again. Call find_text with a shorter piece (spaces count) to see how the document writes it. The guide text of an empty form field is not document text: use fill_field for it.'
 const IN_TABLE_HELP =
   'Nothing was changed: that paragraph is inside a table cell, and a table cannot be put inside another table here. Anchor the new table to a paragraph of the body text, or add the content to the cell as paragraphs.'
+/**
+ * The refusal of a title box for text in a table. Nothing records which tables insert_title_box
+ * made, so no table is drawn again; the way to a new look goes through delete_table.
+ */
+function titleInTableRefusal(table: number | undefined): string {
+  const name = table === undefined ? 'that table' : `table ${table}`
+  return `Nothing was changed: that text is inside ${name}. A title box is made only from a paragraph of the body text, and no table is drawn again as one, not even a title box made before: the document does not tell which tables insert_title_box made. To change the lines or fill of ${name}, use format_cells. To give a title box made before another look: delete_table ${table ?? 'it'} (its words go with it), put the title back with insert_paragraphs before the line that follows, and call insert_title_box on it. The line that held the box stays, empty.`
+}
+
 /** The refusal of a script written in LaTeX, which the equation editor does not read. */
 const latexHelp = (what: string): string =>
   `Nothing was changed: ${what} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum from {i=1} to {n}, LEFT ( ... RIGHT ).`
@@ -5450,9 +5459,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (!result.ok) {
           return bad(
             call,
-            result.reason === 'in_table'
-              ? `Nothing was changed: that text is inside ${result.table === undefined ? 'a table' : `table ${result.table}`}, which is not a title box made by insert_title_box, and a table the user made is not drawn again. Make the title box from a paragraph of the body text, or change the lines and fill of that table with format_cells.`
-              : placeRefusal(result),
+            result.reason === 'in_table' ? titleInTableRefusal(result.table) : placeRefusal(result),
           )
         }
         deps.onChange({
@@ -5462,11 +5469,8 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: 1,
           place: result.place,
         })
-        const made = result.restyled
-          ? `The text was in a title box made here already: drew that box (table ${result.table}) again in place as a ${result.look} title box; no table was added.`
-          : `Made the title a ${result.look} title box.${tableNumberNote(result)}`
         return {
-          output: `${made}${titleColourNote(result)}${standInNote(result.standIn)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
+          output: `Made the title a ${result.look} title box.${tableNumberNote(result)}${titleColourNote(result)}${standInNote(result.standIn)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
           mutated: true,
           summary: label('aiToolTitleBox'),
         }
