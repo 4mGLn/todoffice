@@ -252,7 +252,7 @@ const SYSTEM_PROMPT = [
   '- Make one only when the user asks. Pick the headings from the text: the lines that open the parts of the document, in order (for example Ⅰ./1./가. or □ at the start, or short title lines). Level 1 for the top parts, 2 and 3 for the parts inside them; leave out body lines.',
   '- Name each heading by text it contains, as short as is unambiguous (pass occurrence when it occurs more than once). The table shows the whole heading line and finds its page itself: never type page numbers.',
   '- Put it where the user says; otherwise after the title or cover of the document. Give it the title the user uses, or 차 례 for a Korean document.',
-  '- After changes that move text between pages, or when the user asks, call refresh_toc with the title of the table of contents; when headings were added, renamed or removed, pass all of them as entries too.',
+  '- After changes that move text between pages, or when the user asks, call refresh_toc with the title of the table of contents; when headings were added, pass all of them as entries too. With entries, a table whose row names a heading since renamed or removed is refused: tell the user.',
   '',
   '## Footnotes and endnotes',
   '- A footnote explains or gives the source of the words it follows and shows at the foot of the page; an endnote does the same at the end of the document. Use the kind the user asks for; when they do not say, use a footnote, and use endnotes where the document already has them.',
