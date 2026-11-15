@@ -293,8 +293,10 @@ describe('mcp server', () => {
     // columns, paragraph borders and background, character width and spacing, cell text and
     // row height, the width and place of a table (about 4 KiB, decision 0137); 129 KiB before
     // the HWP equations, tab stops, page border, cell diagonal and picture width (about
-    // 1.7 KiB, decision 0137)
-    expect(bytes).toBeLessThanOrEqual(130 * 1024)
+    // 1.7 KiB, decision 0137); 130 KiB before the HWP tools that change what was written:
+    // list_equations, edit_equation, column widths of a table and contents entries (under
+    // 1 KiB), with room the owner gave the HWP tools fix for what follows
+    expect(bytes).toBeLessThanOrEqual(140 * 1024)
     expect(bytes).toBeGreaterThan(60 * 1024)
   })
 
