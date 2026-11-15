@@ -48,6 +48,7 @@ export const tr = {
   unhide: 'Yeniden göster',
   confirmRemove:
     '“{title}” becerisi Geri Dönüşüm Kutusu’na taşınsın mı? Oradan geri yükleyebilirsiniz.',
+  removeTurnOn: '{name} becerisini ({source}) yeniden aç',
   confirmHide:
     'Yerleşik “{title}” becerisi gizlensin mi? Gizlenen beceri kapatılır; listenin altından yeniden gösterebilirsiniz.',
   cancel: 'İptal',

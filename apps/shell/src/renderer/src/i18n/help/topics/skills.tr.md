@@ -15,11 +15,11 @@ Beceri, AI için bir dizi çalışma yönergesidir. Tekrar tekrar yaptığınız
 | **Codex beceri klasörü**  | `~/.agents/skills` içindeki beceriler                              | Kapalı      |
 
 - Anahtar bir beceriyi açar veya kapatır. Aynı ayar her düzenleyicinin AI panelinde, Giriş ekranındaki AI’a sor bölümünde ve ajan penceresinde geçerlidir.
-- Açık bir beceri için **AI karar verir** veya **Yalnızca çağrıldığında** seçin. AI karar verir olarak başlar. Yalnızca çağrıldığında seçiliyken beceri yalnızca siz çağırdığınızda kullanılır.
+- Açık bir beceri için **AI karar verir** veya **Yalnızca çağrıldığında** seçin. AI karar verir olarak başlar. Yalnızca çağrıldığında seçiliyken beceri yalnızca siz çağırdığınızda kullanılır. Kapalı bir beceri bu seçimi soluk olarak korur; böylece beceriyi yeniden açmadan önce ayarlayabilirsiniz.
 - Farklı kaynaklardan gelen beceriler aynı adı paylaşabilir. Her satırdaki kaynak etiketi onları ayırır. Aynı adlı iki beceri birden açıksa `/` altında yalnızca biri listelenir ve kullanılır: Becerilerim, Yerleşik, Claude beceri klasörü, Codex beceri klasörü, Claude eklentileri sırasında önce gelen. Diğerinin satırı onun yerine hangi becerinin kullanıldığını söyler.
 - Daha fazla menüsünde **İçeriği görüntüle**, **Düzenle** (yalnızca becerilerim), **Dışa aktar (zip)** (yalnızca becerilerim) ve **Klasörü aç** bulunur. Yerleşik becerilerde **Klasörü aç** yoktur. **Nerede kullanılır**, becerinin kullanılacağı düzenleyicileri seçtiğiniz yeri doğrudan açar.
 - Becerilerim `~/.ieumoffice/skills` klasöründe tutulur. Windows’ta bu `C:Users<kullanıcı adınız>.ieumofficeskills` olur. Daha fazla menüsündeki **Klasörü aç** becerinin klasörünü açar.
-- **Geri Dönüşüm Kutusu’na taşı** becerilerimden birini sistem geri dönüşüm kutusuna taşır; oradan geri yükleyebilirsiniz.
+- **Geri Dönüşüm Kutusu’na taşı** becerilerimden birini sistem geri dönüşüm kutusuna taşır; oradan geri yükleyebilirsiniz. Başka bir kaynaktan aynı adı taşıyan bir beceri kapalıysa onay penceresinde onu yeniden açmak için işaretli bir kutu görünür. Kapalı bırakmak için işareti kaldırın.
 - Yerleşik bir beceri kaldırılmak yerine gizlenir: **Gizle** seçin. Listenin altındaki **Yeniden göster** onu ilk durumundaki gibi geri getirir.
 - Yerleşik bir beceriyi veya başka bir programdan gelen bir beceriyi değiştirmek için **Becerilerime kopyala** seçin. Kopya becerilerimde görünür ve özgün beceri kapatılır.
 - Bir beceriyi şablonuyla dışa aktarmak, şablon belgesini de zip dosyasına koyar. Dışa aktarmadan önce belgede kişisel bilgi olmadığını denetleyin.
