@@ -48,6 +48,16 @@ Beceri, AI için bir dizi çalışma yönergesidir. Tekrar tekrar yaptığınız
 - Beceriyi kurduktan sonra kendiniz düzenlediyseniz ayrıca "Kendi düzenlemeleriniz kaybolur" gösterilir.
 - Güncelleme becerinin açık/kapalı durumunu, AI karar verir / Yalnızca çağrıldığında seçimini ve nerede kullanıldığını korur.
 
+## Önceki bir sürüme geri dönme
+
+Becerilerimden birini düzenlediğinizde, aynı adla üzerine başka bir beceri yüklediğinizde veya onu güncellediğinizde önceki sürüm saklanır. Geri dönüşüm kutusuna gitmez.
+
+- **İçeriği görüntüle** veya **Düzenle** ekranının altındaki **Önceki sürümler**, saklanan sürümleri en yeniden başlayarak her birinin ne zaman ve neden saklandığı ve boyutuyla listeler.
+- **Farkları gör**, `SKILL.md` dosyasının hangi satırlarının geri geleceğini ve hangilerinin kaybolacağını, başka hangi dosyaların değişeceğini gösterir.
+- **Bu sürüme geri dön**, o sürümün dosyalarını tam olarak oldukları gibi geri koyar. Şu anki sürüm de saklanır; ona yeniden dönebilirsiniz. Becerinin açık olup olmadığı ve ne zaman kullanıldığı sizin ayarladığınız gibi kalır.
+- Saklanan sürümler siz silene kadar kalır. **Sil** bir sürümü kalıcı olarak siler.
+- Sürümler `~/.ieumoffice/skill-history` klasöründedir. Bir becerideki **Geri Dönüşüm Kutusu’na taşı**, saklanan sürümlerini de geri dönüşüm kutusuna taşır.
+
 ## AI panelinde beceri çağırma
 
 1. AI giriş kutusunun başında veya bir boşluktan hemen sonra `/` ya da `$` yazın. Açık olan becerilerin listesi görünür.
