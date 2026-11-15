@@ -60,6 +60,7 @@ import {
   showOpenDialogWithMemory,
   showSaveDialogWithMemory,
   helpMenuTemplate,
+  macAppMenuTemplate,
   toggleDevToolsItem,
   installRendererProtocol,
   registerRendererScheme,
@@ -5570,7 +5571,7 @@ export function buildSlidesMenu(): Menu {
   const isMac = process.platform === 'darwin'
   const labels = appMenuLabels(getUiLang())
   const template: Electron.MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(labels)] : []),
     {
       label: tm('menuFile'),
       submenu: [

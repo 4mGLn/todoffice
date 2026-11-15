@@ -1024,7 +1024,8 @@ export type AgentDeleteTableResult =
   | { ok: false; reason: 'has_objects'; count: number }
 
 /** What a File menu item of the editor asks the app to do. */
-export type AgentFileCommand = 'save' | 'saveAs' | 'importPdf' | 'pdf' | 'preview' | 'print'
+export type AgentFileCommand =
+  'open' | 'save' | 'saveAs' | 'importPdf' | 'pdf' | 'preview' | 'print'
 
 /** The event those items fire on the editor's window; `detail` is the AgentFileCommand. */
 export declare const FILE_COMMAND_EVENT: 'ieum:file-command'
@@ -1738,6 +1739,12 @@ export interface AgentPluginSurface {
     options?: AgentChangeOptions,
   ): AgentFormatLookResult
   measureTabs(spots: AgentTabSpot[]): { tabs: (AgentTabMeasure | null)[] }
+  /**
+   * The preview a save writes (decision 0146): the first lines of the document the way
+   * Hangul writes `PrvText` (CR LF lines, a table row as `<cell><cell>`), and the first
+   * page as base64 PNG 1024 pixels high, or null where it cannot be drawn.
+   */
+  savePreview(): { text: string; png: string | null }
   listStyles(): AgentStyleNames
   readStyle(name: string): AgentReadStyleResult
   createStyle(spec: AgentNewStyle, options?: AgentChangeOptions): AgentStyleResult
@@ -1748,6 +1755,8 @@ export interface AgentPluginSurface {
   ): AgentStyleResult
   /** pages for printing from `from`, as many as are drawn in about two seconds */
   printPages(from: number): AgentPrintPages
+  /** once the start-up look at the PC's fonts is over: whether print can use the screen's fonts */
+  printFontsReady(): Promise<boolean>
   /** each page's size as the print path lays it out, from `from`, measured for about two seconds */
   printPageSizes(from: number): AgentPrintPageSizes
   /** one page as the print path draws it, for the preview; `page` is 0-based */

@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import init, { HwpDocument } from '@rhwp/core'
 import { agentPlugin, type AgentPluginHost } from '../studio-plugin/agent-plugin.mjs'
+import { installFontPresence } from '../studio-plugin/pc-fonts.mjs'
 import { badJob, imageFile, ownIds, printableHtml, sideMm } from '../src/main/print-document'
 import {
   createJobCache,
@@ -197,6 +198,154 @@ describe('the pages for print', () => {
     })
     plugin.printPages(0)
     expect(calls).toEqual([false, true])
+  })
+
+  it('are drawn in the fonts the editor’s canvas resolves, and so is the preview', () => {
+    const { plugin } = open(1)
+    const plain = plugin.printPages(0).pages[0]!.svg
+    // the engine's own font list, and no editor to ask: the page stays as the engine wrote it
+    expect(plain).toMatch(/font-family="[^"]*serif"/)
+    expect(plain).not.toContain('Screen Font')
+    // an editor that holds the PC's font list, whose canvas turns every font list into one font
+    installFontPresence({
+      resolveLocalFont: () => null,
+      records: () => [],
+      detected: () => new Set<string>(),
+      state: () => ({ source: 'local-font-access', count: 0, detectedAt: 1 }),
+    } as never)
+    vi.stubGlobal('document', {
+      fonts: [],
+      createElement: () => ({
+        getContext: () => {
+          let font = ''
+          return {
+            get font() {
+              return font
+            },
+            set font(value: string) {
+              font = value.startsWith('10px')
+                ? value
+                : value.replace(/px .*$/, 'px "Screen Font", serif')
+            },
+            measureText: () => ({ width: 1 }),
+          }
+        },
+      }),
+    })
+    try {
+      for (const svg of [plugin.printPages(0).pages[0]!.svg, plugin.previewPage(0).svg]) {
+        const families = [...svg.matchAll(/<text\b[^>]*\sfont-family="([^"]*)"/g)].map((m) => m[1])
+        expect(families.length).toBeGreaterThan(0)
+        expect(new Set(families)).toEqual(new Set(["'Screen Font',serif"]))
+        // a glyph narrower than its slot is drawn as it is
+        expect(svg).not.toContain('textLength')
+      }
+    } finally {
+      vi.unstubAllGlobals()
+      installFontPresence(null as never)
+    }
+  })
+
+  it('keep the screen’s layout where the editor can answer for its fonts', () => {
+    const { plugin, doc } = open(1)
+    // the screen's measured widths are on, and the engine lets an export keep them
+    const calls: string[] = []
+    Object.assign(doc, {
+      canvasMetricsActive: () => true,
+      selectCanvasMetrics: (on: boolean) => {
+        calls.push(`portable ${!on}`)
+        return true
+      },
+      setExportKeepsCanvasMetrics: (on: boolean) => {
+        calls.push(`keep ${on}`)
+      },
+    })
+    // no editor to ask about fonts: the widths every PC lays out the same, as before
+    plugin.printPages(0)
+    expect(calls).toEqual(['portable true', 'portable false'])
+
+    calls.length = 0
+    installFontPresence({
+      resolveLocalFont: () => null,
+      records: () => [],
+      detected: () => new Set<string>(),
+      state: () => ({ source: 'local-font-access', count: 0, detectedAt: 1 }),
+    } as never)
+    vi.stubGlobal('document', {
+      fonts: [],
+      createElement: () => ({
+        getContext: () => {
+          let font = ''
+          return {
+            get font() {
+              return font
+            },
+            set font(value: string) {
+              font = value
+            },
+            measureText: () => ({ width: 1 }),
+          }
+        },
+      }),
+    })
+    try {
+      // the pages, their sizes and the preview page are all laid out the same way
+      plugin.printPages(0)
+      plugin.printPageSizes(0)
+      plugin.previewPage(0)
+      expect(calls).toEqual([
+        'keep true',
+        'keep false',
+        'keep true',
+        'keep false',
+        'keep true',
+        'keep false',
+      ])
+      // an engine without the opt-in: the portable widths, as before
+      calls.length = 0
+      Object.assign(doc, { setExportKeepsCanvasMetrics: undefined })
+      plugin.printPages(0)
+      expect(calls).toEqual(['portable true', 'portable false'])
+    } finally {
+      vi.unstubAllGlobals()
+      installFontPresence(null as never)
+    }
+  })
+
+  it('are gathered only after the plugin can draw them in the screen’s fonts', async () => {
+    const { plugin } = open(2)
+    const calls: string[] = []
+    let ready!: () => void
+    const bridge: Pick<AgentBridge, 'printPages' | 'printPageSizes' | 'printFontsReady'> = {
+      printFontsReady: () =>
+        new Promise<boolean>((resolve) => {
+          calls.push('fonts?')
+          ready = () => {
+            calls.push('fonts ready')
+            resolve(true)
+          }
+        }),
+      printPages: async (from) => (calls.push(`pages ${from}`), plugin.printPages(from)),
+      printPageSizes: async (from) => (calls.push(`sizes ${from}`), plugin.printPageSizes(from)),
+    }
+    const job = gatherPrintJob(bridge, 'pdf', () => {})
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(calls).toEqual(['fonts?'])
+    ready()
+    expect((await job).pages).toHaveLength(2)
+    expect(calls.slice(0, 3)).toEqual(['fonts?', 'fonts ready', 'pages 0'])
+
+    calls.length = 0
+    const sizes = gatherPageSizes(bridge)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    ready()
+    expect(await sizes).toHaveLength(2)
+    expect(calls[0]).toBe('fonts?')
+    expect(calls.indexOf('fonts ready')).toBeLessThan(calls.indexOf('sizes 0'))
+
+    // a plugin without the call, or one that fails it, is printed from as before
+    const failing = { ...bridge, printFontsReady: () => Promise.reject(new Error('no')) }
+    expect((await gatherPrintJob(failing, 'pdf', () => {})).pages).toHaveLength(2)
   })
 
   it('are gathered call by call, and the job keeps each picture once', async () => {

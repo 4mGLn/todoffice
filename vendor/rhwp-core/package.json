@@ -53,9 +53,10 @@
       "0044-cmap-range-entries-across-lines.patch",
       "0047-stale-table-width-rows-outvote.patch",
       "0049-cmap-range-comments.patch",
+      "0050-export-keeps-canvas-metrics.patch",
       "0051-column-separator-setter.patch"
     ],
     "wasmPack": "0.15.0",
-    "wasmSha256": "7d7d759d05160fe0ceb212e9fba96845e3f8028bd8007606ffa7958e3cc3d323"
+    "wasmSha256": "a47587a82db63a5b8a1be6a7b9b246c605de7031d8e059bccf9bc27daa2d8150"
   }
 }

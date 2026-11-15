@@ -59,9 +59,16 @@ import {
   textColorOnFill,
   titleBoxCells,
 } from './document-looks.mjs'
-import { equationSvgForThisPc } from './equation-fonts.mjs'
+import { equationSvgForThisPc, isEquationSvgFamily } from './equation-fonts.mjs'
 import { gridOf as sizeGridOf, spanUpdates } from './table-sizes.mjs'
-import { fontOnPc, missingFonts, setMissingFontLabels, whenPcFontsSettled } from './pc-fonts.mjs'
+import {
+  fontOnPc,
+  missingFonts,
+  printFontsReady,
+  setMissingFontLabels,
+  whenPcFontsSettled,
+} from './pc-fonts.mjs'
+import { printSvgForThisPc, screenFonts } from './print-fonts.mjs'
 
 export const AGENT_PLUGIN_ID = 'ieum-agent'
 
@@ -157,6 +164,7 @@ export const FILE_COMMAND_EVENT = 'ieum:file-command'
 export const DIRTY_EVENT = 'ieum:dirty-changed'
 /** The File menu items, top to bottom: the command the app runs, and the shortcut shown. */
 const FILE_MENU = [
+  { command: 'open', id: 'ext:ieum-open', shortcut: 'Ctrl+O' },
   { command: 'save', id: 'ext:ieum-save', shortcut: 'Ctrl+S' },
   { command: 'saveAs', id: 'ext:ieum-save-as', shortcut: 'Ctrl+Shift+S' },
   { command: 'importPdf', id: 'ext:ieum-import-pdf' },
@@ -197,11 +205,24 @@ const MAX_MARKS = 500
 /** How long one call of printPages draws pages for; the bridge gives a call ten seconds. */
 const PRINT_BATCH_MS = 2000
 
+/**
+ * A page's SVG as the print path draws it, for this PC: an equation's glyph runs decoded
+ * where Hancom's equation font is missing, and the page's text in the fonts the screen
+ * shows it in (print-fonts.mjs). `screen` is one screenFonts() for the pages of a call.
+ */
+function printSvgOf(doc, page, screen) {
+  return printSvgForThisPc(
+    equationSvgForThisPc(doc.renderPageSvgWithProfile(page, 'print')),
+    screen,
+    isEquationSvgFamily,
+  )
+}
+
 /** One page as the print path draws it: the SVG and its size in CSS pixels. */
-function printPageOf(doc, page) {
+function printPageOf(doc, page, screen) {
   const info = JSON.parse(doc.getPageInfo(page))
   return {
-    svg: equationSvgForThisPc(doc.renderPageSvgWithProfile(page, 'print')),
+    svg: printSvgOf(doc, page, screen),
     width: info.width,
     height: info.height,
   }
@@ -4834,6 +4855,157 @@ function paragraphsOf(box) {
   return texts
 }
 
+/** Characters of preview text a save writes: Hangul keeps about this many (decision 0146). */
+const PREVIEW_TEXT_CHARS = 1022
+/** The preview picture's height in pixels, as Hangul 2024 draws it (724 × 1024 for A4). */
+const PREVIEW_IMAGE_HEIGHT = 1024
+
+/** What `read` returns, or `fallback` when it throws. */
+function tryOr(read, fallback) {
+  try {
+    return read()
+  } catch {
+    return fallback
+  }
+}
+
+/** A tab is a space in the preview; the engine's other control characters are no text. */
+const previewLineOf = (text) =>
+  String(text)
+    .replace(/\t/g, ' ')
+    // eslint-disable-next-line no-control-regex -- control characters are what this drops
+    .replace(/[\u0000-\u001f]/g, '')
+
+/**
+ * The first lines of the document as Hangul writes them into `PrvText`: a line per body
+ * paragraph, and in it, where it stands, each table as its rows (a row a line, each cell
+ * as `<text>`, the paragraph's text going on after the last row) and each text box as
+ * `<text>`. The paragraphs of a cell or a box are joined by a space, and a table or box
+ * inside one follows its text. Only as much as the preview keeps is read.
+ */
+function previewTextOf(doc) {
+  let text = ''
+  const room = () => PREVIEW_TEXT_CHARS - text.length
+  const json = JSON.stringify
+
+  /** The paragraphs of one cell (or of a text box, cell 0), at most about `limit` chars. */
+  const listText = (sec, para, path, cell, depth, limit) => {
+    const count = tryOr(
+      () => doc.getCellParagraphCountByPath(sec, para, json(cellAt(path, cell, 0))),
+      0,
+    )
+    const parts = []
+    let size = 0
+    for (let k = 0; k < count && size < limit; k++) {
+      const at = cellAt(path, cell, k)
+      const length = tryOr(() => doc.getCellParagraphLengthByPath(sec, para, json(at)), 0)
+      let line =
+        length > 0
+          ? previewLineOf(tryOr(() => doc.getTextInCellByPath(sec, para, json(at), 0, length), ''))
+          : ''
+      if (depth < MAX_TABLE_DEPTH) {
+        for (let inner = 0; inner < NESTED_CONTROLS_TRIED; inner++) {
+          const step = { controlIndex: inner, cellIndex: 0, cellParaIndex: 0 }
+          // inside a cell only a table counts: the engine cannot tell a box there from a note
+          line += objectText(sec, para, [...at, step], depth + 1, limit - size - line.length, false)
+        }
+      }
+      parts.push(line)
+      size += line.length + 1
+    }
+    return parts.join(' ')
+  }
+
+  /**
+   * A table as its lines, a text box (`box`: the object is a shape) as `<text>`, anything
+   * else (a picture, a header, a note) as nothing. Hangul writes a table's cells in their
+   * stored order and starts a line at each cell in the first column, so a cell under a
+   * merged first column stays on the line above.
+   */
+  const objectText = (sec, para, path, depth, limit, box) => {
+    if (limit <= 0) return ''
+    const dims = tryOr(() => parse(doc.getTableDimensionsByPath(sec, para, json(path))), null)
+    if (!dims) {
+      if (!box) return ''
+      const count = tryOr(
+        () => doc.getCellParagraphCountByPath(sec, para, json(cellAt(path, 0, 0))),
+        0,
+      )
+      return count > 0 ? `<${listText(sec, para, path, 0, depth, limit)}>` : ''
+    }
+    let out = ''
+    for (let cell = 0; cell < dims.cellCount && out.length < limit; cell++) {
+      const col = tryOr(
+        () => parse(doc.getCellInfoByPath(sec, para, json(cellAt(path, cell, 0)))).col,
+        0,
+      )
+      if (cell > 0 && col === 0) out += '\r\n'
+      out += `<${listText(sec, para, path, cell, depth, limit - out.length)}>`
+    }
+    return out
+  }
+
+  /** The object is a drawn shape (a text box), not a header, footer or note. */
+  const isShape = (sec, para, ctrl) =>
+    tryOr(() => {
+      doc.getShapeProperties(sec, para, ctrl)
+      return true
+    }, false)
+
+  const sections = doc.getSectionCount()
+  for (let sec = 0; sec < sections && room() > 0; sec++) {
+    const paragraphs = doc.getParagraphCount(sec)
+    for (let para = 0; para < paragraphs && room() > 0; para++) {
+      const length = doc.getParagraphLength(sec, para)
+      const raw = length > 0 ? doc.getTextRange(sec, para, 0, length) : ''
+      const places = tryOr(() => parse(doc.getControlTextPositions(sec, para)), [])
+      // the objects in the order they stand in the text
+      const order = places
+        .map((at, ctrl) => ({ at: Number.isInteger(at) ? at : 0, ctrl }))
+        .sort((a, b) => a.at - b.at || a.ctrl - b.ctrl)
+      let line = ''
+      let from = 0
+      for (const { at, ctrl } of order) {
+        const to = Math.min(Math.max(at, from), length)
+        line += previewLineOf(engineSlice(raw, from, to))
+        from = to
+        const step = { controlIndex: ctrl, cellIndex: 0, cellParaIndex: 0 }
+        line += objectText(sec, para, [step], 1, room() - line.length, isShape(sec, para, ctrl))
+      }
+      line += previewLineOf(engineSlice(raw, from, length))
+      text += `${line}\r\n`
+    }
+  }
+  return Array.from(text).slice(0, PREVIEW_TEXT_CHARS).join('')
+}
+
+/**
+ * The first page as base64 PNG, PREVIEW_IMAGE_HEIGHT high on white, the way the screen
+ * draws it; null where there is no page or nothing to draw on (no DOM in a test).
+ */
+function previewPngOf(doc) {
+  const sheet = globalThis.document
+  if (!sheet || doc.pageCount() < 1) return null
+  const info = JSON.parse(doc.getPageInfo(0))
+  if (!(info.width > 0 && info.height > 0)) return null
+  const scale = PREVIEW_IMAGE_HEIGHT / info.height
+  const page = sheet.createElement('canvas')
+  doc.renderPageToCanvas(0, page, scale)
+  if (!page.width || !page.height) return null
+  const out = sheet.createElement('canvas')
+  out.width = Math.max(1, Math.round(info.width * scale))
+  out.height = PREVIEW_IMAGE_HEIGHT
+  const pen = out.getContext('2d')
+  if (!pen) return null
+  pen.fillStyle = '#ffffff'
+  pen.fillRect(0, 0, out.width, out.height)
+  // the engine may draw at the screen's pixel ratio: fit what it drew to the picture
+  pen.drawImage(page, 0, 0, out.width, out.height)
+  const url = out.toDataURL('image/png')
+  const comma = url.indexOf(',')
+  return url.startsWith('data:image/png') && comma > 0 ? url.slice(comma + 1) : null
+}
+
 /** The text of one body paragraph, folded to one line, without control characters. */
 function paragraphTextOf(doc, sec, para) {
   try {
@@ -6247,6 +6419,27 @@ function withPortableWidths(doc, fn) {
     return fn()
   } finally {
     if (measured) doc.selectCanvasMetrics(true)
+  }
+}
+
+/**
+ * Run `fn` to lay out and draw the pages for print. Where the screen can answer for the
+ * fonts it draws with (`screen`, print-fonts.mjs) and the engine lets an export keep the
+ * widths the screen measured (vendor/rhwp-core patch 0050), the pages keep the screen's
+ * layout: the same lines and the same page breaks as the page the user edits, drawn in the
+ * fonts those widths were measured on. Otherwise they are laid out with the widths every
+ * PC lays out the same, as the editor's own print does.
+ */
+function withPrintWidths(doc, screen, fn) {
+  const measured = doc.canvasMetricsActive?.() ?? false
+  if (!measured || !screen || typeof doc.setExportKeepsCanvasMetrics !== 'function') {
+    return withPortableWidths(doc, fn)
+  }
+  doc.setExportKeepsCanvasMetrics(true)
+  try {
+    return fn()
+  } finally {
+    doc.setExportKeepsCanvasMetrics(false)
   }
 }
 
@@ -8211,11 +8404,15 @@ export const agentPlugin = {
        */
       checkLayout: guarded((fromTable, fromRow, toRow) =>
         host.read((doc) =>
-          withPortableWidths(doc, () => overflowsOf(doc, fromTable, fromRow, toRow ?? null)),
+          withPrintWidths(doc, screenFonts(), () =>
+            overflowsOf(doc, fromTable, fromRow, toRow ?? null),
+          ),
         ),
       ),
 
-      cutCells: guarded(() => host.read((doc) => withPortableWidths(doc, () => cutCellsOf(doc)))),
+      cutCells: guarded(() =>
+        host.read((doc) => withPrintWidths(doc, screenFonts(), () => cutCellsOf(doc))),
+      ),
 
       /**
        * The tables of the document in reading order, numbered from 1; a table inside a cell
@@ -8329,36 +8526,46 @@ export const agentPlugin = {
        * The pages as the editor prints them, from page `from` (0-based): SVG drawn for
        * print and each page's size in CSS pixels, as many pages as are drawn in about two
        * seconds (always one). Called again from where it stopped until `pageCount`. Pages
-       * are laid out with the portable text widths, as the editor's own print does, and the
-       * screen's are put back before the call returns.
+       * are laid out as withPrintWidths says (the screen's layout where the editor can
+       * answer for its fonts, else the portable text widths) and drawn in the fonts the
+       * screen shows (printSvgOf); the screen's state is put back before the call returns.
        */
       printPages: guarded((from) =>
-        host.read((doc) =>
-          withPortableWidths(doc, () => {
+        host.read((doc) => {
+          const screen = screenFonts()
+          return withPrintWidths(doc, screen, () => {
             const pageCount = doc.pageCount()
             const start = Number.isInteger(from) && from > 0 ? Math.min(from, pageCount) : 0
             const began = Date.now()
             const pages = []
             for (let page = start; page < pageCount; page++) {
-              pages.push(printPageOf(doc, page))
+              pages.push(printPageOf(doc, page, screen))
               if (Date.now() - began > PRINT_BATCH_MS) break
             }
             return { pageCount, from: start, pages }
-          }),
-        ),
+          })
+        }),
       ),
 
       /**
        * Each page's size in CSS pixels as the print path lays it out, from page `from`
        * (0-based), without drawing any: the print preview's layout diagram needs every
        * page's paper before it has drawn them. As many pages as are measured in about two
-       * seconds (always one); called again from where it stopped until `pageCount`. Like
-       * printPages, the call lays the pages out with the portable text widths and puts the
-       * screen's back before it returns.
+       * seconds (always one); called again from where it stopped until `pageCount`. The
+       * call lays the pages out the way printPages does (withPrintWidths) and puts the
+       * screen's state back before it returns.
        */
+      /**
+       * Resolves, once the start-up look at the PC's fonts is over, with whether the
+       * pages for print can be drawn in the fonts the screen shows. A print, its page sizes
+       * and the preview ask first: a print asked for in the first seconds of a document
+       * would otherwise go out in the engine's fonts and layout. Reads nothing.
+       */
+      printFontsReady: guarded(() => printFontsReady()),
+
       printPageSizes: guarded((from) =>
         host.read((doc) =>
-          withPortableWidths(doc, () => {
+          withPrintWidths(doc, screenFonts(), () => {
             const pageCount = doc.pageCount()
             const start = Number.isInteger(from) && from > 0 ? Math.min(from, pageCount) : 0
             const began = Date.now()
@@ -8376,12 +8583,13 @@ export const agentPlugin = {
       /**
        * One page as the print path draws it, for the print preview. `page` is 0-based.
        * The page count comes back with it, so the preview can show "1 / N" before any
-       * other page is drawn. Like printPages, the call lays the page out with the
-       * portable text widths and puts the screen's back before it returns.
+       * other page is drawn. The call lays the page out the way printPages does
+       * (withPrintWidths) and puts the screen's state back before it returns.
        */
       previewPage: guarded((page) =>
-        host.read((doc) =>
-          withPortableWidths(doc, () => {
+        host.read((doc) => {
+          const screen = screenFonts()
+          return withPrintWidths(doc, screen, () => {
             const pageCount = doc.pageCount()
             if (!Number.isInteger(page) || page < 0 || page >= pageCount) {
               throw fail('BAD_ARGUMENT', 'page out of range')
@@ -8390,7 +8598,7 @@ export const agentPlugin = {
             return {
               pageCount,
               page,
-              svg: equationSvgForThisPc(doc.renderPageSvgWithProfile(page, 'print')),
+              svg: printSvgOf(doc, page, screen),
               width: info.width,
               height: info.height,
               margins: {
@@ -8400,8 +8608,8 @@ export const agentPlugin = {
                 bottom: info.marginBottom,
               },
             }
-          }),
-        ),
+          })
+        }),
       ),
 
       /**
@@ -9252,7 +9460,7 @@ export const agentPlugin = {
             // an engine without the call: the page number is not known
           }
           const columns = columnsOf(doc, 0)
-          const { pages, map } = withPortableWidths(doc, () => ({
+          const { pages, map } = withPrintWidths(doc, screenFonts(), () => ({
             pages: doc.pageCount(),
             map: pageMapOf(doc),
           }))
@@ -10482,12 +10690,14 @@ export const agentPlugin = {
       }),
 
       /**
-       * Put Save, Save As, Import PDF, Export as PDF, Print Preview and Print at the top of the
-       * editor's File menu. The embedded editor leaves out its own (the app owns the file),
-       * which left the menu with no way to save, and no way to its PDF import (its Open is
-       * off too). Each item fires FILE_COMMAND_EVENT on the editor's window and the app does
-       * the rest. `labels` holds the six names in the app's language, by command. A second
-       * call puts the items back where they were; the names stay the first ones.
+       * Put Open, Save, Save As, Import PDF, Export as PDF, Print Preview and Print at the top
+       * of the editor's File menu. The embedded editor leaves out its own (the app owns the
+       * file), which left the menu with no way to open or save, and no way to its PDF import.
+       * Open is the app's: it asks for a file and opens it in a tab of its own, as Ctrl+O
+       * does, and never swaps the document inside this editor. Each item fires
+       * FILE_COMMAND_EVENT on the editor's window and the app does the rest. `labels` holds
+       * the seven names in the app's language, by command. A second call puts the items back
+       * where they were; the names stay the first ones.
        */
       installFileMenu: guarded((labels) => {
         for (const item of FILE_MENU) {
@@ -11737,6 +11947,18 @@ export const agentPlugin = {
           }),
         }))
       }),
+
+      /**
+       * The preview a save writes over the one the engine kept from the opened file
+       * (decision 0146): the first lines and the first page of the document as it is now.
+       * A page that cannot be drawn comes back as null; the text is always read. Reads only.
+       */
+      savePreview: guarded(() =>
+        host.read((doc) => ({
+          text: previewTextOf(doc),
+          png: tryOr(() => previewPngOf(doc), null),
+        })),
+      ),
 
       /**
        * Undo the last `steps` changes through the editor's own history, but only while
