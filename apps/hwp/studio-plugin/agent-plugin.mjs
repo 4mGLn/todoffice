@@ -1286,7 +1286,7 @@ const MAX_CELL_REPLACE_CHARS = 8
 
 /** The first part of a cell replacement the engine takes at once, whole code points only. */
 function cellReplaceHead(text) {
-  // the one call takes no tab: the head stops in front of the first one
+  // the engine's one-call cell replace refuses a tab, so the head stops in front of one
   return Array.from(text.split('\t')[0]).slice(0, MAX_CELL_REPLACE_CHARS).join('')
 }
 
@@ -1335,10 +1335,11 @@ function replaceHit(doc, hit, replacement) {
     return
   }
   const last = path[path.length - 1]
+  const head = cellReplaceHead(replacement)
   if (
     path.length === 1 &&
     typeof doc.replaceTextInCellDeferredPagination === 'function' &&
-    !replacement.startsWith('\t')
+    head !== ''
   ) {
     // one engine call keeps a memo on the replaced text. It removes and puts in up to eight
     // characters (code points) each, so a longer match is first worn down from its end,
@@ -1364,7 +1365,6 @@ function replaceHit(doc, hit, replacement) {
       )
       removed = start + 1
     }
-    const head = cellReplaceHead(replacement)
     const headLength = Array.from(head).length
     const total = Array.from(replacement).length
     expectOk(
@@ -2875,7 +2875,6 @@ function fontOf(read) {
   }
 }
 
-/** The body style every document has, the one Hangul calls 바탕글. */
 const BODY_STYLE = '바탕글'
 
 /**
@@ -3146,8 +3145,7 @@ function columnSharesOf(list, cols) {
  * How to give the columns of a body table the shares `shares` of its width (one per
  * column), the width of the table staying as it is: the engine's cell updates
  * (resizeTableCells, which wraps the cell text again) and the new widths in millimetres.
- * The widths are planned per column and given to each cell over the columns it spans
- * (table-sizes.mjs). Null when a column has no cell of its own to read its width from.
+ * Null when a column has no cell of its own to read its width from.
  */
 function columnPlanOf(doc, table, shares) {
   const control = table.path[0].controlIndex
@@ -5446,7 +5444,6 @@ function notesOf(doc) {
   return { notes, elsewhere: Math.max(0, controls.length - notes.length) }
 }
 
-/** Most equations listEquations lists, and how many characters it shows on either side. */
 const MAX_LISTED_EQUATIONS = 200
 const EQUATION_CONTEXT_CHARS = 20
 
@@ -5838,7 +5835,6 @@ function writeToc(doc, box, sec, holder, headings, look, paraOf) {
     setCellText(doc, table, cell.cell, String(page))
     const { style } = look.levels.get(entry.level)
     if (style !== null) {
-      // the rows are in the 차례 style of their level, as Hangul's own contents are
       for (const col of [0, 1]) {
         expectOk(
           doc.applyCellStyle(sec, holder, control, cellOf(grid, index, col).cell, 0, style),
@@ -8640,7 +8636,6 @@ export const agentPlugin = {
                   ).length
                 }
               }
-              // cells whose width alone changed are counted too
               if (count === 0 && columns) count = columns.updates.length
               mustKeep(before, objectsOf(doc))
               // a diagonal runs through the words of its cell: say which cells hold some
@@ -11014,7 +11009,6 @@ export const agentPlugin = {
               const before = objectsOf(doc)
               if (removing) {
                 expectOk(doc.deleteEquationControl(sec, para, control), 'remove the equation')
-                // the one control less is the equation
                 mustKeep({ ...before, controls: before.controls - 1 }, objectsOf(doc))
               } else {
                 expectOk(
