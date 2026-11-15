@@ -2514,6 +2514,10 @@ export class HwpDocument {
      */
     setColumnDef(section_idx: number, column_count: number, column_type: number, same_width: number, spacing_hu: number): string;
     /**
+     * 단 구분선 설정 (`{"type":u8,"width":u8,"color":"#rrggbb"}`, type 0 = 선 없음)
+     */
+    setColumnSeparator(section_idx: number, json: string): string;
+    /**
      * 덧말·글자 겹침 하나를 고친다. 입력은 넣을 때와 같다.
      */
     setComposeControl(sec: number, para: number, ctrl_idx: number, json: string): string;
@@ -3560,6 +3564,7 @@ export interface InitOutput {
     readonly hwpdocument_setChartDataByIndex: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly hwpdocument_setClipEnabled: (a: number, b: number) => void;
     readonly hwpdocument_setColumnDef: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly hwpdocument_setColumnSeparator: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly hwpdocument_setComposeControl: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
     readonly hwpdocument_setComposeControlByPath: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
     readonly hwpdocument_setComposeControlInFootnote: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
