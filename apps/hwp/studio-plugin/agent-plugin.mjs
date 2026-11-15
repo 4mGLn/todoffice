@@ -5691,16 +5691,29 @@ function equationsOf(doc) {
   return { equations, elsewhere: Math.max(0, total - equations.length) }
 }
 
-/** The words right in front of an equation and right after it, in its paragraph. */
+/** Letters (circled numbers and spaces aside) that say where an equation is. */
+const MIN_EQUATION_WORDS = 10
+const wordsOf = (text) => text.replace(/[\s①-⓿❶-➓]/g, '')
+
+/**
+ * The words right in front of an equation and right after it, in its paragraph. Where
+ * those are only a circled number or a few letters (a choice of a question), also
+ * `previous`: the start of the nearest paragraph before it that says more (the question).
+ */
 function equationContext(doc, equation) {
   const { sec, para, offset } = equation
   const length = doc.getParagraphLength(sec, para)
   const from = Math.max(0, offset - EQUATION_CONTEXT_CHARS)
   const to = Math.min(length, offset + EQUATION_CONTEXT_CHARS)
-  return {
-    before: offset > from ? doc.getTextRange(sec, para, from, offset - from) : '',
-    after: to > offset ? doc.getTextRange(sec, para, offset, to - offset) : '',
+  const before = offset > from ? doc.getTextRange(sec, para, from, offset - from) : ''
+  const after = to > offset ? doc.getTextRange(sec, para, offset, to - offset) : ''
+  if (wordsOf(before + after).length >= MIN_EQUATION_WORDS) return { before, after }
+  for (let k = para - 1; k >= 0; k--) {
+    const text = squash(bodyText(doc, sec, k))
+    if (wordsOf(text).length < MIN_EQUATION_WORDS) continue
+    return { before, after, previous: clip(text, EQUATION_CONTEXT_CHARS) }
   }
+  return { before, after }
 }
 
 /** The text in front of a note's mark, cut to a few words. */

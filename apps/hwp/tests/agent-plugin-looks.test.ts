@@ -2374,6 +2374,25 @@ describe('equations, a diagonal, the page border, tab stops, the size of a pictu
   })
 })
 
+describe('where an equation of a choice is', () => {
+  it('names the line above an equation that has only a circled number round it', () => {
+    const lines = [
+      '1. 다음 중 이차방정식의 근은?',
+      '① [[1]]',
+      '② [[2]]',
+      '넓이는 [[3]] 이다. 둘레는 따로 구한다.',
+    ]
+    const { plugin } = open(blank(lines))
+    plugin.insertEquations(
+      ['x=1', 'x=2', 'pi r^2'].map((script, index) => ({ find: `[[${index + 1}]]`, script })),
+    )
+    const listed = plugin.listEquations().equations
+    expect(listed[0]).toMatchObject({ before: '① ', previous: '1. 다음 중 이차방정식의 근은?' })
+    expect(listed[1]).toMatchObject({ before: '② ', previous: '1. 다음 중 이차방정식의 근은?' })
+    expect(listed[2]).not.toHaveProperty('previous')
+  })
+})
+
 describe('a paragraph that holds an object of its line', () => {
   const textOf = (doc: HwpDocument, para: number) =>
     doc.getTextRange(0, para, 0, doc.getParagraphLength(0, para))

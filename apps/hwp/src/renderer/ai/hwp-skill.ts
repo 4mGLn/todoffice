@@ -1643,7 +1643,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'list_equations',
     edits: false,
     description:
-      'List the equations (수식) of the body text in reading order: their number in this list (what edit_equation takes), the words in front of each and after it, and its script.',
+      'List the equations (수식) of the body text in reading order: their number in this list (what edit_equation takes), the words in front of each and after it (and the start of the line above where those are only a choice number), and its script.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -2337,8 +2337,9 @@ const latexHelp = (what: string): string =>
   `Nothing was changed: ${what} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum from {i=1} to {n}, LEFT ( ... RIGHT ).`
 
 /** Where an equation stands, as list_equations shows it: the words round it, … in its place. */
-const equationPlace = (equation: { before: string; after: string }): string =>
-  `${equation.before}…${equation.after}`.replace(/\s+/g, ' ')
+const equationPlace = (equation: { before: string; after: string; previous?: string }): string =>
+  `${equation.before}…${equation.after}`.replace(/\s+/g, ' ') +
+  (equation.previous ? `", under "${equation.previous}` : '')
 
 const HAS_OBJECTS_HELP =
   'Nothing was changed: a table, a picture, an equation or a form field sits in that paragraph, and the change would have moved or removed it. Use the paragraph before or after it as the anchor, or tell the user. An equation can be removed first with edit_equation (its number is in list_equations).'

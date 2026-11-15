@@ -2394,11 +2394,12 @@ describe('equations', () => {
   it('lists the equations with the words round them', async () => {
     const { call } = setup({
       listEquations: vi.fn(async () => ({
-        count: 2,
+        count: 3,
         elsewhere: 1,
         equations: [
           { equation: 1, before: '넓이는 ', after: ' 이다.', script: 'x^2' },
           { equation: 2, before: '비는\t', after: ' 이다.', script: '{a} over {b}' },
+          { equation: 3, before: '① ', after: '', previous: '1. 다음 중 근은?', script: 'x=1' },
         ],
       })),
     })
@@ -2407,10 +2408,11 @@ describe('equations', () => {
       [
         '1. (in "넓이는 … 이다.") x^2',
         '2. (in "비는 … 이다.") {a} over {b}',
+        '3. (in "① …", under "1. 다음 중 근은?") x=1',
         '1 more equation(s) sit inside table cells, notes or text boxes, which these tools cannot reach.',
       ].join('\n'),
     )
-    expect(result.summary).toBe('aiToolEquations:{"count":2}')
+    expect(result.summary).toBe('aiToolEquations:{"count":3}')
   })
 
   it('changes the script of an equation, or removes it', async () => {

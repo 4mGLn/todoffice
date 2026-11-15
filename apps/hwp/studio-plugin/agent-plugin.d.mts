@@ -1274,6 +1274,8 @@ export interface AgentListedEquation {
   equation: number
   before: string
   after: string
+  /** the start of the paragraph before, where the words round the equation say little */
+  previous?: string
   script: string
 }
 
