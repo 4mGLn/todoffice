@@ -185,7 +185,8 @@ export function tableLookBlocks(look, header) {
 /**
  * Rows of a table's head: flagged as header, or with a line under them unlike the line under
  * the next row (a first row styled by hand, a head of two rows) while that next line still
- * lies between two rows.
+ * lies between two rows. In a table of two rows, the first is a head when the line under it
+ * is unlike the line over the table.
  */
 export function headRowsOf(edges, flagged) {
   const rows = edges.length - 1
@@ -200,14 +201,28 @@ export function headRowsOf(edges, flagged) {
         String(line.color).toLowerCase() === String(below.color).toLowerCase()
       )
     })
+  const drawnByHand = (head) =>
+    head + 2 < rows
+      ? !same(edges[head + 1], edges[head + 2])
+      : rows === 2 && head === 0 && !same(edges[1], edges[0])
   let head = 0
-  while (
-    head < rows &&
-    (flagged[head] === true || (head + 2 < rows && !same(edges[head + 1], edges[head + 2])))
-  ) {
-    head += 1
-  }
+  while (head < rows && (flagged[head] === true || drawnByHand(head))) head += 1
   return head
+}
+
+/**
+ * `edge` with each place a merged cell runs across (null) given the line of the nearest
+ * column of that edge that has one, or `fallback`'s line in that column when none has.
+ */
+function filledEdge(edge, fallback) {
+  return edge.map((line, col) => {
+    if (line) return line
+    for (let step = 1; step < edge.length; step++) {
+      const near = edge[col - step] ?? edge[col + step]
+      if (near) return near
+    }
+    return fallback[col]
+  })
 }
 
 /**
@@ -216,21 +231,15 @@ export function headRowsOf(edges, flagged) {
  * table (0) to its bottom (one more than the rows), each a line per column (null where a
  * merged cell runs across the edge); `flagged` says which rows carry the header flag. The
  * outline stays with the edge of the table and the lines of the head (headRowsOf) with
- * the head; every line the new rows bring is the line between the first two body rows (a
- * thin one in the colour of the bottom line where a merged cell crosses it).
- * Null when the table has no two body rows to read that line from: the lines are then
- * left as the engine copied them.
+ * the head; every line the new rows bring is the line between the first two body rows, or,
+ * with a head over a single body row, the line under the table. Null for a table of one
+ * row: the lines are then left as the engine copied them.
  */
 export function rowEdgesAfterAdding(edges, flagged, first, count) {
   const rows = edges.length - 1
   const between = headRowsOf(edges, flagged) + 1
-  if (between >= rows) return null
-  const inner = edges[between].map((line, col) => {
-    if (line) return line
-    const outer = edges[rows][col]
-    if (!outer || outer.type === 0) return outer
-    return { type: 1, width: borderWidthIndex(0.12), color: outer.color }
-  })
+  if (rows < 2) return null
+  const inner = between < rows ? filledEdge(edges[between], edges[rows]) : edges[rows]
   const at = Math.min(first, rows - 1)
   return [...edges.slice(0, at + 1), ...Array(count).fill(inner), ...edges.slice(at + 1)]
 }

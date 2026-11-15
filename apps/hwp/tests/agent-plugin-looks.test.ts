@@ -494,6 +494,57 @@ describe('insertTable: looks', () => {
     expect(after[1]).not.toBe(after[2])
   })
 
+  it('keeps a line drawn under the first of two rows under that row only', () => {
+    const under = (source: HwpDocument) => {
+      const table = tableIn(source, 5)
+      return Array.from({ length: table.rows }, (_, row) => {
+        const line = table.cell(row * table.cols).borderBottom
+        return `${line.type}/${line.width}`
+      })
+    }
+    const { plugin, doc } = open()
+    plugin.insertTable('□ 세부 일정', null, 'after', [
+      ['회의록', '2026. 11. 15.'],
+      ['안건', '내용'],
+    ])
+    plugin.formatCells(
+      1,
+      { fromRow: 1, fromCol: 1, toRow: 1, toCol: 2 },
+      { borders: [{ sides: 'bottom', line: 'double', width: 0.5 }] },
+    )
+    const [head, bottom] = under(doc())
+    plugin.addTableLines(1, 'rows', 2, 'after', 2)
+    expect(under(doc())).toEqual([head, bottom, bottom, bottom])
+    expect(head).not.toBe(bottom)
+  })
+
+  it('gives a new line under a merged cell the line of the nearest column, no line the table lacks', () => {
+    const { plugin, doc } = open()
+    plugin.insertTable('□ 세부 일정', null, 'after', [
+      ['구분', '내용', '비고'],
+      ['가', '나', '다'],
+      ['라', '마', '바'],
+    ])
+    plugin.formatCells(1, null, { borders: [{ sides: 'all', line: 'solid', width: 0.4 }] })
+    plugin.mergeCells(1, { row: 1, col: 2 }, { row: 2, col: 2 })
+    const widths = () => {
+      const source = doc()
+      const table = tableIn(source, 5)
+      const all = new Set<number>()
+      for (let cell = 0; cell < table.cells; cell++) {
+        all.add(table.cell(cell).borderTop.width)
+        all.add(table.cell(cell).borderBottom.width)
+      }
+      return all
+    }
+    const before = widths()
+    plugin.addTableLines(1, 'rows', 3, 'after', 1)
+    expect(widths()).toEqual(before)
+    const table = tableIn(doc(), 5)
+    const last = table.cell(table.cells - 2)
+    expect(last.borderTop.width).toBe(table.cell(0).borderBottom.width)
+  })
+
   it('writes the words of a header row white on a dark fill, in the document and in both files', () => {
     const { doc, para } = withTable({ header: true, headerColor: '#1F3864' })
     const colours = (source: HwpDocument) => {
