@@ -111,6 +111,8 @@ export const hi = {
   aiToolDelete: 'अनुच्छेद हटाया गया · {text}',
   aiToolTable: 'तालिका जोड़ी गई · {rows} × {cols}',
   aiToolImageSearchDone: '"{query}" की छवि खोज ({count} छवियाँ)',
+  aiToolWebSearch: 'वेब खोज',
+  aiToolWebSearchDone: '"{query}" की वेब खोज ({count} परिणाम)',
   aiToolInsertImage: 'छवि डाली गई {what}',
   aiToolImport: '"{name}" को नए HWP दस्तावेज़ के रूप में खोला गया',
   aiToolFormat: 'स्वरूप बदला गया · {text}',

@@ -111,6 +111,8 @@ export const ja = {
   aiToolDelete: '段落を削除 · {text}',
   aiToolTable: '表を挿入 · {rows} 行 {cols} 列',
   aiToolImageSearchDone: '「{query}」の画像検索（{count}件）',
+  aiToolWebSearch: 'ウェブ検索',
+  aiToolWebSearchDone: '「{query}」のウェブ検索（{count}件）',
   aiToolInsertImage: '画像を挿入しました {what}',
   aiToolImport: '「{name}」を新しい HWP 文書として開きました',
   aiToolFormat: '書式を変更 · {text}',

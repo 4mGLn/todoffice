@@ -131,8 +131,19 @@ function savePortOf(editor: RhwpEditor): SaveEditorPort {
     },
     setMemoLock: (locked) => agent.setMemoLock(locked),
     measureTabs: async (spots) => (await agent.measureTabs(spots)).tabs,
+    savePreview: async () => {
+      const made = await agent.savePreview()
+      return { text: made.text, image: made.png === null ? null : bytesOfBase64(made.png) }
+    },
     notifySaved: (fileName) => editor.notifySaved(fileName),
   }
+}
+
+function bytesOfBase64(text: string): Uint8Array {
+  const raw = atob(text)
+  const bytes = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+  return bytes
 }
 
 export default function App() {

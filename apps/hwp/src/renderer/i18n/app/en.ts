@@ -110,6 +110,8 @@ export const en = {
   aiToolDelete: 'Removed a paragraph · {text}',
   aiToolTable: 'Added a table · {rows} × {cols}',
   aiToolImageSearchDone: 'Image search "{query}" ({count} images)',
+  aiToolWebSearch: 'Web search',
+  aiToolWebSearchDone: 'Web search "{query}" ({count} results)',
   aiToolInsertImage: 'Inserted the picture {what}',
   aiToolImport: 'Opened "{name}" as a new Hangul document',
   aiToolFormat: 'Formatted · {text}',

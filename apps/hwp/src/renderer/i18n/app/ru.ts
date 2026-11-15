@@ -112,6 +112,8 @@ export const ru = {
   aiToolDelete: 'Абзац удалён · {text}',
   aiToolTable: 'Таблица добавлена · {rows} × {cols}',
   aiToolImageSearchDone: 'Поиск изображений «{query}» ({count} изображений)',
+  aiToolWebSearch: 'Веб-поиск',
+  aiToolWebSearchDone: 'Веб-поиск «{query}» ({count} результатов)',
   aiToolInsertImage: 'Изображение вставлено {what}',
   aiToolImport: '«{name}» открыт как новый документ HWP',
   aiToolFormat: 'Формат изменён · {text}',

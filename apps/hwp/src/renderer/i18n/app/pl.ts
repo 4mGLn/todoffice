@@ -111,6 +111,8 @@ export const pl = {
   aiToolDelete: 'Usunięto akapit · {text}',
   aiToolTable: 'Dodano tabelę · {rows} × {cols}',
   aiToolImageSearchDone: 'Wyszukiwanie obrazów „{query}” ({count} obrazów)',
+  aiToolWebSearch: 'Wyszukiwanie w sieci',
+  aiToolWebSearchDone: 'Wyszukiwanie w sieci „{query}” ({count} wyników)',
   aiToolInsertImage: 'Wstawiono obraz {what}',
   aiToolImport: 'Otwarto „{name}” jako nowy dokument HWP',
   aiToolFormat: 'Zmieniono formatowanie · {text}',

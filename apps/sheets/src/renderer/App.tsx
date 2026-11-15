@@ -103,6 +103,7 @@ import {
   placeRemoteEntries,
   useProjectPanel,
   type ProjectPanel,
+  useSubscriptionUsageUpdates,
 } from '@genoffice/ui'
 
 import {
@@ -1349,6 +1350,9 @@ export function App({
   }, [aiSettings, subscription.statuses])
   /** rate-limit windows the subscription provider reported on its latest turn */
   const [subscriptionUsage, setSubscriptionUsage] = useState<readonly AiSubscriptionUsage[]>([])
+  // usage a picture request reported reaches every window (the chat stream only its own);
+  // the shared merge keeps the windows a report does not name
+  useSubscriptionUsageUpdates(() => window.desktopApi?.aiSubscription, setSubscriptionUsage)
   /** the input of the current run was cut to fit a limit: the user is told */
   const [inputTruncated, setInputTruncated] = useState(false)
   /** cause of the failed turn, handed over by the transport right before the loop reports it */

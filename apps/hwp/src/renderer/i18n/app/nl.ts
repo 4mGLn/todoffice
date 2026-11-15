@@ -111,6 +111,8 @@ export const nl = {
   aiToolDelete: 'Alinea verwijderd · {text}',
   aiToolTable: 'Tabel toegevoegd · {rows} × {cols}',
   aiToolImageSearchDone: 'Afbeeldingen zoeken "{query}" ({count} afbeeldingen)',
+  aiToolWebSearch: 'Zoeken op internet',
+  aiToolWebSearchDone: 'Zoeken op internet "{query}" ({count} resultaten)',
   aiToolInsertImage: 'Afbeelding ingevoegd {what}',
   aiToolImport: '"{name}" geopend als nieuw HWP-document',
   aiToolFormat: 'Opmaak gewijzigd · {text}',

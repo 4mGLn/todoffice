@@ -113,6 +113,8 @@ export const fr = {
   aiToolDelete: 'Paragraphe supprimé · {text}',
   aiToolTable: 'Tableau ajouté · {rows} × {cols}',
   aiToolImageSearchDone: 'Recherche d’images « {query} » ({count} images)',
+  aiToolWebSearch: 'Recherche Web',
+  aiToolWebSearchDone: 'Recherche Web « {query} » ({count} résultats)',
   aiToolInsertImage: 'Image insérée {what}',
   aiToolImport: '« {name} » ouvert comme nouveau document HWP',
   aiToolFormat: 'Mise en forme modifiée · {text}',

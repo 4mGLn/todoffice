@@ -454,6 +454,13 @@ export {
   type UseSubscriptionConnectionOptions,
 } from './use-subscription-connection'
 export {
+  mergeLatestSubscriptionUsage,
+  subscriptionUsageOf,
+  useSubscriptionUsageUpdates,
+  type SubscriptionUsageMerge,
+  type SubscriptionUsageSource,
+} from './use-subscription-usage-updates'
+export {
   AI_SUBSCRIPTION_STRINGS,
   aiSubscriptionText,
   type AiSubscriptionStringKey,
