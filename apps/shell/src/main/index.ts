@@ -97,6 +97,8 @@ import {
   aboutMenuItem,
   appMenuPopupTemplate,
   helpCheckUpdatesItems,
+  macAppMenuTemplate,
+  setOpenSettingsInvoker,
   setUpdateCheckInvoker,
   installRendererProtocol,
   AUTHOR_NAME_KEY,
@@ -5444,8 +5446,10 @@ function installTabShortcuts(): void {
           !!shellWindow && !shellWindow.isDestroyed() && shellWindow.webContents.id === id,
         hasTab: (id) => !!manager.tabIdForWebContents(id),
         activeKind: () => manager.list().find((tab) => tab.active)?.kind,
+        kindOf: (id) => manager.describeWebContents(id)?.kind,
         cycle: (direction) => manager.cycleTab(direction),
         closeActive: () => manager.closeActiveTab(),
+        openSettings: () => openHomeSettings({ section: 'general' }),
       })
       if (handled) event.preventDefault()
     })
@@ -8424,8 +8428,8 @@ function registerTabsIpc(): void {
   })
   // "all tabs" overflow menu — native popup because the editors' WebContentsView
   // would cover any DOM dropdown the shell renderer draws below the tab strip
-  // the ☰ button is the Windows/Linux menu: the window's menus, then the update
-  // check as an item of its own (Help keeps it only on macOS)
+  // the ☰ button is the Windows/Linux menu: the window's menus, then Settings…
+  // and the update check as items of their own (macOS has them in the app menu)
   ipcMain.handle(TABS_CHANNELS.showAppMenu, (_event, x: unknown, y: unknown) => {
     if (!shellWindow) return
     const appMenu = Menu.getApplicationMenu()
@@ -8437,7 +8441,12 @@ function registerTabsIpc(): void {
           ? { type: 'separator' }
           : { label: item.label, enabled: item.enabled, click: () => item.click() },
     )
-    Menu.buildFromTemplate(appMenuPopupTemplate(menus, appMenuLabels(currentLang()))).popup({
+    // Ctrl+, is subscript in the Word tab, so the chord is not printed there
+    const activeKind = tabManager?.list().find((tab) => tab.active)?.kind
+    const settingsShortcut = activeKind === 'docs' ? 'none' : 'show'
+    Menu.buildFromTemplate(
+      appMenuPopupTemplate(menus, appMenuLabels(currentLang()), settingsShortcut),
+    ).popup({
       window: shellWindow,
       ...(typeof x === 'number' && typeof y === 'number'
         ? { x: Math.round(x), y: Math.round(y) }
@@ -8585,7 +8594,7 @@ async function openFileViaDialog(): Promise<void> {
 function buildHomeMenu(): void {
   const isMac = process.platform === 'darwin'
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -8624,7 +8633,7 @@ function buildHomeMenu(): void {
 function buildPdfMenu(): void {
   const isMac = process.platform === 'darwin'
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -8717,7 +8726,7 @@ function buildPdfMenu(): void {
 function buildMarkdownMenu(): void {
   const isMac = process.platform === 'darwin'
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -8831,7 +8840,7 @@ function buildMarkdownMenu(): void {
 function buildHwpMenu(): void {
   const isMac = process.platform === 'darwin'
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -8937,7 +8946,7 @@ function buildEpubMenu(): void {
     click: toBook(command),
   })
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -9031,7 +9040,7 @@ function buildEpubMenu(): void {
 function buildHtmlMenu(): void {
   const isMac = process.platform === 'darwin'
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -9162,7 +9171,7 @@ function buildDiagramMenu(): void {
     },
   })
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -9268,7 +9277,7 @@ function buildMindmapMenu(): void {
   const isMac = process.platform === 'darwin'
   const labels = appMenuLabels(currentLang())
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    ...(isMac ? [macAppMenuTemplate(appMenuLabels(currentLang()))] : []),
     {
       label: tm('menuFile'),
       submenu: [
@@ -10116,7 +10125,8 @@ app.on('second-instance', (_event, argv, _cwd, additionalData) => {
 installNavigationGuard(app)
 installContextMenu(app, () => contextMenuLabels(currentLang()))
 registerAiIpc()
-ipcMain.handle('ai:open-model-settings', () => {
+/** Settings live on Home: bring the shell window forward, show Home, open the section. */
+function openHomeSettings(target: { section: string; field?: string }): void {
   const win = shellWindow
   if (!win || win.isDestroyed()) return
   // the request may come from a detached window or while the shell is minimized
@@ -10124,18 +10134,13 @@ ipcMain.handle('ai:open-model-settings', () => {
   win.show()
   win.focus()
   tabManager?.openHomeTab()
-  win.webContents.send(HOME_CHANNELS.openSettings, { section: 'aiModel' })
-})
+  win.webContents.send(HOME_CHANNELS.openSettings, target)
+}
+ipcMain.handle('ai:open-model-settings', () => openHomeSettings({ section: 'aiModel' }))
 // the slides template gallery's "Change" beside the default fonts (decision 0115)
-ipcMain.handle('slides:open-font-settings', () => {
-  const win = shellWindow
-  if (!win || win.isDestroyed()) return
-  if (win.isMinimized()) win.restore()
-  win.show()
-  win.focus()
-  tabManager?.openHomeTab()
-  win.webContents.send(HOME_CHANNELS.openSettings, { section: 'general', field: 'slidesAiFonts' })
-})
+ipcMain.handle('slides:open-font-settings', () =>
+  openHomeSettings({ section: 'general', field: 'slidesAiFonts' }),
+)
 registerProjectIpc()
 registerDocsIpc()
 registerHomeIpc()
@@ -10878,6 +10883,8 @@ app.whenReady().then(async () => {
   installDocumentLinkMenuItems()
   installDockMenu()
   setUpdateCheckInvoker(() => void checkForUpdatesNow())
+  // Settings… in the macOS app menu and the ☰ popup, and ⌘, / Ctrl+,
+  setOpenSettingsInvoker(() => openHomeSettings({ section: 'general' }))
   initAutoUpdater(() => shellWindow, currentUpdateChannel(), autoUpdateCheckEnabled)
   // crash record on this PC (crash-log.jsonl in userData) and, outside
   // headless runs, a prompt when the renderer of an open document dies
