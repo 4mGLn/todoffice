@@ -2177,15 +2177,7 @@ describe('what a change leaves on the pages', () => {
     const { map } = plugin.pageLayout()
     expect(map.pages[1]).toMatchObject({ first: { text: '다음 줄 1' } })
     expect(map.alone).toEqual([
-      {
-        page: 1,
-        kind: 'line',
-        text: '□ 머리 제목',
-        style: '머리',
-        nextPage: 2,
-        kept: true,
-        apart: true,
-      },
+      { page: 1, kind: 'line', text: '□ 머리 제목', style: '머리', nextPage: 2, kept: true },
     ])
     const before = open(blank([...lines(36), '이용자 수는 아래와 같다']))
     before.plugin.insertTable('이용자 수는 아래와 같다', null, 'after', rows(10), false)
@@ -2201,6 +2193,28 @@ describe('what a change leaves on the pages', () => {
         style: '앞줄',
         nextPage: 2,
         kept: true,
+      },
+    ])
+  })
+
+  it('keeps a kept line apart from its text only when the empty line after it stays on its page', () => {
+    const { plugin } = open(blank([...lines(39), '□ 추진 배경', '', ...lines(10, '다음 줄')]))
+    plugin.styleParagraphs({
+      styles: [{ name: '소제목', format: {}, keepWithNext: true }],
+      apply: [{ style: '소제목', find: '□ 추진 배경' }],
+    })
+    const { map } = plugin.pageLayout()
+    expect(map.pages[0]).toMatchObject({ last: { text: '□ 추진 배경' } })
+    expect(map.pages[1]).toMatchObject({ first: { text: '다음 줄 1' } })
+    expect(map.alone).toEqual([
+      {
+        page: 1,
+        kind: 'line',
+        text: '□ 추진 배경',
+        style: '소제목',
+        nextPage: 2,
+        kept: true,
+        apart: true,
       },
     ])
   })

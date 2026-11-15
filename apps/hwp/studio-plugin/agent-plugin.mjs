@@ -4148,9 +4148,12 @@ function pageMapOf(doc) {
     const starts = new Map()
     let objects = 0
     const lowLines = new Set()
+    const drawn = []
     for (const run of runs) {
       if (run.cellPath || !isBody(run.secIdx, run.paraIdx)) continue
       const key = `${run.secIdx}/${run.paraIdx}`
+      const inColumn = (drawn[columnOf(run.x)] ??= new Set())
+      inColumn.add(key)
       if (Number.isInteger(run.charStart)) {
         starts.set(key, Math.min(starts.get(key) ?? Infinity, run.charStart))
       }
@@ -4222,6 +4225,7 @@ function pageMapOf(doc) {
         columns: columns.length,
         first: mine[0],
         last: mine.at(-1),
+        drawn: drawn[column] ?? new Set(),
       })
     }
   }
@@ -4249,7 +4253,9 @@ function pageMapOf(doc) {
       style,
       nextPage: slots[k + 1].page,
       ...(kept ? { kept: true } : {}),
-      ...(first.para > last.para + 1 ? { apart: true } : {}),
+      ...(first.para > last.para + 1 && slots[k].drawn.has(`${last.sec}/${last.para + 1}`)
+        ? { apart: true }
+        : {}),
     })
   }
   return {
