@@ -2835,7 +2835,6 @@ function tocEntriesOf(entries: unknown): AgentTocEntry[] | string {
   }))
 }
 
-/** Why refresh_toc with entries left the table after the title line alone, with what it found there. */
 function notTocRefusal(result: {
   table: number
   found: { row?: number; heading?: string; page?: string; why: string }

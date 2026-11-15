@@ -285,7 +285,6 @@ describe('a second table of contents and new headings', () => {
   })
 })
 
-/** A short report: two headings, and a table of two columns the user made under a line. */
 function withUserTable(rows: string[][], header = false) {
   const doc = HwpDocument.createEmpty()
   doc.createBlankDocument()

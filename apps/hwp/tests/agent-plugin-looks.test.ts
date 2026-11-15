@@ -940,7 +940,6 @@ describe('insertTitleBox', () => {
     const { plugin, doc } = open()
     plugin.insertTitleBox(TITLE, null, { look: 'box' })
     const was = tableIn(doc(), 0)
-    // narrowed by hand after it was made
     doc().setCellProperties(0, 0, was.control, 0, JSON.stringify({ width: 17000 }))
     for (const look of ['bands', 'shaded', 'lines'] as const) {
       expect(plugin.insertTitleBox(TITLE, null, { look })).toMatchObject({

@@ -183,12 +183,9 @@ export function tableLookBlocks(look, header) {
 }
 
 /**
- * How many rows a table's head takes, from its horizontal lines (`edges`, as
- * rowEdgesAfterAdding takes them) and which rows carry the header flag (`flagged`, one
- * boolean per row). A row is a head row when it is flagged, or when the line under it is
- * not the line under the next row (a first row styled by hand, a head of two rows), as
- * long as that next line still lies between two rows. Counting stops at the first row
- * that is neither.
+ * Rows of a table's head: flagged as header, or with a line under them unlike the line under
+ * the next row (a first row styled by hand, a head of two rows) while that next line still
+ * lies between two rows.
  */
 export function headRowsOf(edges, flagged) {
   const rows = edges.length - 1
@@ -219,7 +216,8 @@ export function headRowsOf(edges, flagged) {
  * table (0) to its bottom (one more than the rows), each a line per column (null where a
  * merged cell runs across the edge); `flagged` says which rows carry the header flag. The
  * outline stays with the edge of the table and the lines of the head (headRowsOf) with
- * the head; every line the new rows bring is the line between the first two body rows.
+ * the head; every line the new rows bring is the line between the first two body rows (a
+ * thin one in the colour of the bottom line where a merged cell crosses it).
  * Null when the table has no two body rows to read that line from: the lines are then
  * left as the engine copied them.
  */

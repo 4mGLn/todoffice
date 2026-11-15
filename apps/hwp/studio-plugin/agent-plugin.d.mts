@@ -1512,7 +1512,8 @@ export type AgentRefreshTocResult =
   /**
    * with entries, the table after the line (number `table`) is not a table of contents:
    * in row `row` the second cell is not a page number (`why` page) or the first starts no
-   * paragraph of the body text (`why` heading)
+   * paragraph of the body text (`why` heading); `why` shape, without a row, when it is not a
+   * top-level table of two columns
    */
   | {
       ok: false

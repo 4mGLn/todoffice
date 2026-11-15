@@ -2877,15 +2877,11 @@ function fontOf(read) {
 
 const BODY_STYLE = '바탕글'
 
-/** Paragraph styles whose text is a heading, not body text. */
 const HEADING_STYLE = /개요|제목|heading|title/i
 
 /**
- * The font of the body text, for a new table or table of contents: the character look
- * (font, size, bold) that most characters of the body paragraphs have, headings left out.
- * A heading is a paragraph of an outline level or a heading style (HEADING_STYLE), or bold
- * text larger than the size most characters have. The body style's font when there is no
- * text yet. Not the font of the line a table is put next to, which is often a heading.
+ * The font of the body text, for a new table or table of contents. Not the font of the line
+ * a table is put next to, which is often a heading.
  */
 function bodyFontOf(doc) {
   const styles = new Map(parse(doc.getStyleList()).map((style) => [style.id, style.name]))
@@ -2909,21 +2905,18 @@ function bodyFontOf(doc) {
           const props = parse(doc.getCharPropertiesAt(sec, para, start))
           runs.push({ props, size: props.fontSize, bold: props.bold === true, chars })
         })
-      } catch {
-        // a paragraph the engine will not read is not counted
-      }
+      } catch {}
     }
   }
-  /** The value of `key` the most characters of `list` have. */
-  const most = (list, key) => {
+  const commonest = (list, key) => {
     const totals = new Map()
     for (const run of list) totals.set(key(run), (totals.get(key(run)) ?? 0) + run.chars)
     return [...totals].sort((a, b) => b[1] - a[1])[0]?.[0]
   }
-  const size = most(runs, (run) => run.size)
+  const size = commonest(runs, (run) => run.size)
   const body = runs.filter((run) => !(run.bold && run.size > size))
   const lookOf = (run) => `${run.props.fontFamily}|${run.size}|${run.bold}`
-  const look = most(body, lookOf)
+  const look = commonest(body, lookOf)
   const chosen = body.find((run) => lookOf(run) === look)
   if (!chosen) {
     return fontOf(() =>
@@ -3110,10 +3103,7 @@ function setCellBorders(doc, table, grid, rect, rules, more = null) {
   return count
 }
 
-/**
- * The horizontal lines of a body table, as rowEdgesAfterAdding takes them, and which of
- * its rows carry the header flag.
- */
+/** The horizontal lines of a body table, as rowEdgesAfterAdding takes them. */
 function rowEdgesOf(doc, table, grid) {
   const control = table.path[0].controlIndex
   const edges = Array.from({ length: table.rows + 1 }, () => Array(table.cols).fill(null))
@@ -3634,10 +3624,7 @@ function titleBoxOf(spec) {
 }
 
 /**
- * The title box round a text of a table cell, which insertTitleBox restyles in place: a
- * table of the body alone in its paragraph that titleBoxLookOf reads as one of the looks
- * this tool draws, its only text the one paragraph of its title cell, `hit` in that cell.
- * Its control, rows, title cell, the look of its first character, and its look. Null for
+ * The title box this tool made round `hit`, which insertTitleBox restyles in place. Null for
  * any other table, a box the user or Hangul made among them.
  */
 function boxAround(doc, hit) {
@@ -3701,15 +3688,11 @@ function restyleOf(spec, around) {
   })
 }
 
-/** Height of a title cell: as high as its lines and some air, in HWPUNIT. */
 function titleHeight(points, lines, spacing) {
   return Math.round(points * 100 * (1.9 + spacing * (lines - 1)))
 }
 
-/**
- * Give the cells of title box `control` the properties `layout` (titleBoxCells) draws.
- * `clearFill` takes away a fill the layout does not draw, for a box restyled in place.
- */
+/** `clearFill` drops a fill the new look does not draw, for a box restyled in place. */
 function drawTitleCells(doc, sec, k, control, layout, points, clearFill) {
   layout.cells.forEach((props, cell) => {
     const shape = {
@@ -3725,8 +3708,8 @@ function drawTitleCells(doc, sec, k, control, layout, points, clearFill) {
 }
 
 /**
- * Make the bands of title box `control` thin and its title cell as high as the lines its
- * title takes: the engine does not grow a row whose height is set.
+ * The engine does not grow a row whose height is set, so the title cell is set to the lines
+ * its title takes.
  */
 function fitTitleBox(doc, sec, k, control, layout, points) {
   // a band is as high as its empty paragraph lets it be: make that one tiny
@@ -3766,9 +3749,8 @@ function fitTitleBox(doc, sec, k, control, layout, points) {
 }
 
 /**
- * Turn the text of body paragraph `k` into a title box of `layout`: the words go into its
- * title cell centred, in the look they have now over which the call's own look goes.
- * Returns the new table's control and the white the words took on a dark fill, if any.
+ * Returns the new table's control and `whitened`, the text colour the words took on a dark
+ * fill, or null.
  */
 function makeTitleBox(doc, sec, k, box, text, length, wanted, layout) {
   const now = parse(doc.getCharPropertiesAt(sec, k, 0))
@@ -3791,7 +3773,6 @@ function makeTitleBox(doc, sec, k, box, text, length, wanted, layout) {
   if (whitened) look.chars = { ...look.chars, textColor: whitened }
   const titlePoints = look.chars?.fontSize ? look.chars.fontSize / 100 : points
   box.deleteText(k, length)
-  // where the text runs in columns the box is as wide as one of them
   const inColumns = columnsOf(doc, sec).count > 1
   const made = parse(
     doc.createTableEx(
@@ -3836,10 +3817,8 @@ function makeTitleBox(doc, sec, k, box, text, length, wanted, layout) {
 }
 
 /**
- * Draw title box `around` (boxAround) again as `layout`, in place: the table stays with
- * its width, place and caption, rows are added or taken away round the title only where
- * the look has bands, and its words keep their look but for what the call gives and a
- * colour that would not show on the new fill.
+ * Draws title box `around` again as `layout` in place, so the table keeps its width, place
+ * and caption.
  */
 function restyleTitleBox(doc, sec, k, around, wanted, layout) {
   const { control } = around
@@ -3851,7 +3830,6 @@ function restyleTitleBox(doc, sec, k, around, wanted, layout) {
     expectOk(doc.insertTableRow(sec, k, control, 0, false), 'add a band')
   }
   const carried = HEX_COLOR.test(around.chars.textColor ?? '') ? around.chars.textColor : null
-  // words made white on the fill of the old box would not show on the new one
   const behind = wanted.look === 'shaded' ? wanted.color : '#ffffff'
   const shows = carried && contrastRatio(carried, behind) >= MIN_TEXT_CONTRAST
   const given = { ...(shows ? {} : { color: '#000000' }), ...(wanted.text ?? {}) }
@@ -5691,9 +5669,8 @@ function equationsOf(doc) {
   return { equations, elsewhere: Math.max(0, total - equations.length) }
 }
 
-/** Letters (circled numbers and spaces aside) that say where an equation is. */
-const MIN_EQUATION_WORDS = 10
-const wordsOf = (text) => text.replace(/[\s①-⓿❶-➓]/g, '')
+const MIN_EQUATION_LETTERS = 10
+const lettersOf = (text) => text.replace(/[\s①-⓿❶-➓]/g, '')
 
 /**
  * The words right in front of an equation and right after it, in its paragraph. Where
@@ -5707,10 +5684,10 @@ function equationContext(doc, equation) {
   const to = Math.min(length, offset + EQUATION_CONTEXT_CHARS)
   const before = offset > from ? doc.getTextRange(sec, para, from, offset - from) : ''
   const after = to > offset ? doc.getTextRange(sec, para, offset, to - offset) : ''
-  if (wordsOf(before + after).length >= MIN_EQUATION_WORDS) return { before, after }
+  if (lettersOf(before + after).length >= MIN_EQUATION_LETTERS) return { before, after }
   for (let k = para - 1; k >= 0; k--) {
     const text = squash(bodyText(doc, sec, k))
-    if (wordsOf(text).length < MIN_EQUATION_WORDS) continue
+    if (lettersOf(text).length < MIN_EQUATION_LETTERS) continue
     return { before, after, previous: clip(text, EQUATION_CONTEXT_CHARS) }
   }
   return { before, after }
@@ -5953,14 +5930,8 @@ function bodyTitleOf(doc, font) {
   return { style, font, bold: true, color: parse(doc.getStyleDetail(style)).charProps.textColor }
 }
 
-/** What the page cell of a contents row holds: a page, or pages from one to another. */
 const PAGE_CELL = /^\s*\d+(?:\s*[~\-–]\s*\d+)?\s*$/
 
-/**
- * The body paragraph a contents row names: one that starts with the row's heading as
- * refreshToc looks it up (its first TOC_KEY_CHARS characters, without the … of a cut one).
- * Null when no paragraph of the body text starts with it.
- */
 function headingOfRow(doc, heading) {
   const key = heading.replace(/…$/, '').slice(0, TOC_KEY_CHARS)
   if (!key.trim()) return null
@@ -5972,10 +5943,8 @@ function headingOfRow(doc, heading) {
 }
 
 /**
- * Whether a table is a table of contents: a top-level table of two columns whose second
- * column holds a page number in every row and whose first column, row by row, starts a
- * paragraph of the body text (headingOfRow), whatever its lines and fill. `{ ok: true }`,
- * or what it found against that: the row (1-based), its two texts, and which test failed.
+ * Whether a table is a table of contents by what its rows hold, whatever its lines and fill.
+ * Against it, the row (1-based) that failed, its two texts and which test.
  */
 function contentsTest(doc, table) {
   if (table.path.length !== 1 || table.cols !== 2) return { ok: false, why: 'shape' }
@@ -5997,22 +5966,21 @@ function contentsTest(doc, table) {
   for (const row of rows) {
     if (!headingOfRow(doc, row.heading)) return { ...row, why: 'heading' }
   }
-  return { ok: rows.length > 0, why: 'shape' }
+  return rows.length > 0 ? { ok: true } : { ok: false, why: 'shape' }
 }
 
-/** The tables of contents of the document by contentsTest, with their numbers in listTables. */
+/** `number` is as listTables numbers tables. */
 function tocsOf(doc) {
   return tablesOf(doc)
     .tables.map((table, index) => ({ table, number: index + 1 }))
     .filter(({ table }) => contentsTest(doc, table).ok)
 }
 
-/** The title lines Hangul's own contents of tab lines start with, without spaces. */
 const TOC_TITLES = ['차례', '목차']
 
 /**
- * Hangul's own contents, made of lines: a body line reading 차례 or 목차 (spaces aside)
- * whose next line with text ends in a tab and a page number. Its title line, or null.
+ * Hangul's own contents are lines, not a table: a 차례 or 목차 line (spaces aside) whose
+ * next line with text ends in a tab and a page number.
  */
 function tabTocOf(doc) {
   const seen = new Set()
@@ -9231,7 +9199,7 @@ export const agentPlugin = {
               const k = box.index
               const { sec } = box.place(k, 0)
               const layout = titleBoxCells(wanted.look, wanted.color, wanted.color2)
-              const control = around
+              const drawn = around
                 ? restyleTitleBox(doc, sec, k, around, wanted, layout)
                 : makeTitleBox(doc, sec, k, box, text, length, wanted, layout)
               const after = objectsOf(doc)
@@ -9243,9 +9211,9 @@ export const agentPlugin = {
                 rows: layout.rows,
                 ...(around ? { restyled: true } : {}),
                 place: box.place(k, 0),
-                ...tableNumberOf(doc, sec, k, control.control),
+                ...tableNumberOf(doc, sec, k, drawn.control),
                 ...(wanted.textColorDropped ? { textColorDropped: true } : {}),
-                ...(control.whitened ? { textColor: control.whitened } : {}),
+                ...(drawn.whitened ? { textColor: drawn.whitened } : {}),
                 ...(wanted.standIns.length > 0 ? { standIn: wanted.standIns } : {}),
               }
             },
