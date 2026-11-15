@@ -7,7 +7,7 @@ El editor de PDF tiene cinco pestañas en la cinta de opciones: **Inicio / Anota
 - Barra lateral izquierda: **Miniaturas** (haga clic para saltar, el intervalo visible aparece resaltado) o **Esquema** (los marcadores, cuando existen).
 - Zoom: el control de proporción de la esquina inferior derecha; ctrl+rueda ajusta el zoom por pasos.
 - Zoom al abrir: **Al abrir**, en la pestaña Vista, elige la vista inicial de un PDF recién abierto: ajustar al ancho, ajustar a la página o un zoom del 50 % al 200 %. Un PDF cuyo zoom cambió usted se vuelve a abrir con ese zoom.
-- Mover la vista: active la **Herramienta Mano** (pestañas Inicio y Vista) y arrastre para mover la página en cualquier dirección. Mientras está activa, arrastrar no selecciona texto y un clic simple sigue abriendo los enlaces. Arrastrar con el botón central (rueda) pulsado mueve la vista sin la herramienta. Esc u otra herramienta la desactiva.
+- Mover la vista: active la **Herramienta Mano** (pestañas Inicio y Vista) y arrastre para mover la página en cualquier dirección. Mientras está activa, arrastrar no selecciona texto y un clic simple sigue abriendo los enlaces. Arrastrar con el botón central (rueda) pulsado mueve la vista sin la herramienta. Esc u otra herramienta la desactiva. Sin texto seleccionado, H la activa o la desactiva.
 - Rotación: por página o de todas las páginas desde el menú Páginas; las rotaciones se vuelven a escribir al guardar.
 - Búsqueda: ctrl+F en texto completo, con todas las coincidencias resaltadas.
 - PDF cifrados: una solicitud de contraseña (en su propia ventana pequeña) los abre; la contraseña solo se usa en esta sesión. Puede editar y guardar un documento así; al guardar se conserva su contraseña. **Anotar → Proteger** establece, cambia o quita la contraseña y lo que pueden hacer los lectores.
@@ -85,7 +85,7 @@ Seis herramientas: **Dibujar, Rectángulo, Elipse, Flecha, Nota**, más **Censur
 - **Exportar como Word… / PowerPoint… / Excel…** en el menú Archivo, o los mismos tres desde **Convertir PDF** en la cinta — todo local, sin subir nada. El .pptx sale con una diapositiva por página y el .xlsx con una hoja de cálculo por página. Cada uno pregunta dónde guardarlo.
 - **PDF a HWP**, en **Convertir PDF** de la cinta, convierte el PDF en un documento HWP en una pestaña HWP nueva. Elija **Importar** (가져오기) en la ventana de importación de PDF que muestra la pestaña; el documento se crea en esa pestaña, y el primer guardado pregunta dónde poner el .hwp o el .hwpx. El PDF queda como estaba, y la conversión se hace en este equipo. Si el texto entra como párrafos que fluyen por las páginas o como cuadros de texto fijos se elige en las opciones (환경 설정) de la pestaña HWP, apartado de importación de PDF.
 - La misma conversión también se inicia desde una pestaña HWP. Elija un PDF con **Archivo** ▸ **Importar PDF…** y se abrirá una pestaña HWP nueva con la misma ventana de importación de PDF. El documento de la pestaña donde se usó el menú queda como estaba.
-- **Imprimir**: el orden y las rotaciones actuales a través del cuadro de diálogo del sistema; admite intervalos de páginas.
+- **Imprimir**: el orden y las rotaciones actuales a través del cuadro de diálogo del sistema. Puede imprimir un intervalo de páginas o las páginas elegidas en las miniaturas, y elegir en **Disposición de páginas** varias páginas por hoja, folleto, escala de grises y más.
 
 ## Guardar
 

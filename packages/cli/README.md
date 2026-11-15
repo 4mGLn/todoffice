@@ -84,6 +84,7 @@ ieumoffice create --type hwp --ops ops.json --out minutes.hwp             # a ne
 ieumoffice guide hwp                                                    # the hwp apply ops, built from the in-app AI's tool definitions
 ieumoffice convert notice.hwp --to pdf                                  # .hwp/.hwpx → PDF: the Hangul editor's own PDF export in a hidden app, pages as the editor draws them, with a text layer
 ieumoffice convert letter.docx --to hwpx                               # .docx → .hwp/.hwpx with the Word editor's "Export as HWP Document" converter, no app process; warnings[] hwp_dropped / hwp_changed + detail.hwp_report; a .hwp that reads back with other pages is exit 3, detail.reason hwp-readback
+ieumoffice convert notes.md --to hwp                                    # .md → .hwp/.hwpx through the same converter: headings, lists and tables arrive as Hangul ones; tables run on to the next page with their header row and get column widths from their content
 ieumoffice diagram read flow.drawio [--page Two] --json               # shapes and edges of each page of a draw.io diagram (.drawio, .dio, .drawio.svg, .drawio.png); no app process
 ieumoffice diagram apply flow.drawio --ops '[{"op":"add_shape","label":"Check","x":40,"y":200}]' [--page Two] [--out flow.dio] [--force] --json   # the in-app AI's diagram ops (`guide diagram`); .drawio/.dio keep untouched pages byte for byte
 ieumoffice create --type drawio --mermaid flow.mmd [--ops @more.json] --out flow.drawio   # Mermaid drawn by draw.io (a hidden IeumOffice), then the ops; --out x.drawio.png writes that format
@@ -302,10 +303,15 @@ at a screen when it runs. That decides which route it may take.
   used only when it is the one selected in the app's settings and its key is
   there; Parallel, Tavily, Exa and Firecrawl provide web search only. Search
   never uses a subscription.
-- **Image generation** is key-based only in this version: it runs on an image
-  provider whose key is set up in the app, and answers "unavailable"
-  otherwise. `--model` is ignored (a successful result says so in
-  `detail.note`) and `--size` has no effect on the key-based providers.
+- **Image generation** runs on the image route chosen in the app: the ChatGPT
+  plan through the Codex program (a Codex subscription login, used only with
+  the automatic-call setting below), or an image provider whose key is set up
+  in the app; otherwise it answers "unavailable". `--ref` images go with the
+  request on either route. `--model` is used when the route in use offers it
+  (on the Codex route a `gpt-image` name leaves the image model to Codex, and
+  `detail.note` says so); any other name is refused before anything is sent,
+  with the model names that route can use. `--size` has no effect on the
+  key-based providers.
 - **Media analysis**: a picture is shown to the AI provider the chat runs on,
   or to the key-based analysis provider chosen in the app. Video and sound
   need a key-based provider that can analyse video.

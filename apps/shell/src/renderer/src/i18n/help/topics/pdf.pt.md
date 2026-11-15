@@ -7,7 +7,7 @@ O editor de PDF tem cinco separadores no friso: **Página Inicial / Anotar / Edi
 - Barra lateral esquerda: **Miniaturas** (clique para saltar, o intervalo visível fica destacado) ou **Estrutura** (os marcadores, quando existem).
 - Zoom: o controlo de proporção no canto inferior direito; ctrl+roda ajusta o zoom por degraus.
 - Zoom ao abrir: **Ao abrir**, na guia Exibir, escolhe a visualização inicial de um PDF recém-aberto: ajustar à largura, ajustar à página ou um zoom de 50% a 200%. Um PDF cujo zoom você mesmo alterou volta a abrir com esse zoom.
-- Mover a visualização: ative a **Ferramenta Mão** (guias Página Inicial e Exibir) e arraste para mover a página em qualquer direção. Enquanto está ativa, arrastar não seleciona texto e um clique simples continua abrindo links. Arrastar com o botão do meio (roda) pressionado move a visualização sem a ferramenta. Esc ou outra ferramenta a desativa.
+- Mover a visualização: ative a **Ferramenta Mão** (guias Página Inicial e Exibir) e arraste para mover a página em qualquer direção. Enquanto está ativa, arrastar não seleciona texto e um clique simples continua abrindo links. Arrastar com o botão do meio (roda) pressionado move a visualização sem a ferramenta. Esc ou outra ferramenta a desativa. Sem texto selecionado, H a ativa ou desativa.
 - Rotação: por página ou em todas as páginas a partir do menu Páginas; as rotações são gravadas ao salvar.
 - Pesquisar: ctrl+F para procurar em todo o texto com todas as ocorrências realçadas.
 - PDFs encriptados: aparece um pedido de palavra-passe (uma pequena janela própria) para os abrir; a palavra-passe só é usada nesta sessão. Pode editar e guardar um documento assim; ao guardar, a palavra-passe mantém-se. **Anotar → Proteger** define, altera ou remove a palavra-passe e o que os leitores podem fazer.
@@ -85,7 +85,7 @@ Seis ferramentas: **Desenho livre, Retângulo, Elipse, Seta, Nota**, mais a **Ce
 - **Exportar como Word… / PowerPoint… / Excel…** no menu Arquivo, ou os mesmos três a partir de **Converter PDF** no friso — tudo local, sem envio. O .pptx sai com um diapositivo por página e o .xlsx com uma folha de cálculo por página. Cada um pergunta onde guardar.
 - **PDF para HWP**, em **Converter PDF** na faixa de opções, transforma o PDF em um documento HWP em uma nova aba HWP. Escolha **Importar** (가져오기) na janela de importação de PDF que a aba mostra; o documento é criado nessa aba, e o primeiro salvamento pergunta onde colocar o .hwp ou o .hwpx. O PDF fica como estava, e a conversão roda neste computador. Se o texto entra como parágrafos que fluem pelas páginas ou como caixas de texto fixas é escolhido nas opções (환경 설정) da aba HWP, em importação de PDF.
 - A mesma conversão também começa a partir de uma aba HWP. Escolha um PDF em **Arquivo** ▸ **Importar PDF…** e uma nova aba HWP se abre com a mesma janela de importação de PDF. O documento da aba em que o menu foi usado fica como estava.
-- **Imprimir**: a ordem e as rotações atuais através da caixa de diálogo do sistema; são suportados intervalos de páginas.
+- **Imprimir**: a ordem e as rotações atuais através da caixa de diálogo do sistema. É possível imprimir um intervalo de páginas ou as páginas escolhidas nas miniaturas, e escolher em **Disposição das páginas** várias páginas por folha, livreto, tons de cinza e mais.
 
 ## Salvar
 

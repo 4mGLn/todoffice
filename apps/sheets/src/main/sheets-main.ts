@@ -68,6 +68,7 @@ import {
   showOpenDialogWithMemory,
   showSaveDialogWithMemory,
   helpMenuTemplate,
+  macAppMenuTemplate,
   viewMenuTemplate,
   windowMenuTemplate,
   installRendererProtocol,
@@ -93,7 +94,10 @@ import {
   type RecoveryOpenUntitledRequest,
   type SaveDiskState,
 } from '@genoffice/electron-utils'
+import { aiCreateRefusal } from '@genoffice/electron-utils/ai-create-guard'
 import { aiRunRefusal } from '@genoffice/electron-utils/ai-run-guard'
+import { registerAiJob } from '@genoffice/electron-utils/ai-activity'
+import { screenMediaCall } from './screen-media-call'
 import {
   encryptOoxml,
   isCfbHeader,
@@ -231,6 +235,7 @@ import { atomicWriteFile } from './atomic-write'
 import { closeGuardDecision, ShutdownLatch } from './close-guard'
 import { SaveEditsTransferStore } from './save-edits-transfer'
 import { exportPdf, printWorkbook } from './pdf-export'
+import { registerSheetsPrintLayoutIpc } from './print-layout'
 import { exportWorkbookAsOds, type OdsLoss, type OdsLossKind } from './ods-export'
 import {
   resolveSheetsSaveAsPick,
@@ -259,6 +264,7 @@ import {
 import { XlsxSidecarClient } from './xlsx-sidecar-client'
 import { convertLegacyWorkbook } from './legacy-import'
 import { sessionAfterRename } from './session-rename'
+import { continuedOpenOptions, sessionToContinue } from './session-reopen'
 import {
   appendSaveFailure,
   describeReopenFailure,
@@ -340,6 +346,10 @@ const tMain = createI18n({
     odsLossValidations: '数据验证规则:{count}',
     odsLossPivots: '数据透视表:{count}',
     odsLossComments: '批注:{count}',
+    odsLossMacros: '宏:{count}',
+    odsLossShapes: '图形和文本框:{count}',
+    odsLossSlicers: '切片器:{count}',
+    odsLossSparklines: '迷你图:{count}',
     odsContinueBtn: '继续',
     errOdsExportFailed: 'ODS 导出失败:{message}',
     errOdsReopenFailed: '导出的 ODS 文件无法重新打开,已将其删除。工作簿未受影响。',
@@ -421,6 +431,10 @@ const tMain = createI18n({
     odsLossValidations: 'Data validation rules: {count}',
     odsLossPivots: 'Pivot tables: {count}',
     odsLossComments: 'Comments: {count}',
+    odsLossMacros: 'Macros: {count}',
+    odsLossShapes: 'Shapes and text boxes: {count}',
+    odsLossSlicers: 'Slicers: {count}',
+    odsLossSparklines: 'Sparklines: {count}',
     odsContinueBtn: 'Continue',
     errOdsExportFailed: 'The ODS export failed: {message}',
     errOdsReopenFailed:
@@ -507,6 +521,10 @@ const tMain = createI18n({
     odsLossValidations: 'Quy tắc xác thực dữ liệu: {count}',
     odsLossPivots: 'Bảng tổng hợp: {count}',
     odsLossComments: 'Chú thích: {count}',
+    odsLossMacros: 'Macro: {count}',
+    odsLossShapes: 'Hình dạng và hộp văn bản: {count}',
+    odsLossSlicers: 'Slicer: {count}',
+    odsLossSparklines: 'Biểu đồ mini: {count}',
     odsContinueBtn: 'Tiếp tục',
     errOdsExportFailed: 'Xuất ODS thất bại: {message}',
     errOdsReopenFailed:
@@ -524,6 +542,97 @@ const tMain = createI18n({
     csvKeepFormatDetail:
       'CSV chỉ giữ các giá trị thuần của một trang tính duy nhất — các công thức, định dạng và mọi trang tính bổ sung sẽ không được lưu vào tệp .csv.',
     saveAsNeedsExtension: 'Hãy thêm phần mở rộng vào tên tệp, ví dụ bao-cao.xlsx hoặc bao-cao.ods.',
+  },
+  tr: {
+    filterSpreadsheets: 'Elektronik Tablolar',
+    filterXlsx: 'Excel Çalışma Kitapları',
+    filterXlsm: 'Excel Makro İçeren Çalışma Kitapları',
+    dlgAddAttachment: 'Ek Dosya Ekle',
+    filterSupported: 'Desteklenen Dosyalar',
+    filterAll: 'Tüm Dosyalar',
+    errUnsupportedExt: '.{ext} dosyaları desteklenmiyor',
+    errNotFile: 'dosya değil',
+    errTooLarge: '{mb} MB sınırını aşıyor',
+    errImageTooLarge: 'görsel 5 MB sınırını aşıyor',
+    errUnreadable: 'okunamıyor',
+    errFileTooLarge: 'Dosya boyut sınırını aşıyor',
+    errParseFailed: 'Dosya ayrıştırılamadı',
+    errHtmlNoTable:
+      'Bu dosya bir elektronik tablo değil, web sayfası; içe aktarılabilecek tablo bulunamadı.',
+    errImageNoText: 'Görsel eklerinde metin yok; görsel kullanıcı mesajıyla birlikte gönderilir',
+    errNotImage: 'desteklenen bir görsel türü değil',
+    errNoApiKey: '{provider} için API anahtarı yapılandırılmamış',
+    errAiBusy: 'AI hizmeti şu anda meşgul — lütfen biraz sonra yeniden deneyin',
+    errNoModel: 'Model adı yapılandırılmamış',
+    errImgAbsPath: 'Görsel yolu mutlak olmalıdır.',
+    errImgNotFound: 'Görsel dosyası bulunamadı: {path}',
+    errImgTooLarge20: 'Görsel 20 MB’ı aşıyor ve eklenemiyor.',
+    errImgBadType: 'Dosya bir PNG/JPEG/GIF görseli değil.',
+    errEncryptedOpenTitle: 'Parola korumalı çalışma kitabı açılamıyor',
+    errEncryptedUnsupported:
+      'Bu dosya, uygulamanın çözemeyeceği bir şifreleme yöntemi kullanıyor. Excel’de parolayı kaldırıp dosyayı yeniden açın.',
+    errDiskChanged:
+      'Çalışma kitabı açıldıktan sonra diskte değişti — lütfen Farklı Kaydet’i kullanın.',
+    errSaveUnreadable:
+      'Kaydedilen sonuç yeniden açılamadığından özgün dosyanın üzerine yazılmadı. Özgün dosya değişmedi ve düzenlemeleriniz hâlâ ekranda.',
+    errSaveUnreadableReason:
+      'Neden: {reason}\n\nNedeni bulmamıza yardımcı olmak için "Nedeni kopyala"yı seçip Geri bildirim gönder’e yapıştırın.',
+    btnCopyReason: 'Nedeni kopyala',
+    btnCloseDialog: 'Kapat',
+    menuFile: 'Dosya',
+    menuOpenWorkbook: 'Çalışma Kitabını Aç…',
+    menuSave: 'Kaydet',
+    menuSaveAs: 'Farklı Kaydet…',
+    menuExportPdf: 'PDF Olarak Dışa Aktar…',
+    menuPrint: 'Yazdır…',
+    menuClose: 'Kapat',
+    menuQuit: 'Çıkış',
+    menuEdit: 'Düzen',
+    menuUndo: 'Geri Al',
+    menuRedo: 'Yinele',
+    closeUnsavedMsg: '{count} kaydedilmemiş değişiklik',
+    closeUnsavedDetail: 'Kaydetmeden kapatırsanız bu değişiklikler kaybolur.',
+    btnDontSave: 'Kaydetme',
+    btnCancel: 'İptal',
+    csvSaveAsNotice:
+      'CSV dosyaları biçimlendirmeyi koruyamaz — .xlsx olarak kaydetmek tüm değişikliklerinizi korur.',
+    menuExportCsv: 'CSV Olarak Dışa Aktar…',
+    menuExportOds: 'ODS olarak dışa aktar…',
+    filterOds: 'OpenDocument Elektronik Tablosu (.ods)',
+    errOdsOriginalTarget: 'Özgün ODS dosyasının üzerine yazılamaz. Farklı bir ad seçin.',
+    errOdsEncrypted:
+      'Parola korumalı çalışma kitapları ODS olarak dışa aktarılamaz. Önce parolayı kaldırın.',
+    odsLossMsg: 'Her şey ODS’ye kaydedilemez',
+    odsLossDetail:
+      'Bu çalışma kitabı ODS’nin tutamadığı özellikler kullanıyor. Bunlar dışa aktarılan kopyaya alınmaz:',
+    odsLossFormulas: 'Yalnızca değer olarak tutulan formüller: {count}',
+    odsLossCharts: 'Grafikler: {count}',
+    odsLossImages: 'Görseller: {count}',
+    odsLossConditionalFormats: 'Koşullu biçimlendirme kuralları: {count}',
+    odsLossValidations: 'Veri doğrulama kuralları: {count}',
+    odsLossPivots: 'Pivot tablolar: {count}',
+    odsLossComments: 'Açıklamalar: {count}',
+    odsLossMacros: 'Makrolar: {count}',
+    odsLossShapes: 'Şekiller ve metin kutuları: {count}',
+    odsLossSlicers: 'Dilimleyiciler: {count}',
+    odsLossSparklines: 'Mini grafikler: {count}',
+    odsContinueBtn: 'Devam et',
+    errOdsExportFailed: 'ODS dışa aktarma başarısız oldu: {message}',
+    errOdsReopenFailed:
+      'Dışa aktarılan ODS dosyası yeniden açılamadığı için kaldırıldı. Çalışma kitabı değişmedi.',
+    filterCsv: 'CSV (Virgülle Ayrılmış)',
+    filterPdfActiveSheet: 'PDF (Geçerli sayfa)',
+    csvFormulaLossMsg: 'Bu sayfada CSV’nin koruyamayacağı formüller var.',
+    csvFormulaLossDetail:
+      'CSV yalnızca düz değerleri korur — formüller mevcut sonuçlarına dönüşür ve biçimlendirme kaybolur.',
+    csvKeepXlsxBtn: '.xlsx Olarak Kaydet',
+    csvContinueBtn: 'CSV Olarak Devam Et',
+    csvActiveSheetOnlyNotice:
+      'CSV dosyaları tek sayfa tutar — yalnızca etkin sayfa “{name}” dışa aktarılacak.',
+    csvKeepFormatMsg: 'CSV biçiminde kaydetmeye devam edilsin mi?',
+    csvKeepFormatDetail:
+      'CSV yalnızca tek bir sayfanın düz değerlerini korur — formüller, biçimlendirme ve diğer sayfalar .csv dosyasına kaydedilmez.',
+    saveAsNeedsExtension: 'Dosya adına bir uzantı ekleyin, örneğin rapor.xlsx veya rapor.ods.',
   },
   ja: {
     filterSpreadsheets: 'スプレッドシート',
@@ -595,6 +704,10 @@ const tMain = createI18n({
     odsLossValidations: 'データ入力規則: {count}',
     odsLossPivots: 'ピボットテーブル: {count}',
     odsLossComments: 'コメント: {count}',
+    odsLossMacros: 'マクロ: {count}',
+    odsLossShapes: '図形とテキスト ボックス: {count}',
+    odsLossSlicers: 'スライサー: {count}',
+    odsLossSparklines: 'スパークライン: {count}',
     odsContinueBtn: '続行',
     errOdsExportFailed: 'ODS へのエクスポートに失敗しました: {message}',
     errOdsReopenFailed:
@@ -680,6 +793,10 @@ const tMain = createI18n({
     odsLossValidations: '데이터 유효성 검사 규칙: {count}',
     odsLossPivots: '피벗 테이블: {count}',
     odsLossComments: '메모: {count}',
+    odsLossMacros: '매크로: {count}',
+    odsLossShapes: '도형·글상자: {count}',
+    odsLossSlicers: '슬라이서: {count}',
+    odsLossSparklines: '스파크라인: {count}',
     odsContinueBtn: '계속',
     errOdsExportFailed: 'ODS 내보내기에 실패했습니다: {message}',
     errOdsReopenFailed: '내보낸 ODS 파일을 다시 열지 못해 지웠습니다. 워크북은 그대로입니다.',
@@ -768,6 +885,10 @@ const tMain = createI18n({
     odsLossValidations: 'Règles de validation des données : {count}',
     odsLossPivots: 'Tableaux croisés dynamiques : {count}',
     odsLossComments: 'Commentaires : {count}',
+    odsLossMacros: 'Macros : {count}',
+    odsLossShapes: 'Formes et zones de texte : {count}',
+    odsLossSlicers: 'Segments : {count}',
+    odsLossSparklines: 'Graphiques sparkline : {count}',
     odsContinueBtn: 'Continuer',
     errOdsExportFailed: 'L’export ODS a échoué : {message}',
     errOdsReopenFailed:
@@ -859,6 +980,10 @@ const tMain = createI18n({
     odsLossValidations: 'Datenüberprüfungsregeln: {count}',
     odsLossPivots: 'Pivot-Tabellen: {count}',
     odsLossComments: 'Kommentare: {count}',
+    odsLossMacros: 'Makros: {count}',
+    odsLossShapes: 'Formen und Textfelder: {count}',
+    odsLossSlicers: 'Datenschnitte: {count}',
+    odsLossSparklines: 'Sparklines: {count}',
     odsContinueBtn: 'Weiter',
     errOdsExportFailed: 'Der ODS-Export ist fehlgeschlagen: {message}',
     errOdsReopenFailed:
@@ -948,6 +1073,10 @@ const tMain = createI18n({
     odsLossValidations: 'Reglas de validación de datos: {count}',
     odsLossPivots: 'Tablas dinámicas: {count}',
     odsLossComments: 'Comentarios: {count}',
+    odsLossMacros: 'Macros: {count}',
+    odsLossShapes: 'Formas y cuadros de texto: {count}',
+    odsLossSlicers: 'Segmentaciones de datos: {count}',
+    odsLossSparklines: 'Minigráficos: {count}',
     odsContinueBtn: 'Continuar',
     errOdsExportFailed: 'La exportación a ODS falló: {message}',
     errOdsReopenFailed:
@@ -1034,6 +1163,10 @@ const tMain = createI18n({
     odsLossValidations: 'กฎการตรวจสอบข้อมูล: {count}',
     odsLossPivots: 'ตารางสรุปข้อมูล: {count}',
     odsLossComments: 'ความคิดเห็น: {count}',
+    odsLossMacros: 'มาโคร: {count}',
+    odsLossShapes: 'รูปร่างและกล่องข้อความ: {count}',
+    odsLossSlicers: 'ตัวแบ่งส่วนข้อมูล: {count}',
+    odsLossSparklines: 'เส้นแบบประกายไฟ: {count}',
     odsContinueBtn: 'ดำเนินการต่อ',
     errOdsExportFailed: 'ส่งออก ODS ล้มเหลว: {message}',
     errOdsReopenFailed: 'เปิดไฟล์ ODS ที่ส่งออกใหม่ไม่ได้ จึงลบไฟล์นั้นแล้ว สมุดงานไม่เปลี่ยนแปลง',
@@ -1119,6 +1252,10 @@ const tMain = createI18n({
     odsLossValidations: 'Aturan validasi data: {count}',
     odsLossPivots: 'Tabel pivot: {count}',
     odsLossComments: 'Komentar: {count}',
+    odsLossMacros: 'Makro: {count}',
+    odsLossShapes: 'Bentuk dan kotak teks: {count}',
+    odsLossSlicers: 'Pemotong: {count}',
+    odsLossSparklines: 'Grafik mini: {count}',
     odsContinueBtn: 'Lanjutkan',
     errOdsExportFailed: 'Ekspor ODS gagal: {message}',
     errOdsReopenFailed:
@@ -1206,6 +1343,10 @@ const tMain = createI18n({
     odsLossValidations: 'Правила проверки данных: {count}',
     odsLossPivots: 'Сводные таблицы: {count}',
     odsLossComments: 'Примечания: {count}',
+    odsLossMacros: 'Макросы: {count}',
+    odsLossShapes: 'Фигуры и надписи: {count}',
+    odsLossSlicers: 'Срезы: {count}',
+    odsLossSparklines: 'Спарклайны: {count}',
     odsContinueBtn: 'Продолжить',
     errOdsExportFailed: 'Не удалось экспортировать в ODS: {message}',
     errOdsReopenFailed:
@@ -1288,6 +1429,10 @@ const tMain = createI18n({
     odsLossValidations: 'قواعد التحقق من البيانات: {count}',
     odsLossPivots: 'الجداول المحورية: {count}',
     odsLossComments: 'التعليقات: {count}',
+    odsLossMacros: 'وحدات الماكرو: {count}',
+    odsLossShapes: 'الأشكال ومربعات النص: {count}',
+    odsLossSlicers: 'مقسّمات طريقة العرض: {count}',
+    odsLossSparklines: 'خطوط المؤشر: {count}',
     odsContinueBtn: 'متابعة',
     errOdsExportFailed: 'فشل تصدير ODS: {message}',
     errOdsReopenFailed: 'تعذر إعادة فتح ملف ODS المصدّر فحُذف. المصنف لم يتغير.',
@@ -1373,6 +1518,10 @@ const tMain = createI18n({
     odsLossValidations: 'Regras de validação de dados: {count}',
     odsLossPivots: 'Tabelas dinâmicas: {count}',
     odsLossComments: 'Comentários: {count}',
+    odsLossMacros: 'Macros: {count}',
+    odsLossShapes: 'Formas e caixas de texto: {count}',
+    odsLossSlicers: 'Segmentações de dados: {count}',
+    odsLossSparklines: 'Minigráficos: {count}',
     odsContinueBtn: 'Continuar',
     errOdsExportFailed: 'Falha ao exportar em ODS: {message}',
     errOdsReopenFailed:
@@ -1463,6 +1612,10 @@ const tMain = createI18n({
     odsLossValidations: 'Regole di convalida dati: {count}',
     odsLossPivots: 'Tabelle pivot: {count}',
     odsLossComments: 'Commenti: {count}',
+    odsLossMacros: 'Macro: {count}',
+    odsLossShapes: 'Forme e caselle di testo: {count}',
+    odsLossSlicers: 'Filtri dati: {count}',
+    odsLossSparklines: 'Grafici sparkline: {count}',
     odsContinueBtn: 'Continua',
     errOdsExportFailed: 'Esportazione ODS non riuscita: {message}',
     errOdsReopenFailed:
@@ -1551,6 +1704,10 @@ const tMain = createI18n({
     odsLossValidations: 'Reguły sprawdzania danych: {count}',
     odsLossPivots: 'Tabele przestawne: {count}',
     odsLossComments: 'Komentarze: {count}',
+    odsLossMacros: 'Makra: {count}',
+    odsLossShapes: 'Kształty i pola tekstowe: {count}',
+    odsLossSlicers: 'Fragmentatory: {count}',
+    odsLossSparklines: 'Wykresy przebiegu w czasie: {count}',
     odsContinueBtn: 'Kontynuuj',
     errOdsExportFailed: 'Eksport do ODS nie powiódł się: {message}',
     errOdsReopenFailed:
@@ -1637,6 +1794,10 @@ const tMain = createI18n({
     odsLossValidations: 'Pravidla ověření dat: {count}',
     odsLossPivots: 'Kontingenční tabulky: {count}',
     odsLossComments: 'Komentáře: {count}',
+    odsLossMacros: 'Makra: {count}',
+    odsLossShapes: 'Obrazce a textová pole: {count}',
+    odsLossSlicers: 'Průřezy: {count}',
+    odsLossSparklines: 'Minigrafy: {count}',
     odsContinueBtn: 'Pokračovat',
     errOdsExportFailed: 'Export do ODS selhal: {message}',
     errOdsReopenFailed:
@@ -1727,6 +1888,10 @@ const tMain = createI18n({
     odsLossValidations: 'Regels voor gegevensvalidatie: {count}',
     odsLossPivots: 'Draaitabellen: {count}',
     odsLossComments: 'Opmerkingen: {count}',
+    odsLossMacros: "Macro's: {count}",
+    odsLossShapes: 'Vormen en tekstvakken: {count}',
+    odsLossSlicers: 'Slicers: {count}',
+    odsLossSparklines: 'Sparklines: {count}',
     odsContinueBtn: 'Doorgaan',
     errOdsExportFailed: 'Exporteren naar ODS is mislukt: {message}',
     errOdsReopenFailed:
@@ -1813,6 +1978,10 @@ const tMain = createI18n({
     odsLossValidations: 'Peraturan pengesahan data: {count}',
     odsLossPivots: 'Jadual pangsi: {count}',
     odsLossComments: 'Komen: {count}',
+    odsLossMacros: 'Makro: {count}',
+    odsLossShapes: 'Bentuk dan kotak teks: {count}',
+    odsLossSlicers: 'Penghiris: {count}',
+    odsLossSparklines: 'Garis percikan: {count}',
     odsContinueBtn: 'Teruskan',
     errOdsExportFailed: 'Eksport ODS gagal: {message}',
     errOdsReopenFailed:
@@ -1897,6 +2066,10 @@ const tMain = createI18n({
     odsLossValidations: 'כללי אימות נתונים: {count}',
     odsLossPivots: 'טבלאות ציר: {count}',
     odsLossComments: 'הערות: {count}',
+    odsLossMacros: 'פקודות מאקרו: {count}',
+    odsLossShapes: 'צורות ותיבות טקסט: {count}',
+    odsLossSlicers: 'כלי פריסה: {count}',
+    odsLossSparklines: 'תרשימים זעירים: {count}',
     odsContinueBtn: 'המשך',
     errOdsExportFailed: 'ייצוא ODS נכשל: {message}',
     errOdsReopenFailed:
@@ -1983,6 +2156,10 @@ const tMain = createI18n({
     odsLossValidations: 'डेटा सत्यापन नियम: {count}',
     odsLossPivots: 'पिवट तालिकाएँ: {count}',
     odsLossComments: 'टिप्पणियाँ: {count}',
+    odsLossMacros: 'मैक्रो: {count}',
+    odsLossShapes: 'आकृतियाँ और टेक्स्ट बॉक्स: {count}',
+    odsLossSlicers: 'स्लाइसर: {count}',
+    odsLossSparklines: 'स्पार्कलाइन: {count}',
     odsContinueBtn: 'जारी रखें',
     errOdsExportFailed: 'ODS निर्यात विफल: {message}',
     errOdsReopenFailed:
@@ -2065,6 +2242,10 @@ const tMain = createI18n({
     odsLossValidations: '資料驗證規則:{count}',
     odsLossPivots: '樞紐分析表:{count}',
     odsLossComments: '註解:{count}',
+    odsLossMacros: '巨集:{count}',
+    odsLossShapes: '圖案和文字方塊:{count}',
+    odsLossSlicers: '交叉分析篩選器:{count}',
+    odsLossSparklines: '走勢圖:{count}',
     odsContinueBtn: '繼續',
     errOdsExportFailed: 'ODS 匯出失敗:{message}',
     errOdsReopenFailed: '匯出的 ODS 檔案無法重新開啟,已將其刪除。活頁簿未受影響。',
@@ -2465,6 +2646,10 @@ const ODS_LOSS_LABELS: Record<OdsLossKind, Parameters<typeof tMain>[1]> = {
   validations: 'odsLossValidations',
   pivots: 'odsLossPivots',
   comments: 'odsLossComments',
+  macros: 'odsLossMacros',
+  shapes: 'odsLossShapes',
+  slicers: 'odsLossSlicers',
+  sparklines: 'odsLossSparklines',
 }
 
 /** One warning listing only what this workbook actually loses, then Continue/Cancel. */
@@ -3823,22 +4008,29 @@ export function registerSheetsIpc(): void {
   // owns its channel the way pdf does.
   ipcMain.handle(
     IPC_CHANNELS.aiGenerateImage,
-    (event, op: { prompt?: unknown; aspectRatio?: unknown }) =>
-      // ends with its tab, or when the tab's AI run is stopped
-      withMediaCallSignal(event.sender, (signal) =>
-        generateImageTool(
-          SETTINGS_PATH(),
-          {
-            prompt: String(op?.prompt ?? ''),
-            ...(op?.aspectRatio ? { aspectRatio: String(op.aspectRatio) } : {}),
-          },
-          {
-            mediaRoots: sheetsMediaRoots(event.sender.id),
-            context: { path: 'screen', statuses: sharedSubscriptionStatuses() },
-            signal,
-          },
-        ),
-      ),
+    (event, op: { prompt?: unknown; aspectRatio?: unknown; model?: unknown }) => {
+      // the model the user named, as given: the shared tool decides whether the route offers it
+      const model = typeof op?.model === 'string' ? op.model.trim() : ''
+      // ends with its tab, or when the tab's AI run is stopped; refused while AI is turned off
+      return screenMediaCall(
+        event.sender,
+        (signal) =>
+          generateImageTool(
+            SETTINGS_PATH(),
+            {
+              prompt: String(op?.prompt ?? ''),
+              ...(op?.aspectRatio ? { aspectRatio: String(op.aspectRatio) } : {}),
+              ...(model ? { model } : {}),
+            },
+            {
+              mediaRoots: sheetsMediaRoots(event.sender.id),
+              context: { path: 'screen', statuses: sharedSubscriptionStatuses() },
+              signal,
+            },
+          ),
+        (error) => ({ error, errorCode: 'unavailable' as const }),
+      )
+    },
   )
 
   // What the image and search tools can do right now. Registered here for the
@@ -4021,6 +4213,39 @@ export function registerSheetsIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.reopenWorkbook, async (event, path: unknown) => {
     const validated = z.string().min(1).parse(path)
+    // A converted, restored, new or decrypted workbook is more than its path:
+    // re-open the twin of the session being continued, so Save still knows
+    // the copy is a copy and the original keeps its protection.
+    const entry = sessionFor(event)
+    const previous = sessionToContinue(entry.sessions.values(), validated)
+    if (previous !== null) {
+      if (!existsSync(previous.path)) throw new Error('Workbook file not found.')
+      const result = await openWorkbookSession(
+        entry.client,
+        previous.path,
+        entry.sessions,
+        continuedOpenOptions(previous),
+      )
+      const twin = entry.sessions.get(result.sessionId)
+      if (event.sender.isDestroyed()) {
+        // The tab closed while the twin was opening; its sessions are already
+        // cleaned up, so this one has to go the same way.
+        entry.sessions.delete(result.sessionId)
+        if (twin !== undefined) {
+          await cleanupSessionResources({
+            tempRoot: app.getPath('temp'),
+            snapshotPath: twin.snapshotPath,
+            importTempDir: previous.importTempDir,
+            closeSidecar: () => entry.client.close(result.sessionId),
+          })
+        }
+        return null
+      }
+      if (twin !== undefined && previous.importTempDir !== undefined) {
+        entry.sessions.set(result.sessionId, { ...twin, importTempDir: previous.importTempDir })
+      }
+      return result
+    }
     // A crash re-open targets the file the user already has open, so a
     // missing/deleted file is a real failure rather than a reason to pop the
     // picker at someone who did not ask to open anything.
@@ -4394,6 +4619,14 @@ export function registerSheetsIpc(): void {
     return printWorkbook(event, workbookExportPdfRequestSchema.parse(input))
   })
 
+  // The Print dialog's shared layout panel: same print HTML, arranged in main.
+  registerSheetsPrintLayoutIpc({
+    ipcMain,
+    assertSender: (event) => {
+      sessionFor(event as unknown as IpcMainInvokeEvent)
+    },
+  })
+
   ipcMain.handle(IPC_CHANNELS.listPrinters, async (event) => {
     sessionFor(event)
     const printers = await event.sender.getPrintersAsync()
@@ -4462,6 +4695,13 @@ export function registerSheetsIpc(): void {
   ipcMain.handle(IPC_CHANNELS.exportOds, async (event, input: unknown) => {
     const entry = sessionFor(event)
     const request = workbookExportOdsRequestSchema.parse(input)
+    // The pending edits ride along as a save request. An upload they refer to
+    // is taken here, before anything can return early, so a refused or
+    // canceled export does not leave it waiting in memory.
+    const pending =
+      request.workbook === undefined || request.workbook.sessionId !== request.sessionId
+        ? undefined
+        : resolveTransferredEdits(entry, request.workbook)
     const session = entry.sessions.get(request.sessionId)
     if (!session) throw new Error('Unknown workbook session.')
     const parent = dialogParent(event)
@@ -4501,14 +4741,39 @@ export function registerSheetsIpc(): void {
       targetPath = undefined
     }
 
-    const outcome = await exportWorkbookAsOds({
-      sidecar: entry.client,
-      // The saved state, not the live grid: the sidecar converts a real .xlsx
-      // package, and an unsaved workbook's snapshot is that package.
-      sourcePath: session.snapshotPath,
-      targetPath,
-      confirmLoss: (losses) => confirmOdsLoss(parent, losses),
-    })
+    // The sidecar converts a real .xlsx package. With edits pending, that
+    // package is a private copy written through the save writer — the same
+    // one a skill's template uses: no dialog, no session swap, the opened
+    // file and its recovery copy untouched. The export is a copy of what is
+    // on screen, and the workbook stays as unsaved as it was.
+    const copyDirectory =
+      pending === undefined
+        ? undefined
+        : join(app.getPath('temp'), 'genoffice-imports', randomUUID())
+    let outcome: Awaited<ReturnType<typeof exportWorkbookAsOds>>
+    try {
+      let sourcePath = session.snapshotPath
+      if (pending !== undefined && copyDirectory !== undefined) {
+        await mkdir(copyDirectory, { recursive: true })
+        sourcePath = join(copyDirectory, 'export.xlsx')
+        await writeWorkbookTo(entry.client, session, pending, sourcePath)
+      }
+      outcome = await exportWorkbookAsOds({
+        sidecar: entry.client,
+        sourcePath,
+        targetPath,
+        confirmLoss: (losses) => confirmOdsLoss(parent, losses),
+      })
+    } catch (error) {
+      outcome = {
+        status: 'failed',
+        message: error instanceof Error ? error.message : String(error),
+      }
+    } finally {
+      if (copyDirectory !== undefined) {
+        await cleanupImportTempDirectory(app.getPath('temp'), copyDirectory).catch(() => undefined)
+      }
+    }
     if (outcome.status === 'exported') {
       return { canceled: false, path: outcome.path, ...outcome.result }
     }
@@ -4533,6 +4798,9 @@ export function registerSheetsIpc(): void {
     async (event, input: unknown): Promise<WorkbookCreateDocumentResult> => {
       sessionFor(event)
       const request = workbookCreateDocumentRequestSchema.parse(input)
+      // a type whose editor is turned off is refused before anything is made (spec 7.4)
+      const refusal = aiCreateRefusal(request.type)
+      if (refusal) return { ok: false, error: refusal }
       try {
         if (request.type === 'csv') {
           const fileName = `${sanitizeGeneratedFileBase(request.title)}.csv`
@@ -4895,6 +5163,10 @@ export function registerSheetsIpc(): void {
                 recoveryOriginalPath: session.recoveryOriginalPath,
                 unsavedRestore: session.unsavedRestore,
                 odsSourcePath: session.odsSourcePath,
+                // still the converted copy of an .ods: the notice and its
+                // dropped-formula count stay with it across the quiet save
+                odsConverted: session.odsConverted,
+                formulasDropped: session.formulasDropped,
                 staged,
               }
             : { odsSourcePath: session.odsSourcePath, staged },
@@ -5280,6 +5552,15 @@ export function registerSheetsAiIpc(): void {
     const controller = new AbortController()
     entry.aiStreams.set(requestId, controller)
     const unwatchSender = abortOnDestroyed(event.sender, controller)
+    // one turn of the tab's chat is running AI work: turning AI off stops it the way Stop does
+    const senderId = event.sender.id
+    const unregisterJob = registerAiJob({
+      kind: 'chat',
+      stop: () => {
+        controller.abort()
+        abortMediaCalls(senderId)
+      },
+    })
     // wire-activity keepalive: lets the renderer's silence watchdog tell a slow turn from a dead one
     let lastPing = 0
     const ping = () => {
@@ -5318,6 +5599,7 @@ export function registerSheetsAiIpc(): void {
         send(aiStreamErrorChunk(requestId, err))
       }
     } finally {
+      unregisterJob()
       unwatchSender()
       entry.aiStreams.delete(requestId)
     }
@@ -6380,7 +6662,7 @@ function installApplicationMenu(): void {
   const labels = appMenuLabels(getUiLang())
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
+      ...(process.platform === 'darwin' ? [macAppMenuTemplate(labels)] : []),
       {
         label: tm('menuFile'),
         submenu: [

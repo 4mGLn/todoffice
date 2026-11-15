@@ -2,6 +2,7 @@ import {
   AI_QUEUE_LABELS,
   AiBlockedNotice,
   AiComposer,
+  AiRunStopNotice,
   AiConnectPrompt,
   AiFirstConnectionNotice,
   AiInputTruncatedNotice,
@@ -38,6 +39,8 @@ import {
   type TemplateDocument,
   type SkillChipRef,
   type SkillUse,
+  runContinueNote,
+  runStopText,
   docMentionActions,
   type AiComposerDocs,
   type ProjectChatEntry,
@@ -46,6 +49,7 @@ import {
   placeRemoteEntries,
   useProjectPanel,
   type ProjectPanel,
+  useSubscriptionUsageUpdates,
 } from '@genoffice/ui'
 import { IconPicture, IconTable } from '@genoffice/ui/icons'
 import { useEffect, useId, useRef, useState } from 'react'
@@ -57,6 +61,7 @@ import type {
 import {
   AgentLoop,
   type AgentImage,
+  type AgentRunStop,
   type IpcStreamError,
   composeWithDrive,
   windowMcpState,
@@ -148,6 +153,8 @@ interface ChatEntry {
   isError?: boolean
   /** the run stopped because its connection cannot go on (limit used up, signed out, …) */
   blocked?: AiBlockedRun
+  /** the app stopped the run by its own rule (unusable edits, failing edits, a loop) */
+  stop?: AgentRunStop
   /** the run failed and this user message was rolled back out of the model context */
   undelivered?: boolean
   tools?: ToolActivity[]
@@ -654,6 +661,9 @@ export function AiPanel({
   const streamErrorRef = useRef<IpcStreamError | null>(null)
   /** usage windows the subscription program reported last */
   const [subscriptionUsage, setSubscriptionUsage] = useState<AiSubscriptionUsage[]>([])
+  // usage a picture request reported reaches every window (the chat stream only its own);
+  // the shared merge keeps the windows a report does not name
+  useSubscriptionUsageUpdates(() => window.hwpApi.aiSubscription, setSubscriptionUsage)
   /** the input of the last run was cut to fit a limit */
   const [inputTruncated, setInputTruncated] = useState(false)
   const langRef = useRef(lang)
@@ -662,6 +672,10 @@ export function AiPanel({
   bridgeRef.current = bridge
   /** instruction of the last run, for a retry */
   const runInstructionRef = useRef('')
+  /** why the app stopped the last run, for "Continue"; null once another run starts */
+  const runStopRef = useRef<AgentRunStop | null>(null)
+  /** the skills of the stopped run without a Continue note, so a second Continue does not stack them */
+  const continueBaseRef = useRef<SkillUse | null>(null)
   /** document changes of the in-flight run, in the order they were made */
   const runChangesRef = useRef<HwpChange[]>([])
   /** foreign-change count read when the in-flight run began; null when it could not be read */
@@ -728,6 +742,8 @@ export function AiPanel({
       onInputTruncated: () => setInputTruncated(true),
     })
 
+  /** the person's words of the run that is going: import_attachment may hand them to a new tab */
+  const runRequestRef = useRef('')
   const skillRef = useRef<ReturnType<typeof createHwpSkill> | null>(null)
   if (!skillRef.current)
     skillRef.current = createHwpSkill({
@@ -744,6 +760,17 @@ export function AiPanel({
       confirmMemoRemoval: (refusal) => memoGateRef.current!.ask(refusal),
       imageGenAvailable: () => imageGenAvailableRef.current,
       pictureAnalysisAvailable: () => imageAnalysisAvailableRef.current !== false,
+      // a Markdown attachment as a new Hangul tab; the request of this run may go along
+      importAttachment: async (name, handOver) => {
+        const attachment = availableAttachmentsRef
+          .current()
+          .find((candidate) => candidate.name === name)
+        if (!attachment) {
+          return { ok: false, error: `there is no file named "${name}" attached to this chat.` }
+        }
+        const request = handOver ? runRequestRef.current.trim() : ''
+        return window.hwpApi.importAttachmentAsDocument(attachment.path, request || undefined)
+      },
       // the model names an attachment; only files the panel shows can be found
       attachmentPath: (name) =>
         availableAttachmentsRef.current().find((attachment) => attachment.name === name)?.path ??
@@ -858,9 +885,12 @@ export function AiPanel({
           setBusy(false)
           projectRef.current?.finishSend()
         },
-        onError: (error) => {
+        onError: (error, stop) => {
           const blocked = blockedRunOf(streamErrorRef.current, error)
           streamErrorRef.current = null
+          runStopRef.current = stop ?? null
+          // kept on this PC only, as words and counts (no text of the document or the model)
+          if (stop) window.hwpApi.noteAiRunStop?.(stop)
           if (blocked) {
             // the queue must not fire one message after another into the same wall
             msgQueueRef.current.hold()
@@ -882,9 +912,11 @@ export function AiPanel({
               next[next.length - 1] = {
                 ...last,
                 streaming: false,
-                text: error,
+                // the loop reports in English; a stop it explains is shown in the screen language
+                text: stop ? runStopText(stop, langRef.current) : error,
                 isError: true,
                 ...(blocked ? { blocked } : {}),
+                ...(stop ? { stop } : {}),
                 tools: last.tools?.filter((tl) => !tl.running),
                 ...changed,
               }
@@ -965,6 +997,8 @@ export function AiPanel({
     }
     stickToBottomRef.current = true
     streamErrorRef.current = null
+    runStopRef.current = null
+    continueBaseRef.current = null
     setInputTruncated(false)
     runInstructionRef.current = instruction
     runChangesRef.current = []
@@ -1007,6 +1041,7 @@ export function AiPanel({
     setPrompt('')
     skillsRef.current.consume(skillUse)
     skillTemplatesRef.current.noteRequest(text)
+    runRequestRef.current = text
     runSkillUseRef.current = skillUse
     runStepsRef.current = []
     skillRef.current!.beginRun()
@@ -1093,6 +1128,22 @@ export function AiPanel({
       runScopeRef.current,
       runSkillUseRef.current,
     )
+  }
+
+  /**
+   * "Continue" on a run the app stopped after it had changed the document: the
+   * same request goes again with a note from the app that part of the work is
+   * already in the document, so the model goes on instead of starting over.
+   */
+  const continueRun = (): void => {
+    const stop = runStopRef.current
+    if (!stop) return
+    const base = continueBaseRef.current ?? runSkillUseRef.current
+    const sent = send(runInstructionRef.current, runAttachmentsRef.current, runScopeRef.current, {
+      ...base,
+      text: `${base.text}\n\n${runContinueNote(stop)}`,
+    })
+    if (sent) continueBaseRef.current = base
   }
 
   /** A send typed in the composer: the chosen skills are read first, then it goes out. */
@@ -1436,7 +1487,7 @@ export function AiPanel({
           return (
             <div
               key={i}
-              className={`ai-msg ai-msg-assistant${entry.isError && !blocked ? ' ai-msg-error' : ''}${entry.streaming ? ' ai-msg-streaming' : ''}`}
+              className={`ai-msg ai-msg-assistant${entry.isError && !blocked && !entry.stop ? ' ai-msg-error' : ''}${entry.streaming ? ' ai-msg-streaming' : ''}`}
             >
               {blocked ? (
                 <AiBlockedNotice
@@ -1449,6 +1500,13 @@ export function AiPanel({
                   statuses={isLast && !busy ? (statuses ?? {}) : {}}
                   lang={lang}
                   onContinueWith={continueWith}
+                />
+              ) : entry.stop ? (
+                <AiRunStopNotice
+                  stop={entry.stop}
+                  lang={lang}
+                  // going on belongs to the run that just stopped, not to older replies
+                  onContinue={isLast && !busy && !reverting ? continueRun : undefined}
                 />
               ) : (
                 entry.text && (

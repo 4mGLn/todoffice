@@ -39,6 +39,7 @@ PowerPoint 프레젠테이션(.pptx) 에디터다. 파일을 바이트 그대로
 - 복구 사본은 공용 저장소(`createRecoveryStore`, `slides-autosave`)로만 쓰고 지운다. 제목 없는 덱의 사본도 앱 데이터 폴더의 제목 없는 칸에 두고, 문서 폴더에는 아무것도 만들지 않는다(이전 버전이 문서 폴더에 남긴 초안은 건드리지 않는다). 사본을 쓰기 전에 `beginWrite`로 표를 받고 나서 직렬화한다. 암호 없는 덱은 `writeCopyStreamed`로 사본 폴더의 임시 파일에 바로 흘려 쓰고(`writeDeckFile`), 암호 덱만 메모리에서 잠근 바이트를 `writeCopy`로 넘긴다. 30초마다 덱 전체를 메모리에 모으는 길로 되돌리지 않는다(8GB PC의 메모리). 저장은 `'saved'`, "저장 안 함"과 MCP의 저장 없이 닫기(`discardSlidesRecovery`)는 `'dontSave'`, 깨끗한 닫기(`releaseSlidesRecovery`)는 `'closedClean'`으로 지운다. 앱이 끝나는 중에는 저장소가 깨끗한 닫기의 지우기를 거절하므로 그 길을 우회하지 않는다. 사본이 있는 파일을 열 때는 `resolveRecoveryOnOpen`이 먼저 묻고, 시작 목록에서 정한 문서는 묻지 않는다. 실패 뒤 건너뛰기(`autosaveBackoff`)는 그대로 둔다.
 - 다른 이름으로 저장 창은 PowerPoint(.pptx), PDF, PNG 그림(슬라이드마다 한 장)을 이 순서로 보여 주고, 제안 이름에는 확장자를 붙이지 않는다(`save-as-formats.ts`). PDF·PNG를 고르면 덱은 쓰지 않고 `{ ok: false, exportAs, path }`를 돌려주며, 렌더러가 내보내기 명령의 `exportPdf`·`exportImages`로 사본만 쓴다(숨긴 슬라이드는 빼고, PDF는 다 쓴 뒤 연다). 덱의 경로, 저장 안 된 상태, 복구 사본은 그대로다. PNG는 입력한 이름 하나가 `numberedExportPaths`로 `deck.png`(한 장) 또는 `deck-01.png`…가 되고, 그 탭의 저장 창이 돌려준 이름만 한 번 받아 준다(`SaveAsImageTargets`, `ExportImagesOp.saveAsTarget`). 제목 없는 덱의 첫 저장(`slides:save`)은 `.pptx`만 보여 준다.
 - 견본 표지 그리기 채널 `slides:template-cover-render`(`src/main/template-cover.ts`)는 `registerSlidesIpc`에서 등록한다(shell 안에서도 불린다). 카탈로그 id와 `'ko'`·`'en'`만 받는다. 결과를 캐시하고, 열린 문서를 건드리지 않는다.
+- **AI 끄기(설정 › 편집기와 AI, 결정 0143).** preload는 선택의 읽기·구독(`get`, `onChange`)만 내보내고 바꾸기·모두 멈추기는 내보내지 않는다. 화면은 `aiVisible(useAppChoice(window.aiOfficeEditorChoice))`로 AI 창·리본(홈 탭 포함)의 AI 입구와 AI 생성을 그리지 않는다. 뒷단 `src/main/ai-ipc.ts`는 `aiRunRefusal`로 화면의 실행을 거절하고 도는 실행을 `registerAiJob`으로 올린다. 그림 생성·미디어 분석은 `src/main/screen-media-call.ts`가 같은 일을 한다.
 
 ## 이 모듈의 방식
 
@@ -49,7 +50,7 @@ PowerPoint 프레젠테이션(.pptx) 에디터다. 파일을 바이트 그대로
 - 프롬프트 파일(`src/renderer/ai/prompts/*.md`)은 Prettier 대상이 아니다. Prettier가 강조 표식과 목록 들여쓰기를 바꾸면 모델이 읽는 글이 달라진다. 이 파일들을 포매터에 넣지 않는다.
 - 메인 프로세스의 Node `fetch`는 시스템 프록시를 쓰지 않아 `applyMainProcessProxy`가 환경 변수나 시스템 설정의 프록시를 전역 디스패처에 건다. 이 프록시는 구독 프로그램에는 전달되지 않는다(그쪽은 물려받은 환경 변수만 본다).
 - 메모(클래식 검토 댓글)는 `slides:get-comments`(현재 페이지)와 `slides:get-all-comments`(전 덱, 읽기 전용)로 읽는다. 메모 창은 현재 페이지/모든 페이지 두 보기를 쓰고(순수 함수는 `comments-view.ts`), AI는 `read_comments` 도구와 덱 문맥의 메모 힌트로 읽는다. 메모는 가리기 표식 대상이 아니며, 저장은 기존 댓글 경로 그대로다.
-- 문자열은 `src/renderer/i18n/`의 언어별 조각(`ai/`, `app/`, `panes/`, `ribbon/`)이고 `zh.ts`가 키 집합을 정한다. 21개 언어 모두에 넣는다. 구독 연결 문장은 `@genoffice/ui`의 것을 쓴다.
+- 문자열은 `src/renderer/i18n/`의 언어별 조각(`ai/`, `app/`, `panes/`, `ribbon/`)이고 `zh.ts`가 키 집합을 정한다. 22개 언어 모두에 넣는다. 구독 연결 문장은 `@genoffice/ui`의 것을 쓴다.
 - 렌더러에서 문서의 템플릿 선택과 덧붙인 요청은 `src/renderer/ai/template-selection-state.ts` 하나가 쥔다. 기억된 키가 더 이상 풀리지 않으면(지운 저장 스타일 등) 선택 없음으로 읽는다. 템플릿 자료는 `@genoffice/pipelines/slides/templates`에서 가져온다(렌더러에서 써도 되는 하위 경로).
 - 템플릿 글꼴: `src/main/template-fonts.ts`가 `templateFontsDir`로 공용 폴더를 찾고, `fonts.ts`가 그 폴더를 사용자 글꼴 저장소 다음의 두 번째 읽기 전용 개인 글꼴로 색인한다. 같은 패밀리가 PC에 설치되어 있으면 그것이 먼저다. 캔버스, PDF 내보내기, 인쇄가 이 글꼴로 그린다. 발표 화면의 청중 창은 따로 된 문서라서 그리기 전에 개인 글꼴을 따로 등록한다. 폴더 열기 채널 `slides:open-template-fonts-folder`는 shell이 부르는 `registerSlidesIpc`에 있고, 정확히 그 폴더만 연다.
 - 서식 복사(`format-brush.ts`, `clipboard-actions.ts`)는 기존 연산(`editFill`·`editStroke`·`setEffects`·`setElementFont`·`setElementParagraphFormat`)만 부르고, 여러 호출을 `history-batch.ts`의 `batched`로 실행 취소 한 번에 묶는다. 글을 다시 쓰는 `editText`로 서식을 칠하지 않는다(줄바꿈에 삼킨 공백과 링크를 잃는다). 편집 중 선택한 글자가 있으면 그 글자의 서식을 집고, 붓이 켜진 채 마우스로 고른 글자에 칠한다.
@@ -59,6 +60,7 @@ PowerPoint 프레젠테이션(.pptx) 에디터다. 파일을 바이트 그대로
 - 도형 병합(`merge-shapes.ts`)은 화면 좌표의 윤곽을 `polygon-clipping`으로 합치고, 저장은 `addElement`·`setShapeGeometry`·서식 연산·`deleteElements`를 `batched`로 묶어 부른다. 윤곽을 모르는 도형(화면이 사각형으로 근사하는 프리셋, 선·그림·표·차트)은 병합하지 않는다.
 - 발표자 보기(`components/PresenterView.tsx`)의 오른쪽 칸(다음 슬라이드·노트) 폭은 현재 슬라이드와 그 칸 사이의 손잡이(`.pv-splitter`)로 끌거나, 손잡이에 포커스를 두고 ←/→(Shift는 큰 걸음)·Home·End로 바꾸고, 두 번 누르면 기본 340px로 돌아간다. 폭 계산은 순수 함수 모음 `presenter-layout.ts`에 있고, 고른 폭은 설치마다 localStorage `ai-slides-presenter-side-width`에 남긴다. 그릴 때는 창에 맞춰 줄이되(아래 줄 도구가 겹치지 않게 본 영역에 600px을 남긴다) 고른 값은 지우지 않는다. 다음 슬라이드 미리보기는 칸 높이의 40%까지만 커져서, 칸을 넓힌 만큼이 노트에 간다. 손잡이에 포커스가 있을 때 그 네 키는 쪽 넘기기로 가지 않는다. 마우스로 끌면 포커스를 가져가지 않는다. 끌기 한 번은 `presenter-side-drag.ts`가 맡는다. 실제로 움직였을 때만 놓을 때 저장하고(누르기만 하면 창에 맞춰 줄인 폭으로 고른 값을 덮지 않는다), 끄는 중에 발표자 보기가 닫히면(Esc) 창에 건 처리기와 커서를 거둔다.
 - `vitest.config.ts`는 `@genoffice/pptx-*` 패키지를 이 저장소의 소스 경로로 고정한다. 하위 경로 별칭은 패키지 이름 별칭보다 앞에 둔다(문자열 별칭은 접두사 치환이다).
+- **고급 인쇄(결정 0141).** 인쇄 창에 공용 쪽 배치 칸과 "고른 슬라이드" 범위를 붙였다. 배치 방식은 인쇄 모양이 전체 슬라이드일 때만 고른다(유인물·노트는 한 장에 한 쪽으로 고정). 쪽 배치에서 아무것도 고르지 않으면 `slides:print`가 전과 같다. 고르면 같은 인쇄 HTML(`slidesPrintHtml`)을 `printToPDF`해 `slides:print-layout-*`로 보낸다.
 
 ## 테스트
 

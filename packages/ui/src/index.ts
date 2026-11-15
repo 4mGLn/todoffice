@@ -263,6 +263,7 @@ export { installScreenTips } from './screentip'
 export {
   installPopoverDismiss,
   useDismissablePopover,
+  useEscapeToClose,
   type PopoverDismissOptions,
 } from './popover-dismiss'
 export { Dropdown, type DropdownOption } from './dropdown'
@@ -453,6 +454,13 @@ export {
   type UseSubscriptionConnectionOptions,
 } from './use-subscription-connection'
 export {
+  mergeLatestSubscriptionUsage,
+  subscriptionUsageOf,
+  useSubscriptionUsageUpdates,
+  type SubscriptionUsageMerge,
+  type SubscriptionUsageSource,
+} from './use-subscription-usage-updates'
+export {
   AI_SUBSCRIPTION_STRINGS,
   aiSubscriptionText,
   type AiSubscriptionStringKey,
@@ -495,6 +503,15 @@ export {
   type AiConnectStepsView,
 } from './connect-guide'
 export { AiBlockedNotice } from './AiBlockedNotice'
+export { AiRunStopNotice } from './AiRunStopNotice'
+export {
+  runContinueNote,
+  runStopCode,
+  runStopNotice,
+  runStopText,
+  type RunStopNotice,
+} from './run-stop'
+export { AI_RUN_STOP_LABELS, type AiRunStopLabels } from './strings-run-stop'
 export { AiSubscriptionUsageLine } from './AiSubscriptionUsageLine'
 export {
   AiCodexNotice,
@@ -617,3 +634,18 @@ export {
   useNameFromTitle,
   type SuggestSkillName,
 } from './skill-name-from-title'
+export { createImeEnterGuard, useImeEnterGuard, type ImeEnterGuard } from './ime-enter'
+export * from './print-layout'
+export {
+  PRINT_LAYOUT_STRINGS,
+  printLayoutText,
+  type PrintLayoutStringKey,
+} from './strings-print-layout'
+export {
+  ALL_ON_APP_CHOICE_STATE,
+  PENDING_APP_CHOICE_STATE,
+  aiVisible,
+  useAppChoice,
+  type AppChoiceSource,
+  type AppChoiceState,
+} from './use-app-choice'

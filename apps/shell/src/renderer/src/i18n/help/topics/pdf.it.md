@@ -7,7 +7,7 @@ L'editor PDF ha cinque schede nella barra multifunzione: **Home / Annota / Modif
 - Barra laterale sinistra: ** miniature** (fai clic per saltare, con l'intervallo visibile evidenziato) oppure **struttura** (segnalibri, quando presenti).
 - Zoom: il controllo del rapporto in basso a destra; ctrl+rotellina cambia lo zoom a scatti.
 - Zoom all’apertura: **All’apertura**, nella scheda Visualizza, sceglie la vista iniziale di un PDF appena aperto: adatta alla larghezza, adatta alla pagina oppure uno zoom dal 50% al 200%. Un PDF di cui hai cambiato lo zoom si riapre con quello zoom.
-- Spostare la vista: attiva lo **Strumento Mano** (schede Home e Visualizza) e trascina per spostare la pagina in ogni direzione. Finché è attivo, il trascinamento non seleziona testo e un semplice clic apre comunque i link. Trascinare tenendo premuto il tasto centrale (rotellina) sposta la vista anche senza lo strumento. Esc o un altro strumento lo disattiva.
+- Spostare la vista: attiva lo **Strumento Mano** (schede Home e Visualizza) e trascina per spostare la pagina in ogni direzione. Finché è attivo, il trascinamento non seleziona testo e un semplice clic apre comunque i link. Trascinare tenendo premuto il tasto centrale (rotellina) sposta la vista anche senza lo strumento. Esc o un altro strumento lo disattiva. Senza testo selezionato, H lo attiva o lo disattiva.
 - Rotazione: per singola pagina o per tutte dal menu Pagine; le rotazioni vengono riscritte al salvataggio.
 - Ricerca: ctrl+F a testo completo con tutte le occorrenze evidenziate.
 - PDF cifrati: una richiesta della password (in una piccola finestra separata) li apre; la password viene usata solo per questa sessione. Puoi modificare e salvare un documento così; il salvataggio mantiene la password. **Annota → Proteggi** imposta, cambia o rimuove la password e ciò che i lettori possono fare.
@@ -85,7 +85,7 @@ Sei strumenti: **inchiostro, rettangolo, ellisse, freccia, nota**, più il **riq
 - **Esporta come Word… / PowerPoint… / Excel…** nel menu File, oppure le stesse tre da **Converti PDF** nella barra multifunzione — tutto in locale, senza caricamenti. Il .pptx esce con una diapositiva per pagina e il .xlsx con un foglio di lavoro per pagina. Ognuno chiede dove salvare.
 - **PDF in HWP**, in **Converti PDF** sulla barra multifunzione, trasforma il PDF in un documento HWP in una nuova scheda HWP. Scegli **Importa** (가져오기) nella finestra di importazione PDF mostrata dalla scheda; il documento viene creato in quella scheda e il primo salvataggio chiede dove mettere il file .hwp o .hwpx. Il PDF resta com'era e la conversione avviene su questo PC. Se il testo entra come paragrafi che scorrono tra le pagine o come caselle di testo fisse si sceglie nelle opzioni (환경 설정) della scheda HWP, alla voce importazione PDF.
 - La stessa conversione si avvia anche da una scheda HWP. Scegli un PDF con **File** ▸ **Importa PDF…**: si apre una nuova scheda HWP con la stessa finestra di importazione PDF. Il documento della scheda in cui è stato usato il menu resta com'era.
-- **Stampa**: ordine e rotazioni correnti tramite la finestra di sistema; sono supportati gli intervalli di pagine.
+- **Stampa**: ordine e rotazioni correnti tramite la finestra di sistema. Puoi stampare un intervallo di pagine o le pagine scelte nelle miniature, e scegliere in **Disposizione delle pagine** più pagine per foglio, opuscolo, scala di grigi e altro.
 
 ## Salvataggio
 

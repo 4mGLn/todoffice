@@ -7,7 +7,7 @@ De pdf-editor heeft vijf linttabs: **Start / Annoteren / Bewerken / Pagina's / B
 - Linkerzijbalk: **miniaturen** (klik om te springen, het zichtbare bereik is gemarkeerd) of **overzicht** (bladwijzers, indien aanwezig).
 - Zoom: de verhoudingsknop rechtsonder; ctrl+scrollwiel verandert de zoom in stappen.
 - Zoom bij openen: **Bij openen** op het tabblad Beeld kiest de beginweergave van een pdf die u opent: aan breedte aanpassen, aan pagina aanpassen of een zoom van 50% tot 200%. Een pdf waarvan u de zoom zelf hebt gewijzigd, opent weer met die zoom.
-- De weergave verplaatsen: zet het **Handje** aan (tabbladen Start en Beeld) en sleep om de pagina alle kanten op te verplaatsen. Zolang het aan staat, selecteert slepen geen tekst en opent een gewone klik nog steeds een koppeling. Slepen met de middelste knop (scrollwiel) ingedrukt verplaatst de weergave ook zonder het hulpmiddel. Esc of een ander hulpmiddel zet het uit.
+- De weergave verplaatsen: zet het **Handje** aan (tabbladen Start en Beeld) en sleep om de pagina alle kanten op te verplaatsen. Zolang het aan staat, selecteert slepen geen tekst en opent een gewone klik nog steeds een koppeling. Slepen met de middelste knop (scrollwiel) ingedrukt verplaatst de weergave ook zonder het hulpmiddel. Esc of een ander hulpmiddel zet het uit. Als er geen tekst is geselecteerd, zet H het aan en uit.
 - Draaien: per pagina of voor alle pagina's via het menu Pagina's; draaiingen worden bij opslaan teruggeschreven.
 - Zoeken: ctrl+F op volledige tekst met alle treffers gemarkeerd.
 - Versleutelde pdf's: een wachtwoordvraag (in een eigen klein venster) opent ze; het wachtwoord wordt alleen voor deze sessie gebruikt. Zo'n document kunt u bewerken en opslaan; bij opslaan blijft het wachtwoord behouden. **Annoteren → Beveiligen** stelt het wachtwoord en wat lezers mogen in, wijzigt of verwijdert ze.
@@ -85,7 +85,7 @@ Zes gereedschappen: **inkt, rechthoek, ellips, pijl, notitie**, plus de **zwartm
 - **Exporteren als Word… / PowerPoint… / Excel…** in het menu Bestand, of dezelfde drie via **PDF converteren** in het lintmenu — alles lokaal, geen upload. De .pptx komt eruit met één dia per pagina en de .xlsx met één werkblad per pagina. Elk ervan vraagt waar het opgeslagen moet worden.
 - **PDF naar HWP** onder **PDF converteren** op het lint maakt van de PDF een HWP-document in een nieuw HWP-tabblad. Kies **Importeren** (가져오기) in het PDF-importvenster dat het tabblad toont; het document ontstaat in dat tabblad, en bij de eerste keer opslaan wordt gevraagd waar het .hwp- of .hwpx-bestand moet komen. De PDF zelf blijft zoals hij was, en de conversie gebeurt op deze pc. Of de tekst binnenkomt als alinea's die over de pagina's lopen of als vaste tekstvakken, kiest u in de opties (환경 설정) van het HWP-tabblad, onder PDF-import.
 - Dezelfde conversie start u ook vanuit een HWP-tabblad. Kies een PDF met **Bestand** ▸ **PDF importeren…**; er opent een nieuw HWP-tabblad met hetzelfde PDF-importvenster. Het document van het tabblad waarin het menu is gebruikt, blijft zoals het was.
-- **Afdrukken**: huidige volgorde en draaiingen via het systeemvenster; paginabereiken worden ondersteund.
+- **Afdrukken**: huidige volgorde en draaiingen via het systeemvenster. Je kunt een paginabereik of de in de miniaturen gekozen pagina's afdrukken, en onder **Pagina-indeling** meerdere pagina's per vel, een boekje, grijstinten en meer kiezen.
 
 ## Opslaan
 
