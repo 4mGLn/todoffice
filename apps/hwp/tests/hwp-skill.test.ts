@@ -2782,7 +2782,9 @@ describe('the look of a document', () => {
     const repeated = await plain.call('insert_table', { where: 'end', rows, repeat_header: true })
     expect(repeated.output).toContain('repeat_header did nothing: the table has no header row')
     const oneColumn = await plain.call('insert_table', { where: 'end', rows, across_columns: true })
-    expect(oneColumn.output).toContain('across_columns did nothing: the text runs in one column')
+    expect(oneColumn.output).toContain(
+      'across_columns did nothing: only a table in front of the first paragraph',
+    )
     const across = setup({
       insertTable: vi.fn(async () => ({
         ok: true as const,
@@ -2800,7 +2802,7 @@ describe('the look of a document', () => {
       width_percent: 50,
       place: 'center',
     })
-    expect(head.output).toContain('lying across the columns of the page')
+    expect(head.output).toContain('lying across the top of the page over the columns')
     expect(head.output).toContain('width_percent and place did nothing')
     expect(head.output).not.toContain('across_columns did nothing')
     const dark = setup({
@@ -3038,6 +3040,27 @@ describe('the look of a document', () => {
     expect(refused.output).toContain('head of the document')
     const bad = await call('set_columns', { count: 'two' })
     expect(bad.isError).toBe(true)
+  })
+
+  it('draws a line between the columns when asked, and says so', async () => {
+    const { call, bridge } = setup({
+      setColumns: vi.fn(async (spec: { count: number; line?: string }) => ({
+        ok: true as const,
+        count: spec.count,
+        gapMm: 8,
+        was: 1,
+        sections: 1,
+        ...(spec.line ? { line: spec.line as never } : {}),
+      })),
+    })
+    const lined = await call('set_columns', { count: 2, line: 'solid' })
+    expect(bridge.setColumns).toHaveBeenCalledWith({ count: 2, line: 'solid' })
+    expect(lined.output).toContain('2 columns with 8 mm between them, a solid line down the middle')
+    const plain = await call('set_columns', { count: 2, line: 'none' })
+    expect(plain.output).toContain('8 mm between them and no line.')
+    const double = await call('set_columns', { count: 2, line: 'double' })
+    expect(double.isError).toBe(true)
+    expect(bridge.setColumns).toHaveBeenCalledTimes(2)
   })
 
   it('starts a paragraph on a new page or in the next column, and says why it could not', async () => {

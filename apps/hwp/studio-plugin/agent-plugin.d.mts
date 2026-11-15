@@ -318,8 +318,11 @@ export interface AgentPageLayout {
   pages: number
   /** the line drawn round every page; null when there is none */
   pageBorder: { line: string; color: string } | null
-  /** the columns the text of the first section runs in */
-  columns: { count: number; gapMm: number }
+  /**
+   * the columns the text of the first section starts in; `line` the line between them when
+   * there is one; `changesWithin` when a later part of the document sets other columns
+   */
+  columns: { count: number; gapMm: number; line?: AgentColumnLine; changesWithin?: true }
   pageNumber: AgentPageNumber | null
   header: AgentHeaderFooterState
   footer: AgentHeaderFooterState
@@ -377,9 +380,23 @@ export interface AgentTablePastFoot {
   taller?: true
 }
 
+/** The lines drawn between columns. */
+export type AgentColumnLine = 'solid' | 'dashed' | 'dotted'
+
 export type AgentColumnsResult =
-  /** `wide`: the tables, as listTables numbers them, wider than a column now; absent when none is */
-  | { ok: true; count: number; gapMm: number; was: number; sections: number; wide?: number[] }
+  /**
+   * `wide`: the tables, as listTables numbers them, wider than a column now; absent when none is.
+   * `line`: the line asked for, when one was
+   */
+  | {
+      ok: true
+      count: number
+      gapMm: number
+      was: number
+      sections: number
+      wide?: number[]
+      line?: AgentColumnLine | 'none'
+    }
   | AgentMemoRemovalRefusal
 
 /** The line round every page: as a cell's border line is told; line "none" takes it away. */
@@ -1772,7 +1789,7 @@ export interface AgentPluginSurface {
   /** the page number, header and footer of the document */
   pageLayout(): AgentPageLayout
   setColumns(
-    spec: { count: number; gapMm?: number | null },
+    spec: { count: number; gapMm?: number | null; line?: AgentColumnLine | 'none' | null },
     options?: AgentChangeOptions,
   ): AgentColumnsResult
   insertBreak(

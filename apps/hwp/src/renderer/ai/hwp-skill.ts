@@ -751,7 +751,7 @@ const TOOLS: HwpToolDef[] = [
         across_columns: {
           type: 'boolean',
           description:
-            'where the text runs in columns (set_columns): make the table as wide as the page, lying across the columns at the top of the first page, as the head of a test paper does. Only with where "before" and an anchor in the first paragraph of the document. Without it a table there is one column wide',
+            'make the table as wide as the page, lying across the top of the first page over the columns (those there are and those set_columns makes later), as the head of a test paper does. Only with where "before" and an anchor in the first paragraph of the document. Without it a table in columns is one column wide',
         },
       },
       required: ['where', 'rows'],
@@ -1551,14 +1551,14 @@ const TOOLS: HwpToolDef[] = [
     name: 'read_page_layout',
     edits: false,
     description:
-      'Show how many pages the document has and where its body falls on them as printed: first what to mind (a heading or caption left alone at the foot of a page, tables past the foot or over two pages, text past the foot, empty pages), then per page the first words of its first and of its last paragraph on it ("continues" when that paragraph began on the page before). Also the columns its text runs in, the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
+      'Show how many pages the document has and where its body falls on them as printed: first what to mind (a heading or caption left alone at the foot of a page, tables past the foot or over two pages, text past the foot, empty pages), then per page the first words of its first and of its last paragraph on it ("continues" when that paragraph began on the page before). Also the columns its text starts in and the line between them (changes_within: a later part, such as the body under the head of a test-paper form, runs in other columns), the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
     name: 'set_columns',
     edits: true,
     description:
-      'Lay the body text out in columns of one width (다단), in the whole document; count 1 takes the columns away. Call it before adding tables: a table added afterwards is one column wide, and tables that are already there keep their width. A line between the columns cannot be drawn.',
+      'Lay the body text out in columns of one width (다단), in the whole document; count 1 takes the columns away. Call it after writing the text and before adding tables: a table added afterwards is one column wide, and tables that are already there keep their width.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1566,6 +1566,12 @@ const TOOLS: HwpToolDef[] = [
         gap_mm: {
           type: 'number',
           description: 'the gap between the columns in millimetres; default 8',
+        },
+        line: {
+          type: 'string',
+          enum: ['none', 'solid', 'dashed', 'dotted'],
+          description:
+            'a thin line down the middle of each gap, as a test paper has; none takes it away; left out, the line stays as it is',
         },
       },
       required: ['count'],
@@ -1796,6 +1802,7 @@ const DECLARED_NAME_OF_READ_KEY = new Map([
   ['numberFormat', 'number_format'],
   ['startNumber', 'start_number'],
   ['gapMm', 'gap_mm'],
+  ['changesWithin', 'changes_within'],
 ])
 
 const DECLARED_NAME_OF_OLD_ARGUMENT = new Map([...DECLARED_NAME_OF_READ_KEY, ['atMm', 'at_mm']])
@@ -2242,6 +2249,13 @@ const rowsOf = (cells: { row: number }[] | AgentCellBlock | null): [from: number
   const rows = Array.isArray(cells) ? cells.map((cell) => cell.row) : [cells.fromRow, cells.toRow]
   return [Math.min(...rows), Math.max(...rows)]
 }
+
+const columnLineNote = (line: string | undefined): string =>
+  line === undefined
+    ? ''
+    : line === 'none'
+      ? ' and no line'
+      : `, a ${line} line down the middle of each gap`
 
 const wideTablesNote = (wide: readonly number[] | undefined): string => {
   if (!wide || wide.length === 0) return ''
@@ -3721,7 +3735,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         }
         if (tableLook.acrossColumns && !result.acrossColumns) {
           unused.push(
-            ' across_columns did nothing: the text runs in one column, so the table is as wide as the text. For a head across columns, call set_columns first and add the table after it.',
+            ' across_columns did nothing: only a table in front of the first paragraph of the document (where "before") lies across the page.',
           )
         }
         const fixedAcross = [
@@ -3737,7 +3751,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           ? ' The words of the header row were written white to show on its fill.'
           : ''
         return {
-          output: `Added a table of ${result.rows} row(s) and ${result.cols} column(s)${result.acrossColumns ? ', lying across the columns of the page' : ''}.${headerText}${unused.join('')}${standInNote(result.standIn)}${OCCURRENCE_SHIFT_NOTE}${tableNumberNote(result)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
+          output: `Added a table of ${result.rows} row(s) and ${result.cols} column(s)${result.acrossColumns ? ', lying across the top of the page over the columns' : ''}.${headerText}${unused.join('')}${standInNote(result.standIn)}${OCCURRENCE_SHIFT_NOTE}${tableNumberNote(result)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
           mutated: true,
           summary: label('aiToolTable', { rows: result.rows, cols: result.cols }),
         }
@@ -5454,6 +5468,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const spec = {
           count,
           ...(typeof call.input.gap_mm === 'number' ? { gapMm: call.input.gap_mm } : {}),
+          ...(typeof call.input.line === 'string' ? { line: call.input.line as never } : {}),
         }
         const outcome = await changeWithMemoApproval(
           () => bridge.setColumns(spec),
@@ -5472,7 +5487,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         return {
           output:
             result.count > 1
-              ? `The text now runs in ${result.count} columns with ${result.gapMm} mm between them. A table added from now on is one column wide; pass across_columns for one as wide as the page. Tables that were already there kept their width.${wideTablesNote(result.wide)}`
+              ? `The text now runs in ${result.count} columns with ${result.gapMm} mm between them${columnLineNote(result.line)}. A table added from now on is one column wide; pass across_columns for one as wide as the page. Tables that were already there kept their width.${wideTablesNote(result.wide)}`
               : 'The text runs in one column again.',
           mutated: true,
           summary: label('aiToolColumnsSet', { count: result.count }),

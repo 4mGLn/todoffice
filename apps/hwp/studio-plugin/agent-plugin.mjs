@@ -5644,7 +5644,36 @@ function columnsOf(doc, sec) {
   }
   const count = Number.isInteger(def?.columnCount) && def.columnCount > 1 ? def.columnCount : 1
   const gapPt = count > 1 && Number.isFinite(def.spacing) ? Math.max(0, def.spacing) / 100 : 0
-  return { count, gapPt }
+  const line =
+    count > 1
+      ? (COLUMN_LINES.find((name) => BORDER_LINES[name] === def.separatorType) ?? null)
+      : null
+  return { count, gapPt, line: line === 'none' ? null : line }
+}
+
+/** The lines the engine draws between columns. */
+const COLUMN_LINES = ['none', 'solid', 'dashed', 'dotted']
+
+/**
+ * Whether the number of columns changes within the document (Hangul's 다단 설정 나누기, as
+ * a test-paper form has a head in one column over a body in two): a column definition in a
+ * paragraph that does not start a section. The engine lists the objects of every section's
+ * body as one run of paragraphs, so a section's start is where its definition stands.
+ */
+function columnsChangeWithin(doc) {
+  try {
+    const controls = parse(doc.getControls())
+    const starts = new Set(
+      controls
+        .filter((control) => control.ctrlId === 'secd')
+        .map((control) => `${control.list}/${control.para}`),
+    )
+    return controls.some(
+      (control) => control.ctrlId === 'cold' && !starts.has(`${control.list}/${control.para}`),
+    )
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -5696,6 +5725,69 @@ function floatAcrossColumns(doc, sec, para, control) {
     ),
     'lay the table across the columns',
   )
+}
+
+/** The engine's units in one pixel of its layout (96 pixels and 7200 units to the inch). */
+const UNITS_PER_PX = 75
+
+/**
+ * The drawn height of each row of every table of the document's first paragraph that lies
+ * across the columns, in the engine's units, in the order of those tables. A row drawn only
+ * by merged cells has none.
+ */
+function acrossRowHeights(doc) {
+  const tables = []
+  if (doc.getSectionCount() === 0 || doc.getParagraphCount(0) === 0) return tables
+  const controls = parse(doc.getControlTextPositions(0, 0)).length
+  for (let control = 0; control < controls; control++) {
+    if (!placementOf(doc, 0, 0, control).across) continue
+    let boxes
+    try {
+      boxes = parse(doc.getTableCellBboxes(0, 0, control))
+    } catch {
+      continue
+    }
+    const first = Math.min(...boxes.map((box) => box.pageIndex))
+    const rows = []
+    for (const box of boxes) {
+      if (box.pageIndex !== first || box.rowSpan !== 1) continue
+      rows[box.row] = Math.max(rows[box.row] ?? 0, Math.round(box.h * UNITS_PER_PX))
+    }
+    tables.push({ control, rows })
+  }
+  return tables
+}
+
+/**
+ * Give the rows of a table across the columns that a change made taller (`before` is
+ * acrossRowHeights from before it) the height they are drawn at. The engine keeps the text
+ * of the other columns below the table's stored height, the sum of its rows' stored
+ * heights, which grows only when a row height is set: text or a format that made a cell
+ * taller left those columns starting inside the table. A row the change did not make
+ * taller keeps its height.
+ */
+function fitAcrossRows(doc, before) {
+  if (before.length === 0) return
+  const after = acrossRowHeights(doc)
+  after.forEach(({ control, rows }, index) => {
+    const was = before[index]?.rows ?? []
+    for (let row = 0; row < rows.length; row++) {
+      const drawn = rows[row]
+      if (!(drawn > (was[row] ?? 0) + UNITS_PER_PX)) continue
+      const cells = parse(doc.getTableCellBboxes(0, 0, control)).filter(
+        (box) => box.row === row && box.rowSpan === 1,
+      )
+      for (const { cellIdx } of cells) {
+        const stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
+        if (stored < drawn - UNITS_PER_PX) {
+          expectOk(
+            doc.setCellProperties(0, 0, control, cellIdx, JSON.stringify({ height: drawn })),
+            'fit the head table',
+          )
+        }
+      }
+    }
+  })
 }
 
 function checkTocEntries(entries) {
@@ -7131,7 +7223,9 @@ export const agentPlugin = {
             const doc = tx.doc()
             const before = paragraphCounts(doc)
             const watched = MEMO_CHANGES.has(label) || allowMemoRemoval ? null : memoEntriesOf(doc)
+            const across = acrossRowHeights(doc)
             const result = fn(doc)
+            fitAcrossRows(doc, across)
             if (watched && watched.length > 0) {
               const left = new Set(memoEntriesOf(doc).map((entry) => entry.id))
               const gone = watched.filter(
@@ -7665,6 +7759,9 @@ export const agentPlugin = {
               // body cells are left-aligned unless told: a justified cell that wraps
               // stretches the spaces between its words
               const aligns = look.aligns ?? Array(table[0].length).fill('left')
+              // the head of the document lies across the page in one column too, so that
+              // columns set after it run below it
+              const head = where === 'before' && here === 0 && at === 0 && !box.inTable
               if (where === 'before') box.split(at, 0)
               else {
                 openAfter(box, at, plain)
@@ -7675,7 +7772,7 @@ export const agentPlugin = {
               // the page when it is to lie across them; in one column the paste shares the
               // text width by itself
               const inColumns = box.inTable ? 1 : columnsOf(doc, place.sec).count
-              const across = look.across && inColumns > 1
+              const across = look.across && (inColumns > 1 || head)
               // a table narrower than the text (an approval box, a small list) takes its
               // share of the width; one across the columns is always as wide as the page
               const narrow = !across && look.widthShare < 1
@@ -7685,7 +7782,9 @@ export const agentPlugin = {
                   : columnWidthPt(doc, place.sec)) * (across ? 1 : look.widthShare)
               const shares =
                 look.shares ??
-                (inColumns > 1 || narrow ? Array(table[0].length).fill(1 / table[0].length) : null)
+                (inColumns > 1 || narrow || across
+                  ? Array(table[0].length).fill(1 / table[0].length)
+                  : null)
               const columns = {
                 widths: shares ? shares.map((share) => Math.round(room * share * 10) / 10) : null,
                 aligns,
@@ -9172,6 +9271,8 @@ export const agentPlugin = {
             columns: {
               count: columns.count,
               gapMm: Math.round(((columns.gapPt * 25.4) / 72) * 10) / 10,
+              ...(columns.line ? { line: columns.line } : {}),
+              ...(columnsChangeWithin(doc) ? { changesWithin: true } : {}),
             },
             pageNumber,
             header: read(true),
@@ -9184,8 +9285,9 @@ export const agentPlugin = {
       /**
        * Lay the body text out in columns (Hangul's 다단): `spec.count` columns of one width
        * with `spec.gapMm` between them, in every section; one column takes the columns
-       * away. Tables that are already there keep their width, so it is called before the
-       * tables are made. One undo step.
+       * away. `spec.line` draws a thin line between the columns (COLUMN_LINES; "none" takes
+       * it away, and without it the line stays as it is). Tables that are already there keep
+       * their width, so it is called before the tables are made. One undo step.
        */
       setColumns: guarded((spec, options) => {
         const given = spec ?? {}
@@ -9198,6 +9300,11 @@ export const agentPlugin = {
           throw fail('BAD_ARGUMENT', `gapMm must be 0 to ${MAX_COLUMN_GAP_MM} millimetres`)
         }
         const gap = count > 1 ? Math.round((gapMm * 7200) / 25.4) : 0
+        const lineName = given.line ?? null
+        if (lineName !== null && !COLUMN_LINES.includes(lineName)) {
+          throw fail('BAD_ARGUMENT', `line must be one of ${COLUMN_LINES.join(', ')}`)
+        }
+        const line = lineName === null ? null : borderRuleOf({ line: lineName }).line
         const done = change(
           'set-columns',
           (doc) => {
@@ -9205,8 +9312,21 @@ export const agentPlugin = {
             const was = columnsOf(doc, 0).count
             for (let sec = 0; sec < sections; sec++) {
               expectOk(doc.setColumnDef(sec, count, 0, 1, gap), 'set the columns')
+              if (line) {
+                expectOk(
+                  doc.setColumnSeparator(sec, JSON.stringify(line)),
+                  'draw the line between the columns',
+                )
+              }
             }
-            return { ok: true, count, gapMm: count > 1 ? gapMm : 0, was, sections }
+            return {
+              ok: true,
+              count,
+              gapMm: count > 1 ? gapMm : 0,
+              was,
+              sections,
+              ...(lineName === null ? {} : { line: lineName }),
+            }
           },
           options,
         )

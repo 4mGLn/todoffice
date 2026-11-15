@@ -6,6 +6,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
+import JSZip from 'jszip'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -3212,5 +3213,181 @@ describe('what a change leaves on the pages', () => {
     )
     expect(made).toMatchObject({ ok: true })
     expect(plugin.checkLayout(null, null).wrapped).toEqual([])
+  })
+})
+
+describe('a test paper in two columns', () => {
+  const QUESTIONS = Array.from({ length: 100 }, (_, i) => `문항 ${i + 1} 본문 한 줄`)
+  const HEAD = [
+    ['시험 이름', '과목', '수학', '결재', '계', '부장', '교감', '교장'],
+    ['일시', '학년', '2', '결재', '', '', '', ''],
+    ['유의 사항', '쪽수', '2', '문항 수', '20', '만점', '100', ''],
+  ]
+
+  /** Where the first body line of each column of page 1 starts, and the foot of the head. */
+  function columnStarts(doc: HwpDocument) {
+    const info = JSON.parse(doc.getPageInfo(0)) as { columns: { x: number; width: number }[] }
+    const runs = (
+      JSON.parse(doc.getPageTextLayout(0)) as {
+        runs: { x: number; y: number; text: string; cellPath?: unknown }[]
+      }
+    ).runs.filter((run) => !run.cellPath && run.text.trim() !== '')
+    const head = (
+      JSON.parse(doc.getPageControlLayout(0)) as {
+        controls: { type: string; y: number; h: number }[]
+      }
+    ).controls.find((control) => control.type === 'table')!
+    return {
+      foot: head.y + head.h,
+      starts: info.columns.map((column) =>
+        Math.min(
+          ...runs
+            .filter((run) => run.x >= column.x - 1 && run.x < column.x + column.width)
+            .map((run) => run.y),
+        ),
+      ),
+    }
+  }
+
+  it.each([
+    ['text, columns, head', ['text', 'columns', 'head']],
+    ['columns, text, head', ['columns', 'text', 'head']],
+    ['text, head, columns', ['text', 'head', 'columns']],
+  ])('keeps every column below the head after its cell text grew (%s)', (_name, order) => {
+    const { plugin, doc } = open(blank(['']))
+    for (const step of order) {
+      if (step === 'text') plugin.insertParagraphs('', null, 'end', QUESTIONS)
+      if (step === 'columns') plugin.setColumns({ count: 2 })
+      if (step === 'head') {
+        expect(
+          plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true }),
+        ).toMatchObject({ ok: true, acrossColumns: true })
+      }
+    }
+    const head = tableIn(doc(), 0)
+    const before = columnStarts(doc())
+    expect(
+      plugin.formatCells(1, [{ row: 1, col: 1 }], { text: { size: 30, bold: true } }),
+    ).toMatchObject({
+      ok: true,
+    })
+    const grown = columnStarts(doc())
+    expect(grown.foot).toBeGreaterThan(before.foot + 50)
+    expect(grown.starts).toHaveLength(2)
+    for (const start of grown.starts) expect(start).toBeGreaterThanOrEqual(grown.foot)
+    expect(Math.abs(grown.starts[0]! - grown.starts[1]!)).toBeLessThan(1)
+    // a row the text did not grow keeps its height
+    expect(head.cell(8).height).toBe(tableIn(doc(), 0).cell(8).height)
+    for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
+      const again = columnStarts(new HwpDocument(bytes))
+      for (const start of again.starts) expect(start).toBeGreaterThanOrEqual(again.foot)
+    }
+  })
+
+  it('keeps every column below the head after new text grew one of its cells', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.fillCells(
+      1,
+      [{ row: 2, col: 5, text: '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄' }],
+      false,
+    )
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('lays a head made in one column across the columns set after it', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    expect(
+      plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true }),
+    ).toMatchObject({ ok: true, acrossColumns: true })
+    const head = tableIn(doc(), 0)
+    const props = JSON.parse(doc().getTableProperties(0, 0, head.control)) as {
+      treatAsChar: boolean
+      horzRelTo: string
+      tableWidth: number
+    }
+    expect(props).toMatchObject({ treatAsChar: false, horzRelTo: 'Page' })
+    plugin.setColumns({ count: 2 })
+    // as wide as the text of the page, within a millimetre
+    const page = JSON.parse(doc().getPageDef(0)) as {
+      width: number
+      marginLeft: number
+      marginRight: number
+    }
+    expect(
+      Math.abs(props.tableWidth - (page.width - page.marginLeft - page.marginRight)),
+    ).toBeLessThan(7200 / 25.4)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('makes a one-cell box added after the columns one column wide, and names one made before', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 30))
+    plugin.setColumns({ count: 2 })
+    expect(
+      plugin.insertTable(QUESTIONS[10]!, null, 'after', [['〈보기〉 ㄱ. ㄴ. ㄷ.']], false),
+    ).toMatchObject({ ok: true })
+    const column = JSON.parse(doc().getPageInfo(0)).columns[0].width as number
+    const box = tableIn(doc(), 11)
+    const width = JSON.parse(doc().getTableBBox(0, 11, box.control)).width as number
+    expect(width).toBeLessThanOrEqual(column + 1)
+
+    const before = open(blank(['']))
+    before.plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 30))
+    before.plugin.insertTable(QUESTIONS[10]!, null, 'after', [['〈보기〉 ㄱ. ㄴ. ㄷ.']], false)
+    expect(before.plugin.setColumns({ count: 2 })).toMatchObject({ ok: true, wide: [1] })
+  })
+
+  it('draws a line between the columns, reads it back, keeps it through both formats and takes it away', () => {
+    const { plugin, doc, steps } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    const before = steps()
+    expect(plugin.setColumns({ count: 2, line: 'solid' })).toMatchObject({
+      ok: true,
+      count: 2,
+      line: 'solid',
+    })
+    expect(steps()).toBe(before + 1)
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 8, line: 'solid' })
+    expect(doc().renderPageSvgWithProfile(0, 'print')).toMatch(/<line /)
+    for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
+      const again = JSON.parse(new HwpDocument(bytes).getColumnDef(0)) as { separatorType: number }
+      expect(again.separatorType).toBe(1)
+    }
+    // set again without the line: it stays
+    plugin.setColumns({ count: 2, gapMm: 10 })
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 10, line: 'solid' })
+    plugin.setColumns({ count: 2, line: 'none' })
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 8 })
+    expect(() => plugin.setColumns({ count: 2, line: 'double' as never })).toThrow(/line must be/)
+  })
+
+  it('says when a later part of the document runs in other columns, and not for a new section', async () => {
+    // a head in one column over a body in two, as a test-paper form sets it in Hangul
+    const zip = await JSZip.loadAsync(blank(QUESTIONS.slice(0, 6)).exportHwpx())
+    const name = Object.keys(zip.files).find((file) => /section0.xml$/.test(file))!
+    const xml = await zip.file(name)!.async('string')
+    const at = xml.indexOf('<hp:t>문항 3 ')
+    const run = xml.lastIndexOf('<hp:run ', at)
+    const opened = xml.indexOf('>', run) + 1
+    const zone =
+      '<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="2" sameSz="1" sameGap="2268"/></hp:ctrl>'
+    zip.file(name, xml.slice(0, opened) + zone + xml.slice(opened))
+    const form = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }))
+    expect(open(form).plugin.pageLayout().columns).toEqual({
+      count: 1,
+      gapMm: 0,
+      changesWithin: true,
+    })
+    const sections = new HwpDocument(
+      readFileSync(join(__dirname, 'fixtures', 'master-page-next-section.hwpx')),
+    )
+    expect(sections.getSectionCount()).toBe(2)
+    expect(open(sections).plugin.pageLayout().columns).toEqual({ count: 1, gapMm: 0 })
   })
 })
