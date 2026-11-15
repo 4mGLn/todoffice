@@ -210,7 +210,7 @@ export function headRowsOf(edges, flagged) {
   return head
 }
 
-/** `edge` with each merged-cell gap (null) filled from the nearest column that has a line, else from `fallback`. */
+/** `edge` with each merged-cell gap (null) filled from the nearest column that has a line, else with `fallback`. */
 function filledEdge(edge, fallback) {
   return edge.map((line, col) => {
     if (line) return line
@@ -218,25 +218,53 @@ function filledEdge(edge, fallback) {
       const near = edge[col - step] ?? edge[col + step]
       if (near) return near
     }
-    return fallback[col]
+    return fallback
   })
+}
+
+/** The thinnest of `lines` that is drawn (type not 0), null when none is. */
+function thinnestOf(lines) {
+  let thin = null
+  for (const line of lines) {
+    if (line && line.type !== 0 && (!thin || line.width < thin.width)) thin = line
+  }
+  return thin
+}
+
+/**
+ * The line between two rows of a table that has none between two body rows, never its
+ * outline: its thinnest inner vertical line, else its thinnest horizontal line that is not
+ * the top or bottom edge, else a solid line as thin as its thinnest line. Null for a table
+ * that draws no line.
+ */
+function innerLineOf(edges, verticals) {
+  const any = thinnestOf([...edges.flat(), ...verticals])
+  return (
+    thinnestOf(verticals) ??
+    thinnestOf(edges.slice(1, -1).flat()) ??
+    (any ? { ...any, type: 1 } : null)
+  )
 }
 
 /**
  * The horizontal lines of a table once `count` rows were added at row `first` (zero-based,
  * the first new row). `edges` are the lines before: one list per edge from the top of the
  * table (0) to its bottom (one more than the rows), each a line per column (null where a
- * merged cell runs across the edge); `flagged` says which rows carry the header flag. The
- * outline stays with the edge of the table and the lines of the head (headRowsOf) with
- * the head; every line the new rows bring is the line between the first two body rows, or,
- * with a head over a single body row, the line under the table. Null for a table of one
- * row: the lines are then left as the engine copied them.
+ * merged cell runs across the edge); `flagged` says which rows carry the header flag;
+ * `verticals` are the lines between its columns. The outline stays with the edge of the
+ * table and the lines of the head (headRowsOf) with the head; every line the new rows bring
+ * is the line between the first two body rows, or, without two body rows, innerLineOf.
+ * Null for a table of one row, or one that draws no line: the lines are then left as the
+ * engine copied them.
  */
-export function rowEdgesAfterAdding(edges, flagged, first, count) {
+export function rowEdgesAfterAdding(edges, flagged, verticals, first, count) {
   const rows = edges.length - 1
   const between = headRowsOf(edges, flagged) + 1
   if (rows < 2) return null
-  const inner = between < rows ? filledEdge(edges[between], edges[rows]) : edges[rows]
+  const fallback = innerLineOf(edges, verticals)
+  if (!fallback) return null
+  const inner =
+    between < rows ? filledEdge(edges[between], fallback) : Array(edges[0].length).fill(fallback)
   const at = Math.min(first, rows - 1)
   return [...edges.slice(0, at + 1), ...Array(count).fill(inner), ...edges.slice(at + 1)]
 }

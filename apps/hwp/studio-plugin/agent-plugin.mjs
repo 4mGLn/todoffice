@@ -3122,11 +3122,12 @@ function setCellBorders(doc, table, grid, rect, rules, more = null) {
   return count
 }
 
-/** The horizontal lines of a body table, as rowEdgesAfterAdding takes them. */
+/** The lines of a body table, as rowEdgesAfterAdding takes them. */
 function rowEdgesOf(doc, table, grid) {
   const control = table.path[0].controlIndex
   const edges = Array.from({ length: table.rows + 1 }, () => Array(table.cols).fill(null))
   const flagged = Array(table.rows).fill(false)
+  const verticals = []
   for (const cell of grid) {
     const props = parse(doc.getCellProperties(table.sec, table.para, control, cell.cell))
     if (props.isHeader === true) flagged[cell.row] = true
@@ -3134,8 +3135,10 @@ function rowEdgesOf(doc, table, grid) {
       if (cell.row === 0) edges[0][col] = props.borderTop
       edges[cell.row + cell.rowSpan][col] = props.borderBottom
     }
+    if (cell.col > 0) verticals.push(props.borderLeft)
+    if (cell.col + cell.colSpan < table.cols) verticals.push(props.borderRight)
   }
-  return { edges, flagged }
+  return { edges, flagged, verticals }
 }
 
 const sameLine = (one, other) =>
@@ -10110,7 +10113,9 @@ export const agentPlugin = {
                 cells: parse(doc.getTableDimensions(sec, para, ctrl)).cellCount,
               }
               const grid = gridOf(doc, grown)
-              const edges = lines && rowEdgesAfterAdding(lines.edges, lines.flagged, first, count)
+              const edges =
+                lines &&
+                rowEdgesAfterAdding(lines.edges, lines.flagged, lines.verticals, first, count)
               if (edges) setRowEdges(doc, grown, grid, edges)
               const line = (cell) => (rows ? cell.row : cell.col)
               const across = (cell) => (rows ? cell.col : cell.row)

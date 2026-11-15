@@ -464,11 +464,28 @@ describe('insertTable: looks', () => {
     merged.plugin.addTableLines(1, 'rows', 3, 'after', 1)
     expect(lines(merged.doc())).toEqual([heavy, header, inner, inner, heavy])
 
-    // a header and one row: no line between two body rows to copy, so the engine's copy stays
+    // a header and one row: no line between two body rows, so the lines between the columns
     const short = open()
     short.plugin.insertTable('□ 세부 일정', null, 'after', ROWS.slice(0, 2), look)
-    short.plugin.addTableLines(1, 'rows', 2, 'after', 1)
-    expect(lines(short.doc())).toEqual([heavy, header, heavy, heavy])
+    short.plugin.addTableLines(1, 'rows', 2, 'after', 2)
+    expect(lines(short.doc())).toEqual([heavy, header, inner, inner, heavy])
+  })
+
+  it('draws no outline line inside a two-row table with a heavy outline', () => {
+    const { plugin, doc } = open()
+    plugin.insertTable('□ 세부 일정', null, 'after', [
+      ['김민수', '90'],
+      ['이서연', '80'],
+    ])
+    plugin.formatCells(1, null, { borders: [{ sides: 'outer', width: 0.4 }] })
+    const under = () => {
+      const table = tableIn(doc(), 5)
+      return Array.from({ length: table.rows }, (_, row) => table.cell(row * 2).borderBottom.width)
+    }
+    const [thin, heavy] = under()
+    expect(heavy).toBeGreaterThan(thin)
+    plugin.addTableLines(1, 'rows', 2, 'after', 2)
+    expect(under()).toEqual([thin, thin, thin, heavy])
   })
 
   it('copies the line between two body rows, not the line under a head the user drew', () => {
