@@ -4013,6 +4013,157 @@ function paragraphsOf(box) {
   return texts
 }
 
+/** Characters of preview text a save writes: Hangul keeps about this many (decision 0146). */
+const PREVIEW_TEXT_CHARS = 1022
+/** The preview picture's height in pixels, as Hangul 2024 draws it (724 × 1024 for A4). */
+const PREVIEW_IMAGE_HEIGHT = 1024
+
+/** What `read` returns, or `fallback` when it throws. */
+function tryOr(read, fallback) {
+  try {
+    return read()
+  } catch {
+    return fallback
+  }
+}
+
+/** A tab is a space in the preview; the engine's other control characters are no text. */
+const previewLineOf = (text) =>
+  String(text)
+    .replace(/\t/g, ' ')
+    // eslint-disable-next-line no-control-regex -- control characters are what this drops
+    .replace(/[\u0000-\u001f]/g, '')
+
+/**
+ * The first lines of the document as Hangul writes them into `PrvText`: a line per body
+ * paragraph, and in it, where it stands, each table as its rows (a row a line, each cell
+ * as `<text>`, the paragraph's text going on after the last row) and each text box as
+ * `<text>`. The paragraphs of a cell or a box are joined by a space, and a table or box
+ * inside one follows its text. Only as much as the preview keeps is read.
+ */
+function previewTextOf(doc) {
+  let text = ''
+  const room = () => PREVIEW_TEXT_CHARS - text.length
+  const json = JSON.stringify
+
+  /** The paragraphs of one cell (or of a text box, cell 0), at most about `limit` chars. */
+  const listText = (sec, para, path, cell, depth, limit) => {
+    const count = tryOr(
+      () => doc.getCellParagraphCountByPath(sec, para, json(cellAt(path, cell, 0))),
+      0,
+    )
+    const parts = []
+    let size = 0
+    for (let k = 0; k < count && size < limit; k++) {
+      const at = cellAt(path, cell, k)
+      const length = tryOr(() => doc.getCellParagraphLengthByPath(sec, para, json(at)), 0)
+      let line =
+        length > 0
+          ? previewLineOf(tryOr(() => doc.getTextInCellByPath(sec, para, json(at), 0, length), ''))
+          : ''
+      if (depth < MAX_TABLE_DEPTH) {
+        for (let inner = 0; inner < NESTED_CONTROLS_TRIED; inner++) {
+          const step = { controlIndex: inner, cellIndex: 0, cellParaIndex: 0 }
+          // inside a cell only a table counts: the engine cannot tell a box there from a note
+          line += objectText(sec, para, [...at, step], depth + 1, limit - size - line.length, false)
+        }
+      }
+      parts.push(line)
+      size += line.length + 1
+    }
+    return parts.join(' ')
+  }
+
+  /**
+   * A table as its lines, a text box (`box`: the object is a shape) as `<text>`, anything
+   * else (a picture, a header, a note) as nothing. Hangul writes a table's cells in their
+   * stored order and starts a line at each cell in the first column, so a cell under a
+   * merged first column stays on the line above.
+   */
+  const objectText = (sec, para, path, depth, limit, box) => {
+    if (limit <= 0) return ''
+    const dims = tryOr(() => parse(doc.getTableDimensionsByPath(sec, para, json(path))), null)
+    if (!dims) {
+      if (!box) return ''
+      const count = tryOr(
+        () => doc.getCellParagraphCountByPath(sec, para, json(cellAt(path, 0, 0))),
+        0,
+      )
+      return count > 0 ? `<${listText(sec, para, path, 0, depth, limit)}>` : ''
+    }
+    let out = ''
+    for (let cell = 0; cell < dims.cellCount && out.length < limit; cell++) {
+      const col = tryOr(
+        () => parse(doc.getCellInfoByPath(sec, para, json(cellAt(path, cell, 0)))).col,
+        0,
+      )
+      if (cell > 0 && col === 0) out += '\r\n'
+      out += `<${listText(sec, para, path, cell, depth, limit - out.length)}>`
+    }
+    return out
+  }
+
+  /** The object is a drawn shape (a text box), not a header, footer or note. */
+  const isShape = (sec, para, ctrl) =>
+    tryOr(() => {
+      doc.getShapeProperties(sec, para, ctrl)
+      return true
+    }, false)
+
+  const sections = doc.getSectionCount()
+  for (let sec = 0; sec < sections && room() > 0; sec++) {
+    const paragraphs = doc.getParagraphCount(sec)
+    for (let para = 0; para < paragraphs && room() > 0; para++) {
+      const length = doc.getParagraphLength(sec, para)
+      const raw = length > 0 ? doc.getTextRange(sec, para, 0, length) : ''
+      const places = tryOr(() => parse(doc.getControlTextPositions(sec, para)), [])
+      // the objects in the order they stand in the text
+      const order = places
+        .map((at, ctrl) => ({ at: Number.isInteger(at) ? at : 0, ctrl }))
+        .sort((a, b) => a.at - b.at || a.ctrl - b.ctrl)
+      let line = ''
+      let from = 0
+      for (const { at, ctrl } of order) {
+        const to = Math.min(Math.max(at, from), length)
+        line += previewLineOf(engineSlice(raw, from, to))
+        from = to
+        const step = { controlIndex: ctrl, cellIndex: 0, cellParaIndex: 0 }
+        line += objectText(sec, para, [step], 1, room() - line.length, isShape(sec, para, ctrl))
+      }
+      line += previewLineOf(engineSlice(raw, from, length))
+      text += `${line}\r\n`
+    }
+  }
+  return Array.from(text).slice(0, PREVIEW_TEXT_CHARS).join('')
+}
+
+/**
+ * The first page as base64 PNG, PREVIEW_IMAGE_HEIGHT high on white, the way the screen
+ * draws it; null where there is no page or nothing to draw on (no DOM in a test).
+ */
+function previewPngOf(doc) {
+  const sheet = globalThis.document
+  if (!sheet || doc.pageCount() < 1) return null
+  const info = JSON.parse(doc.getPageInfo(0))
+  if (!(info.width > 0 && info.height > 0)) return null
+  const scale = PREVIEW_IMAGE_HEIGHT / info.height
+  const page = sheet.createElement('canvas')
+  doc.renderPageToCanvas(0, page, scale)
+  if (!page.width || !page.height) return null
+  const out = sheet.createElement('canvas')
+  out.width = Math.max(1, Math.round(info.width * scale))
+  out.height = PREVIEW_IMAGE_HEIGHT
+  const pen = out.getContext('2d')
+  if (!pen) return null
+  pen.fillStyle = '#ffffff'
+  pen.fillRect(0, 0, out.width, out.height)
+  // the engine may draw at the screen's pixel ratio: fit what it drew to the picture
+  pen.drawImage(page, 0, 0, out.width, out.height)
+  const url = out.toDataURL('image/png')
+  const comma = url.indexOf(',')
+  return url.startsWith('data:image/png') && comma > 0 ? url.slice(comma + 1) : null
+}
+
 /** The text of one body paragraph, folded to one line, without control characters. */
 function paragraphTextOf(doc, sec, para) {
   try {
@@ -10258,6 +10409,18 @@ export const agentPlugin = {
           }),
         }))
       }),
+
+      /**
+       * The preview a save writes over the one the engine kept from the opened file
+       * (decision 0146): the first lines and the first page of the document as it is now.
+       * A page that cannot be drawn comes back as null; the text is always read. Reads only.
+       */
+      savePreview: guarded(() =>
+        host.read((doc) => ({
+          text: previewTextOf(doc),
+          png: tryOr(() => previewPngOf(doc), null),
+        })),
+      ),
 
       /**
        * Undo the last `steps` changes through the editor's own history, but only while
