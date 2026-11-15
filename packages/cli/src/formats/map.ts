@@ -318,9 +318,13 @@ function sheetOf(document: XmindDocument, id: string, op: string): number {
   if (hits.length > 1) {
     throw new CliError(
       EXIT.usage,
-      `${op}: topic ${id} is on more than one sheet (${hits.join(', ')})`,
+      `${op}: topic ${id} is on more than one sheet (${hits.join(', ')}), so it cannot be targeted at all; only a future sheet selector would fix that`,
       { topic: id, sheets: hits },
-      { reason: 'invalid_argument', suggestion: 'pick ids from one sheet per batch' },
+      {
+        reason: 'invalid_argument',
+        suggestion:
+          'an id on more than one sheet cannot be targeted at all yet; only a future sheet selector would fix that',
+      },
     )
   }
   return hits[0]!
@@ -832,7 +836,7 @@ const MAP_OP_NOTES: Readonly<Record<string, string>> = {
 export function mapGuideText(catalog: OpCatalog, group?: string): string {
   return [
     'Map ops (ieumoffice map apply --ops, ieumoffice create from an outline with map create): a JSON array; every entry is { "op": "<name>", ...fields }. They are the tools the in-app AI uses on a mind map, checked by the same rules.',
-    'Topics are named by the ids `ieumoffice map read <file> --json` lists; the same id on another sheet is another topic, so keep one sheet per batch. Later ops run against the map as the earlier ops left it, but can only name ids the map already had: a new topic id comes back in detail.results[].created, and no later op in the same batch can name it (a later `map apply` run can).',
+    'Topics are named by the ids `ieumoffice map read <file> --json` lists; ids are unique per sheet only, and there is no sheet selector, so an id that appears on more than one sheet cannot be targeted at all: every op naming it is refused, and only a future sheet selector would fix that. Later ops run against the map as the earlier ops left it, but can only name ids the map already had: a new topic id comes back in detail.results[].created, and no later op in the same batch can name it (a later `map apply` run can).',
     'delete_topic is refused when the topic would take elements the map preserves (boundaries, floating topics, callouts, the branches under a summary topic): the refusal reports how many. Everything the editor does not show goes back out on save as it came in.',
     'A batch is all or nothing by default: one refused op leaves the file as it was. --best-effort applies every op that can apply, --stop-on-error stops at the first refusal. An empty list (or one where nothing changed) writes nothing unless --out names another file.',
     'Field notation: bare = string, n = number, bool = boolean, ? = optional, a|b = one of.',

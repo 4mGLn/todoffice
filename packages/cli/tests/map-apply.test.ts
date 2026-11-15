@@ -381,6 +381,7 @@ describe('an id on more than one sheet', () => {
         error: 'invalid_argument',
         message: expect.stringContaining('on more than one sheet'),
       })
+      expect(r.json().message).toContain('cannot be targeted at all')
     }
   })
 })

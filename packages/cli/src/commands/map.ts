@@ -101,8 +101,14 @@ export const mapCommand: CommandDef = {
           { reason: 'invalid_argument', suggestion: 'run `ieumoffice help map`' },
         )
       }
+      const out = args.flags.out
+      if (out === true) {
+        throw new CliError(EXIT.usage, 'missing --out <path>', undefined, {
+          reason: 'missing_argument',
+        })
+      }
       const { text, path } = outlineTextOf(args, ctx)
-      const output = resolveOutput(args.flags.out === true ? undefined : args.flags.out, ctx, {
+      const output = resolveOutput(out, ctx, {
         ...(path === null ? {} : { fallback: outlineOutputPath(path) }),
         force: flagBool(args, 'force'),
         fresh: true,

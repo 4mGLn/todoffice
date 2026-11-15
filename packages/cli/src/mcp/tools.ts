@@ -537,7 +537,7 @@ export const TOOLS: ToolSpec[] = [
     command: 'map',
     verb: 'create',
     description:
-      'Create an .xmind mind map from a markdown outline (`# ` heading per sheet, `- ` item per topic; labels, links and notes come back). Without out the outline name gets .xmind.',
+      "Create an .xmind mind map from a markdown outline (`# ` heading per sheet, `- ` item per topic; labels, links and notes come back). out is required: the outline text becomes a file in this server's scratch directory, which is deleted with the call, so a map written beside it would not survive.",
     options: [
       {
         key: 'outline',
@@ -545,7 +545,7 @@ export const TOOLS: ToolSpec[] = [
         description: 'the outline text',
         required: true,
       },
-      { key: 'out', description: 'output .xmind path' },
+      { key: 'out', description: 'output .xmind path (required)', required: true },
       { key: 'force', description: 'overwrite an existing output' },
     ],
   },

@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { defaultRegistry } from '../src/cli'
@@ -85,6 +85,17 @@ describe('map create', () => {
     expect(read.stdout).toContain('- A1')
   })
 
+  it('refuses --out with no value instead of silently writing the outline name', async () => {
+    const dir = tempDir()
+    const outline = join(dir, 'plan.md')
+    writeFileSync(outline, '# Plan\n\n- Root\n')
+    const r = await run(['map', 'create', '--outline', outline, '--out', '--json'], { env: env() })
+    expect(r.code).toBe(1)
+    expect(r.json()).toMatchObject({ error: 'missing_argument' })
+    expect(r.json().message).toContain('missing --out <path>')
+    expect(existsSync(join(dir, 'plan.xmind'))).toBe(false)
+  })
+
   it('writes --out and refuses to overwrite an existing file without --force', async () => {
     const dir = tempDir()
     const outline = join(dir, 'plan.md')
@@ -116,6 +127,9 @@ describe('guide map and the MCP tools', () => {
     const text = await run(['guide', 'map'], { env: env() })
     expect(text.code).toBe(0)
     for (const op of OPS) expect(text.stdout).toContain(`  ${op} {`)
+    // a duplicated cross-sheet id cannot be targeted at all; do not advise batching
+    expect(text.stdout).not.toContain('one sheet per batch')
+    expect(text.stdout).toContain('cannot be targeted at all')
     const json = await run(['guide', 'map', '--json'], { env: env() })
     const { ops } = json.json().detail
     expect(ops.map((e: { op: string }) => e.op)).toEqual(OPS)

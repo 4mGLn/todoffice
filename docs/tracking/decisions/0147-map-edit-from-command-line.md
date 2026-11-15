@@ -20,8 +20,8 @@
 - `add_topic`·`move_topic`로 들어오는 토픽은 결정 0102의 "들어오는 토픽은 부모의 서식을 받는다"를 그대로 따른다. 새 부모에게 직접 적힌 선 값 가운데 엔진이 쓰는 것을 그 토픽과 그 아래 가지에 적고, 부모에 적힌 값이 없으면 들어온 토픽의 서식을 그대로 둔다.
 - `delete_topic`은 지우면 보존 요소(경계, 부유 주제, 부름말, 요약 아래 가지, 그 아래의 모든 것)를 잃는 주제를 개수와 함께 거절한다. 앱의 AI 거절과 같은 규칙이고, 같은 `countPreservedWithTopics`를 쓴다. 물을 사람이 없는 명령어에서 "그래도 지울까요"는 없다.
 - 묶음은 다른 문서 명령처럼 기본이 "하나라도 거절되면 아무것도 쓰지 않음"이고, `--best-effort`·`--stop-on-error`를 받는다. 빈 묶음(`--ops []`)은 아무것도 고치지 않으므로 아무것도 쓰지 않는다(`--out`으로 다른 파일을 가리킬 때만 그대로 복사해 쓴다). 연산이 새로 만든 주제의 id는 `detail.results[].created`로 돌려준다.
-- `ieumoffice map create --outline <파일|->`(MCP `map_create`)는 개요 글에서 새 `.xmind`를 만든다(`createXmindDocumentFromOutline`). `--out`이 없으면 개요 파일 이름에 `.xmind`를 붙인다.
-- `guide map`은 연산 목록을 같은 정의에서 만든다(`src/formats/map.ts`의 `MAP_OP_FIELDS`와 JSON 스키마). MCP는 이 목록으로 연산마다 형식을 알린다(`map-ops`). 주제 id는 한 시트 안에서만 하나이므로, 같은 id가 여러 시트에 있으면 어느 쪽인지 못 박지 못해 거절한다.
+- `ieumoffice map create --outline <파일|->`(MCP `map_create`)는 개요 글에서 새 `.xmind`를 만든다(`createXmindDocumentFromOutline`). 명령어에서 `--out`이 없으면 개요 파일 이름에 `.xmind`를 붙인다. MCP `map_create`는 `out`을 반드시 받는다: 개요 글이 서버의 임시 폴더에 파일로 풀려 쓰이는데 그 폴더는 호출이 끝나면 통째로 지워지므로, 거기에 곁들여 만든 기본 이름의 지도는 클라이언트에 돌아가지 않는다. 다른 만들기 도구(`create_docx` 등)의 `out` 규칙과 같다. 인자 검사에서 `--out`에 값이 없으면(예: `map create --outline x --out --json`) 아무것도 쓰기 전에 `missing_argument`로 거절한다(`map apply`와 같은 거절).
+- `guide map`은 연산 목록을 같은 정의에서 만든다(`src/formats/map.ts`의 `MAP_OP_FIELDS`와 JSON 스키마). MCP는 이 목록으로 연산마다 형식을 알린다(`map-ops`). 주제 id는 한 시트 안에서만 하나이므로, 같은 id가 여러 시트에 있으면 어느 쪽인지 못 박지 못해 거절한다. 그런 id는 지금 겨냥할 방법이 아예 없고(시트를 가리키는 옵션이 없으므로), 시트 선택 옵션이 생겨야 고칠 수 있다.
 - 저장은 `XmindDocument.save`로만 간다. 바뀐 게 없으면 원본 바이트가 그대로 나가고, 있으면 `content.json`만 다시 쓴다.
 
 ## 택하지 않은 것
