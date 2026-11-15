@@ -16,7 +16,11 @@ import { APP_CHOICE_BRIDGE_KEY, appChoiceBridge } from '@genoffice/electron-util
 import type { IpcRendererEvent } from 'electron'
 import { SUBSCRIPTION_IPC_CHANNELS } from '@genoffice/ai-provider/browser'
 import { VIEW_IMAGE_CHANNEL } from '../shared/ipc'
-import { subscriptionLaunchResultOf, subscriptionStatusMapOf } from '../shared/subscription-api'
+import {
+  SUBSCRIPTION_USAGE_CHANNEL,
+  subscriptionLaunchResultOf,
+  subscriptionStatusMapOf,
+} from '../shared/subscription-api'
 import type { SubscriptionApi } from '../shared/subscription-api'
 import type { AiPanelPrefs } from '@genoffice/ui'
 import type {
@@ -396,6 +400,11 @@ const subscriptionApi: SubscriptionApi = {
       handler(subscriptionStatusMapOf(statuses))
     ipcRenderer.on(SUBSCRIPTION_IPC_CHANNELS.changed, listener)
     return () => ipcRenderer.removeListener(SUBSCRIPTION_IPC_CHANNELS.changed, listener)
+  },
+  onUsage(handler) {
+    const listener = (_event: unknown, usage: unknown) => handler(Array.isArray(usage) ? usage : [])
+    ipcRenderer.on(SUBSCRIPTION_USAGE_CHANNEL, listener)
+    return () => ipcRenderer.removeListener(SUBSCRIPTION_USAGE_CHANNEL, listener)
   },
 }
 
