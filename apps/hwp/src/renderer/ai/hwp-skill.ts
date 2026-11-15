@@ -5698,7 +5698,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const cells = now
           .slice(0, MAX_CUT_CELLS_NAMED)
           .map((cell) => `table ${cell.table}, row ${cell.row}, col ${cell.col}`)
-        return `More table cells are cut off now than before this request (${before} -> ${now.length}): ${cells.join('; ')}${now.length > cells.length ? '; …' : ''}. Some of them may have been cut off before this request. Make fit only the cells you wrote in this run (format_cells row_height_mm, or a shorter text) and leave the others as they are, call check_layout to see that they fit, then answer.`
+        const rest =
+          now.length > cells.length
+            ? `: the first ${cells.length} of the ${now.length} cut cells; check_layout lists them all`
+            : ''
+        const earlier = before > 0 ? ' Some of them may have been cut off before this request.' : ''
+        return `More table cells are cut off now than before this request (${before} -> ${now.length}): ${cells.join('; ')}${rest}.${earlier} Make fit only the cells you wrote in this run (format_cells row_height_mm, or a shorter text) and leave the others as they are, call check_layout to see that they fit, then answer.`
       },
       executeTool: async (given, signal) => {
         const tool = TOOL_BY_NAME.get(given.name)

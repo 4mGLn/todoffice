@@ -5116,7 +5116,7 @@ describe('what an edit did to the pages and tables, in its answer', () => {
       const { call, verify } = counted([], [at(1, 2, 1)])
       await call('merge_cells', { table: 1, from_row: 2, from_col: 1, to_row: 2, to_col: 2 })
       expect(await verify(['merge_cells'])).toBe(
-        'More table cells are cut off now than before this request (0 -> 1): table 1, row 2, col 1. Some of them may have been cut off before this request. Make fit only the cells you wrote in this run (format_cells row_height_mm, or a shorter text) and leave the others as they are, call check_layout to see that they fit, then answer.',
+        'More table cells are cut off now than before this request (0 -> 1): table 1, row 2, col 1. Make fit only the cells you wrote in this run (format_cells row_height_mm, or a shorter text) and leave the others as they are, call check_layout to see that they fit, then answer.',
       )
     })
 
@@ -5124,7 +5124,16 @@ describe('what an edit did to the pages and tables, in its answer', () => {
       const { call, verify } = counted([at(1, 1, 1)], [at(1, 1, 1), at(2, 3, 2), at(2, 4, 2)])
       await call('replace_all', { find: '행 1', replace: '아주 긴 글' })
       expect(await verify(['replace_all'])).toContain(
-        '(1 -> 3): table 1, row 1, col 1; table 2, row 3, col 2; table 2, row 4, col 2.',
+        '(1 -> 3): table 1, row 1, col 1; table 2, row 3, col 2; table 2, row 4, col 2. Some of them may have been cut off before this request.',
+      )
+    })
+
+    it('says how many cells are cut in all when it names only the first of them', async () => {
+      const many = Array.from({ length: 12 }, (_, k) => at(1, k + 1, 1))
+      const { call, verify } = counted([], many)
+      await call('fill_cells', { table: 1, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
+      expect(await verify(['fill_cells'])).toContain(
+        'table 1, row 10, col 1: the first 10 of the 12 cut cells; check_layout lists them all.',
       )
     })
 
