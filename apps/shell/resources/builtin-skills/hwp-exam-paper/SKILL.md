@@ -7,7 +7,7 @@ metadata:
 
 # Writing a test paper (원안지)
 
-For a test paper, a quiz or any sheet of numbered questions. The tool names below are those of the Hangul editor's AI panel.
+For a test paper (시험지, 평가, 고사). A worksheet (학습지) or a quiz sheet is written as an ordinary document: it gets this form (B4, the approval box, points, the page border, the end mark) only when the user asks for it. The tool names below are those of the Hangul editor's AI panel.
 
 Every paper names four things the education office asks of an original (원안): the school, the number of pages, the number of questions, and the points of each question. The head table holds the first three; the points go at the end of each question.
 

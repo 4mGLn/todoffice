@@ -3810,11 +3810,20 @@ describe('the skill as the model sees it', () => {
     const prompt = setup().skill.systemPrompt
     expect(prompt).toContain('read the skill hwp-exam-paper with use_skill before the first change')
     expect(prompt).not.toContain('two columns (set_columns) before anything else')
+    const worksheet =
+      'A worksheet (학습지) or a quiz sheet is an ordinary document: the test-paper form (B4, approval box, points, page border, end mark) only when asked.'
+    expect(prompt).toContain('- A test paper (시험지, 평가, 고사), from scratch')
+    expect(prompt).toContain(worksheet)
+    expect(prompt).not.toContain('학습지), from scratch')
     expect(prompt).toContain('Write the text first, then set the columns, then add the tables')
     const skill = readFileSync(
       join(__dirname, '../../shell/resources/builtin-skills/hwp-exam-paper/SKILL.md'),
       'utf8',
     )
+    expect(skill).toContain(
+      'A worksheet (학습지) or a quiz sheet is written as an ordinary document: it gets this form (B4, the approval box, points, the page border, the end mark) only when the user asks for it.',
+    )
+    expect(skill).not.toContain('a quiz or any sheet of numbered questions')
     const { page, columns, body, questionIndentPt } = EXAM_PAPER
     expect(skill).toContain(
       `paper "${page.paper}", margin_left ${page.marginLeft}, margin_right ${page.marginRight}, margin_top ${page.marginTop}, margin_bottom ${page.marginBottom}, margin_header ${page.marginHeader} and margin_footer ${page.marginFooter}`,
