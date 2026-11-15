@@ -662,3 +662,48 @@ export const MAX_EQUATIONS = 60
 export const MAX_EQUATION_SCRIPT = 1000
 /** The width a picture may be given, in millimetres. */
 export const PICTURE_WIDTH_MM = { min: 5, max: 400 }
+
+/**
+ * The look of a test paper (원안지) built from nothing, when no school form is open: B4
+ * portrait in two columns with a line between them, 11 pt body text justified at 160 %,
+ * and question lines that hang by the width of their number. The hwp-exam-paper skill
+ * gives the model these numbers; its test holds the skill to them.
+ */
+export const EXAM_PAPER = {
+  page: {
+    paper: 'B4',
+    widthMm: 257,
+    heightMm: 364,
+    marginLeft: 19,
+    marginRight: 19,
+    marginTop: 10,
+    marginBottom: 10,
+    marginHeader: 11,
+    marginFooter: 10,
+  },
+  columns: { count: 2, gapMm: 8, line: 'solid' },
+  body: { size: 11, align: 'justify', lineSpacing: 160 },
+  /** The hanging indent of a question line, as wide as its number: 1.5 times the text size. */
+  questionIndentPt: 16.5,
+}
+
+/** The width of one column of the test paper in millimetres. */
+export function examColumnWidthMm() {
+  const { page, columns } = EXAM_PAPER
+  const text = page.widthMm - page.marginLeft - page.marginRight
+  return (text - columns.gapMm * (columns.count - 1)) / columns.count
+}
+
+/**
+ * Where the choices of a question stand when `perLine` of them share a line: the first at
+ * the question's indent, each next one a share of the rest of the column further on. Tab
+ * stops in millimetres from the column's left edge, one fewer than the choices.
+ */
+export function examChoiceStops(perLine) {
+  const indentMm = (EXAM_PAPER.questionIndentPt * 25.4) / 72
+  const share = (examColumnWidthMm() - indentMm) / perLine
+  return Array.from(
+    { length: perLine - 1 },
+    (_, k) => Math.round((indentMm + share * (k + 1)) * 10) / 10,
+  )
+}

@@ -7,6 +7,7 @@ import {
   type AgentToolCall,
 } from '@genoffice/agent-core'
 import type { AgentMemo, AgentMemoRemovalRefusal } from '../studio-plugin/agent-plugin.mjs'
+import { EXAM_PAPER, examChoiceStops, examColumnWidthMm } from '../studio-plugin/document-looks.mjs'
 import type { AgentBridge } from '../src/renderer/ai/agent-bridge'
 import {
   CONTEXT_MAX_CHARS,
@@ -3684,16 +3685,49 @@ describe('the skill as the model sees it', () => {
     // apps/shell/resources/builtin-skills: the skills written for Hangul documents
     const names = new Set(setup().skill.tools.map((tool) => tool.name))
     const dir = join(__dirname, '../../shell/resources/builtin-skills')
-    for (const skill of ['hwp-document', 'administration-report', 'administration-report-draft']) {
+    for (const skill of [
+      'hwp-document',
+      'hwp-exam-paper',
+      'administration-report',
+      'administration-report-draft',
+    ]) {
       const text = readFileSync(join(dir, skill, 'SKILL.md'), 'utf8')
       // `words_like_this` in backticks: the way a skill writes a tool
       const words = [...text.matchAll(/`([a-z]+(?:_[a-z]+)+)`/g)].map((m) => m[1])
       expect(words.length, skill).toBeGreaterThan(3)
       for (const word of words) expect(names.has(word!), `${skill}: ${word}`).toBe(true)
     }
-    const own = readFileSync(join(dir, 'hwp-document', 'SKILL.md'), 'utf8')
-    expect(own).toMatch(/^---\nname: hwp-document\n/)
-    expect(own).toMatch(/\nmetadata:\n {2}ieum-editors: hwp\n---\n/)
+    for (const name of ['hwp-document', 'hwp-exam-paper']) {
+      const own = readFileSync(join(dir, name, 'SKILL.md'), 'utf8')
+      expect(own.startsWith(`---\nname: ${name}\n`), name).toBe(true)
+      expect(own).toMatch(/\nmetadata:\n {2}ieum-editors: hwp\n---\n/)
+    }
+  })
+
+  it('sends a test paper to its skill, which gives the numbers of the test-paper look', () => {
+    const prompt = setup().skill.systemPrompt
+    expect(prompt).toContain('read the skill hwp-exam-paper with use_skill before the first change')
+    expect(prompt).not.toContain('two columns (set_columns) before anything else')
+    expect(prompt).toContain('Write the text first, then set the columns, then add the tables')
+    const skill = readFileSync(
+      join(__dirname, '../../shell/resources/builtin-skills/hwp-exam-paper/SKILL.md'),
+      'utf8',
+    )
+    const { page, columns, body, questionIndentPt } = EXAM_PAPER
+    expect(skill).toContain(
+      `paper "${page.paper}", margin_left ${page.marginLeft}, margin_right ${page.marginRight}, margin_top ${page.marginTop}, margin_bottom ${page.marginBottom}, margin_header ${page.marginHeader} and margin_footer ${page.marginFooter}`,
+    )
+    expect(skill).toContain(
+      `count ${columns.count}, gap_mm ${columns.gapMm} and line "${columns.line}". Each column is then ${examColumnWidthMm()} mm wide`,
+    )
+    expect(skill).toContain(
+      `${body.size} pt, align ${body.align}, line_spacing ${body.lineSpacing}`,
+    )
+    expect(skill).toContain(`margin_left 0 and indent -${questionIndentPt}`)
+    expect(skill).toContain(`margin_left ${questionIndentPt}, space_before 3`)
+    for (const perLine of [5, 3, 2]) {
+      expect(skill, `${perLine} on a line`).toContain(`| ${examChoiceStops(perLine).join(', ')} |`)
+    }
   })
 
   it('offers exactly the tools it can execute', async () => {

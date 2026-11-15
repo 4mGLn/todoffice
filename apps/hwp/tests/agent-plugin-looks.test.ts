@@ -19,6 +19,7 @@ import {
   type AgentPluginHost,
 } from '../studio-plugin/agent-plugin.mjs'
 import { installFontPresence } from '../studio-plugin/pc-fonts.mjs'
+import { EXAM_PAPER, examColumnWidthMm } from '../studio-plugin/document-looks.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -3389,5 +3390,31 @@ describe('a test paper in two columns', () => {
     )
     expect(sections.getSectionCount()).toBe(2)
     expect(open(sections).plugin.pageLayout().columns).toEqual({ count: 1, gapMm: 0 })
+  })
+
+  it('gives the test-paper page the column width the skill names', () => {
+    const { plugin, doc } = open(blank(['']))
+    const { page, columns } = EXAM_PAPER
+    plugin.setPageSetup(
+      {
+        paper: page.paper,
+        margins: {
+          left: page.marginLeft,
+          right: page.marginRight,
+          top: page.marginTop,
+          bottom: page.marginBottom,
+          header: page.marginHeader,
+          footer: page.marginFooter,
+        },
+      } as never,
+      null,
+    )
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: columns.count, gapMm: columns.gapMm, line: 'solid' })
+    const drawn = JSON.parse(doc().getPageInfo(0)).columns as { width: number }[]
+    expect(drawn).toHaveLength(2)
+    for (const column of drawn) {
+      expect(Math.abs((column.width * 25.4) / 96 - examColumnWidthMm())).toBeLessThan(0.2)
+    }
   })
 })
