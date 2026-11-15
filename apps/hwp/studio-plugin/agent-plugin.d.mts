@@ -245,7 +245,7 @@ export type AgentTitleBoxResult =
       look: string
       /** the rows of the box: the title's and any bands */
       rows: number
-      /** the text was in a one-column box already, and that box was made again in this look */
+      /** the text was in a title box this tool made, and that box was drawn again in this look */
       restyled?: true
       place: AgentPlace
       /** the box's number, as listTables numbers tables, and how many tables there are now */
@@ -258,8 +258,8 @@ export type AgentTitleBoxResult =
       standIn?: AgentStandInFont[]
     }
   | AgentPlaceRefusal
-  /** the title is inside a table cell, and not the only text of a one-column box */
-  | { ok: false; reason: 'in_table'; count: number }
+  /** the title is inside a table that is not a title box this tool made: `table` is its number */
+  | { ok: false; reason: 'in_table'; count: number; table?: number }
 
 /** Which fonts Korean documents use this PC has and lacks; both are empty when that is not known. */
 export interface AgentDocumentFonts {

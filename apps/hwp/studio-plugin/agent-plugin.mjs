@@ -3596,11 +3596,11 @@ function titleBoxOf(spec) {
 }
 
 /**
- * The box round a text of a table cell that insertTitleBox makes again: a table of the
- * body of one column, alone in its paragraph, whose only text is the one paragraph of the
- * cell `hit` is in. A title box is one, and so is a one-cell box the user made; their
- * cells are alike, so the two are not told apart. Its control, the text and the look of
- * its first character, and its look as titleBoxLookOf reads it. Null for any other table.
+ * The title box round a text of a table cell, which insertTitleBox restyles in place: a
+ * table of the body alone in its paragraph that titleBoxLookOf reads as one of the looks
+ * this tool draws, its only text the one paragraph of its title cell, `hit` in that cell.
+ * Its control, rows, title cell, the look of its first character, and its look. Null for
+ * any other table, a box the user or Hangul made among them.
  */
 function boxAround(doc, hit) {
   const path = cellPathOf(hit)
@@ -3628,19 +3628,21 @@ function boxAround(doc, hit) {
     if (title !== null || paragraphs !== 1 || cell !== path[0].cellIndex) return null
     title = cell
   }
-  if (title === null) return null
-  const text = textOf(title, 0)
-  if (CONTROL_CHARS.test(text)) return null
-  const cells = Array.from({ length: dims.cellCount }, (_, cell) =>
-    parse(doc.getCellProperties(sec, para, control, cell)),
+  if (title === null || CONTROL_CHARS.test(textOf(title, 0))) return null
+  const look = titleBoxLookOf(
+    Array.from({ length: dims.cellCount }, (_, cell) =>
+      parse(doc.getCellProperties(sec, para, control, cell)),
+    ),
   )
+  if (!look || title !== titleBoxCells(look.look, look.color, look.color2).title) return null
   return {
     sec,
     para,
     control,
-    text,
+    rows: dims.rowCount,
+    title,
     chars: parse(doc.getCellCharPropertiesAt(sec, para, control, title, 0, 0)),
-    look: titleBoxLookOf(cells),
+    look,
   }
 }
 
@@ -3652,13 +3654,188 @@ function boxAround(doc, hit) {
 function restyleOf(spec, around) {
   const given = spec ?? {}
   const was = around.look
-  const look = given.look ?? was?.look
-  const keep = was && look === was.look && given.color == null && given.color2 == null
+  const look = given.look ?? was.look
+  const keep = look === was.look && given.color == null && given.color2 == null
   return titleBoxOf({
     ...given,
-    ...(look ? { look } : {}),
+    look,
     ...(keep ? { color: was.color, color2: was.color2 } : {}),
   })
+}
+
+/** Height of a title cell: as high as its lines and some air, in HWPUNIT. */
+function titleHeight(points, lines, spacing) {
+  return Math.round(points * 100 * (1.9 + spacing * (lines - 1)))
+}
+
+/**
+ * Give the cells of title box `control` the properties `layout` (titleBoxCells) draws.
+ * `clearFill` takes away a fill the layout does not draw, for a box restyled in place.
+ */
+function drawTitleCells(doc, sec, k, control, layout, points, clearFill) {
+  layout.cells.forEach((props, cell) => {
+    const shape = {
+      ...(clearFill && props.fillType === undefined ? { fillType: 'none' } : {}),
+      ...props,
+      ...(cell === layout.title ? { height: titleHeight(points, 1, 0) } : {}),
+    }
+    expectOk(
+      doc.setCellProperties(sec, k, control, cell, JSON.stringify(shape)),
+      'shape the title box',
+    )
+  })
+}
+
+/**
+ * Make the bands of title box `control` thin and its title cell as high as the lines its
+ * title takes: the engine does not grow a row whose height is set.
+ */
+function fitTitleBox(doc, sec, k, control, layout, points) {
+  // a band is as high as its empty paragraph lets it be: make that one tiny
+  for (const cell of layout.bands) {
+    expectOk(
+      doc.applyCharFormatInCell(sec, k, control, cell, 0, 0, 0, JSON.stringify({ fontSize: 100 })),
+      'shape the band',
+    )
+    expectOk(
+      doc.applyParaFormatInCell(
+        sec,
+        k,
+        control,
+        cell,
+        0,
+        JSON.stringify({ lineSpacing: 100, lineSpacingType: 'Percent' }),
+      ),
+      'shape the band',
+    )
+  }
+  const lines = parse(doc.getLineInfoInCell(sec, k, control, layout.title, 0, 0)).lineCount
+  if (Number.isInteger(lines) && lines > 1) {
+    const para = parse(doc.getCellParaPropertiesAt(sec, k, control, layout.title, 0))
+    const spacing =
+      para.lineSpacingType === 'Percent' && para.lineSpacing > 0 ? para.lineSpacing / 100 : 1.6
+    expectOk(
+      doc.setCellProperties(
+        sec,
+        k,
+        control,
+        layout.title,
+        JSON.stringify({ height: titleHeight(points, lines, spacing) }),
+      ),
+      'fit the title box to its title',
+    )
+  }
+}
+
+/**
+ * Turn the text of body paragraph `k` into a title box of `layout`: the words go into its
+ * title cell centred, in the look they have now over which the call's own look goes.
+ * Returns the new table's control and the white the words took on a dark fill, if any.
+ */
+function makeTitleBox(doc, sec, k, box, text, length, wanted, layout) {
+  const now = parse(doc.getCharPropertiesAt(sec, k, 0))
+  const points = Number(now.fontSize) / 100
+  const look = formatOf(
+    {
+      ...(typeof now.fontFamily === 'string' && now.fontFamily ? { font: now.fontFamily } : {}),
+      ...(points >= MIN_FONT_PT && points <= MAX_FONT_PT ? { size: points } : {}),
+      bold: now.bold === true,
+      ...(typeof now.textColor === 'string' && HEX_COLOR.test(now.textColor)
+        ? { color: now.textColor }
+        : {}),
+      ...(wanted.text ?? {}),
+    },
+    false,
+  )
+  const whitened = wanted.fillUnderOwnColour
+    ? textColorOnFill(wanted.fillUnderOwnColour, look.chars?.textColor)
+    : null
+  if (whitened) look.chars = { ...look.chars, textColor: whitened }
+  const titlePoints = look.chars?.fontSize ? look.chars.fontSize / 100 : points
+  box.deleteText(k, length)
+  // where the text runs in columns the box is as wide as one of them
+  const inColumns = columnsOf(doc, sec).count > 1
+  const made = parse(
+    doc.createTableEx(
+      JSON.stringify({
+        sectionIdx: sec,
+        paraIdx: k,
+        charOffset: 0,
+        rowCount: layout.rows,
+        colCount: 1,
+        treatAsChar: true,
+        ...(inColumns ? { colWidths: [Math.round(columnWidthPt(doc, sec) * 100)] } : {}),
+      }),
+    ),
+  )
+  if (!made || made.ok !== true || !Number.isInteger(made.controlIdx)) {
+    throw fail('ENGINE', 'the title box could not be made')
+  }
+  const control = made.controlIdx
+  drawTitleCells(doc, sec, k, control, layout, titlePoints, false)
+  expectOk(doc.insertTextInCell(sec, k, control, layout.title, 0, 0, text), 'write the title')
+  const written = doc.getCellParagraphLength(sec, k, control, layout.title, 0)
+  const { chars } = resolveFormat(doc, look)
+  if (chars && written > 0) {
+    expectOk(
+      doc.applyCharFormatInCell(sec, k, control, layout.title, 0, 0, written, chars),
+      'format the title',
+    )
+  }
+  expectOk(
+    doc.applyParaFormatInCell(
+      sec,
+      k,
+      control,
+      layout.title,
+      0,
+      JSON.stringify({ alignment: 'center' }),
+    ),
+    'centre the title',
+  )
+  fitTitleBox(doc, sec, k, control, layout, titlePoints)
+  return { control, whitened }
+}
+
+/**
+ * Draw title box `around` (boxAround) again as `layout`, in place: the table stays with
+ * its width, place and caption, rows are added or taken away round the title only where
+ * the look has bands, and its words keep their look but for what the call gives and a
+ * colour that would not show on the new fill.
+ */
+function restyleTitleBox(doc, sec, k, around, wanted, layout) {
+  const { control } = around
+  if (around.rows === 3 && layout.rows === 1) {
+    expectOk(doc.deleteTableRow(sec, k, control, 2), 'take a band away')
+    expectOk(doc.deleteTableRow(sec, k, control, 0), 'take a band away')
+  } else if (around.rows === 1 && layout.rows === 3) {
+    expectOk(doc.insertTableRow(sec, k, control, 0, true), 'add a band')
+    expectOk(doc.insertTableRow(sec, k, control, 0, false), 'add a band')
+  }
+  const carried = HEX_COLOR.test(around.chars.textColor ?? '') ? around.chars.textColor : null
+  // words made white on the fill of the old box would not show on the new one
+  const behind = wanted.look === 'shaded' ? wanted.color : '#ffffff'
+  const shows = carried && contrastRatio(carried, behind) >= MIN_TEXT_CONTRAST
+  const given = { ...(shows ? {} : { color: '#000000' }), ...(wanted.text ?? {}) }
+  const look = Object.keys(given).length > 0 ? formatOf(given, false) : { chars: null }
+  const whitened = wanted.fillUnderOwnColour
+    ? textColorOnFill(wanted.fillUnderOwnColour, look.chars?.textColor ?? carried)
+    : null
+  if (whitened) look.chars = { ...look.chars, textColor: whitened }
+  const points = look.chars?.fontSize
+    ? look.chars.fontSize / 100
+    : Number(around.chars.fontSize) / 100
+  drawTitleCells(doc, sec, k, control, layout, points, true)
+  const written = doc.getCellParagraphLength(sec, k, control, layout.title, 0)
+  const { chars } = look.chars ? resolveFormat(doc, look) : { chars: null }
+  if (chars && written > 0) {
+    expectOk(
+      doc.applyCharFormatInCell(sec, k, control, layout.title, 0, 0, written, chars),
+      'format the title',
+    )
+  }
+  fitTitleBox(doc, sec, k, control, layout, points)
+  return { control, whitened }
 }
 
 /**
@@ -8905,21 +9082,31 @@ export const agentPlugin = {
         const plan = (doc) => {
           const hits = searchAll(doc, find)
           const picked = pickHit(hits, occurrence)
-          const refuse = (reason) => ({
+          const refuse = (reason, more = {}) => ({
             refusal: {
               ok: false,
               reason,
               count: hits.length,
               ...(reason === 'ambiguous' ? { matches: listMatches(doc, hits) } : {}),
+              ...more,
             },
           })
           if (!picked.hit) return refuse(picked.reason)
           if (!isReplaceable(picked.hit)) return refuse('unsupported_place')
           if (cellPathOf(picked.hit)) {
             const around = boxAround(doc, picked.hit)
-            if (!around) return refuse('in_table')
+            if (!around) {
+              const { sec, para } = picked.hit
+              const { table } = tableNumberOf(
+                doc,
+                sec,
+                para,
+                cellPathOf(picked.hit)[0].controlIndex,
+              )
+              return refuse('in_table', table ? { table } : {})
+            }
             const box = containerOf(doc, { sec: around.sec, para: around.para })
-            return { box, text: around.text, length: 0, around, wanted: restyleOf(spec, around) }
+            return { box, around, wanted: restyleOf(spec, around) }
           }
           const box = containerOf(doc, picked.hit)
           if (holdsContentObject(doc, picked.hit.sec, box)) return refuse('has_objects')
@@ -8939,141 +9126,10 @@ export const agentPlugin = {
               const before = objectsOf(doc)
               const k = box.index
               const { sec } = box.place(k, 0)
-              // the look the title has now goes into the box with it
-              const now = around ? around.chars : parse(doc.getCharPropertiesAt(sec, k, 0))
-              const points = Number(now.fontSize) / 100
-              const carried =
-                typeof now.textColor === 'string' && HEX_COLOR.test(now.textColor)
-                  ? now.textColor
-                  : null
-              // words made white on the fill of the old box would not show on the new one
-              const behind = wanted.look === 'shaded' ? wanted.color : '#ffffff'
-              const shows = carried && contrastRatio(carried, behind) >= MIN_TEXT_CONTRAST
-              const color = carried && (shows || !around) ? carried : around ? '#000000' : null
-              const look = formatOf(
-                {
-                  ...(typeof now.fontFamily === 'string' && now.fontFamily
-                    ? { font: now.fontFamily }
-                    : {}),
-                  ...(points >= MIN_FONT_PT && points <= MAX_FONT_PT ? { size: points } : {}),
-                  bold: now.bold === true,
-                  ...(color ? { color } : {}),
-                  ...(wanted.text ?? {}),
-                },
-                false,
-              )
-              const whitened = wanted.fillUnderOwnColour
-                ? textColorOnFill(wanted.fillUnderOwnColour, look.chars?.textColor)
-                : null
-              if (whitened) look.chars = { ...look.chars, textColor: whitened }
-              const titlePoints = look.chars?.fontSize ? look.chars.fontSize / 100 : points
-              if (around) {
-                expectOk(doc.deleteTableControl(sec, k, around.control), 'take the old box away')
-              } else box.deleteText(k, length)
               const layout = titleBoxCells(wanted.look, wanted.color, wanted.color2)
-              // where the text runs in columns the box is as wide as one of them
-              const inColumns = columnsOf(doc, sec).count > 1
-              const made = parse(
-                doc.createTableEx(
-                  JSON.stringify({
-                    sectionIdx: sec,
-                    paraIdx: k,
-                    charOffset: 0,
-                    rowCount: layout.rows,
-                    colCount: 1,
-                    treatAsChar: true,
-                    ...(inColumns
-                      ? { colWidths: [Math.round(columnWidthPt(doc, sec) * 100)] }
-                      : {}),
-                  }),
-                ),
-              )
-              if (!made || made.ok !== true || !Number.isInteger(made.controlIdx)) {
-                throw fail('ENGINE', 'the title box could not be made')
-              }
-              const control = made.controlIdx
-              // a title cell as high as its lines and some air: the engine does not grow a
-              // row whose height is set, so the height follows the lines the title takes
-              const titleHeight = (lines, spacing) =>
-                Math.round(titlePoints * 100 * (1.9 + spacing * (lines - 1)))
-              layout.cells.forEach((props, cell) => {
-                const shape =
-                  cell === layout.title ? { ...props, height: titleHeight(1, 0) } : props
-                expectOk(
-                  doc.setCellProperties(sec, k, control, cell, JSON.stringify(shape)),
-                  'shape the title box',
-                )
-              })
-              expectOk(
-                doc.insertTextInCell(sec, k, control, layout.title, 0, 0, text),
-                'write the title',
-              )
-              const written = doc.getCellParagraphLength(sec, k, control, layout.title, 0)
-              const { chars } = resolveFormat(doc, look)
-              if (chars && written > 0) {
-                expectOk(
-                  doc.applyCharFormatInCell(sec, k, control, layout.title, 0, 0, written, chars),
-                  'format the title',
-                )
-              }
-              expectOk(
-                doc.applyParaFormatInCell(
-                  sec,
-                  k,
-                  control,
-                  layout.title,
-                  0,
-                  JSON.stringify({ alignment: 'center' }),
-                ),
-                'centre the title',
-              )
-              // a band is as high as its empty paragraph lets it be: make that one tiny
-              for (const cell of layout.bands) {
-                expectOk(
-                  doc.applyCharFormatInCell(
-                    sec,
-                    k,
-                    control,
-                    cell,
-                    0,
-                    0,
-                    0,
-                    JSON.stringify({ fontSize: 100 }),
-                  ),
-                  'shape the band',
-                )
-                expectOk(
-                  doc.applyParaFormatInCell(
-                    sec,
-                    k,
-                    control,
-                    cell,
-                    0,
-                    JSON.stringify({ lineSpacing: 100, lineSpacingType: 'Percent' }),
-                  ),
-                  'shape the band',
-                )
-              }
-              const lines = parse(
-                doc.getLineInfoInCell(sec, k, control, layout.title, 0, 0),
-              ).lineCount
-              if (Number.isInteger(lines) && lines > 1) {
-                const para = parse(doc.getCellParaPropertiesAt(sec, k, control, layout.title, 0))
-                const spacing =
-                  para.lineSpacingType === 'Percent' && para.lineSpacing > 0
-                    ? para.lineSpacing / 100
-                    : 1.6
-                expectOk(
-                  doc.setCellProperties(
-                    sec,
-                    k,
-                    control,
-                    layout.title,
-                    JSON.stringify({ height: titleHeight(lines, spacing) }),
-                  ),
-                  'fit the title box to its title',
-                )
-              }
+              const control = around
+                ? restyleTitleBox(doc, sec, k, around, wanted, layout)
+                : makeTitleBox(doc, sec, k, box, text, length, wanted, layout)
               const after = objectsOf(doc)
               // the box is an object of its own; nothing that was there may be gone
               mustKeep(before, { ...after, controls: Math.min(after.controls, before.controls) })
@@ -9083,9 +9139,9 @@ export const agentPlugin = {
                 rows: layout.rows,
                 ...(around ? { restyled: true } : {}),
                 place: box.place(k, 0),
-                ...tableNumberOf(doc, sec, k, control),
+                ...tableNumberOf(doc, sec, k, control.control),
                 ...(wanted.textColorDropped ? { textColorDropped: true } : {}),
-                ...(whitened ? { textColor: whitened } : {}),
+                ...(control.whitened ? { textColor: control.whitened } : {}),
                 ...(wanted.standIns.length > 0 ? { standIn: wanted.standIns } : {}),
               }
             },

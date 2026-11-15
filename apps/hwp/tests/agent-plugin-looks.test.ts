@@ -749,20 +749,84 @@ describe('insertTitleBox', () => {
     expect(chars.textColor).toBe('#000000')
   })
 
-  it('makes a one-cell box of the user a title box too, and leaves a box of two texts alone', () => {
+  it('refuses a box it did not make, whatever its shape, and leaves it as it was', () => {
+    const boxes: [string, string[][], (plugin: ReturnType<typeof open>['plugin']) => void][] = [
+      ['안전 교육은 출발 전날에 합니다.', [['안전 교육은 출발 전날에 합니다.']], () => {}],
+      [
+        '서류는 행정실로',
+        [['서류는 행정실로 제출합니다.']],
+        (plugin) =>
+          plugin.formatCells(1, null, {
+            borders: [{ sides: 'all', line: 'double', width: 0.7, color: '#2F5597' }],
+            heightMm: 25,
+            verticalAlign: 'top',
+            background: '#FFF2CC',
+          }),
+      ],
+      ['안내 사항', [['안내 사항'], [''], ['']], () => {}],
+      ['의견', [['의견'], [''], [''], ['']], () => {}],
+      [
+        '네 칸 상자',
+        [['네 칸 상자']],
+        (plugin) =>
+          plugin.formatCells(1, null, {
+            borders: [{ sides: 'all', line: 'solid', width: 0.4, color: '#000000' }],
+            verticalAlign: 'middle',
+          }),
+      ],
+    ]
+    for (const [text, rows, shape] of boxes) {
+      const { plugin, doc, steps } = open()
+      plugin.insertTable('□ 세부 일정', null, 'after', rows)
+      shape(plugin)
+      const was = doc().exportHwp()
+      const before = steps()
+      expect(plugin.insertTitleBox(text, null, { look: 'shaded', color: '#C00000' })).toMatchObject(
+        { ok: false, reason: 'in_table', table: 1 },
+      )
+      expect(steps()).toBe(before)
+      expect(doc().exportHwp()).toEqual(was)
+    }
+  })
+
+  it('refuses a box of its own once the user changed how it is drawn', () => {
     const { plugin, doc, steps } = open()
-    plugin.insertTable('□ 세부 일정', null, 'after', [['안전 교육은 출발 전날에 합니다.']])
-    expect(
-      plugin.insertTitleBox('안전 교육은', null, { look: 'shaded', color: '#E7EDF5' }),
-    ).toMatchObject({ ok: true, restyled: true, table: 1, look: 'shaded' })
-    expect(tableIn(doc(), 5).cell(0).fillColor).toBe('#e7edf5')
-    plugin.insertTable('□ 세부 일정', null, 'after', [['첫째 칸 글'], ['둘째 칸 글']])
+    plugin.insertTitleBox(TITLE, null, { look: 'box' })
+    plugin.formatCells(1, null, { background: '#FFF2CC' })
     const before = steps()
-    expect(plugin.insertTitleBox('첫째 칸 글', null, { look: 'box' })).toMatchObject({
+    const cell = tableIn(doc(), 0).cell(0)
+    expect(plugin.insertTitleBox(TITLE, null, { look: 'lines' })).toMatchObject({
       ok: false,
       reason: 'in_table',
+      table: 1,
     })
     expect(steps()).toBe(before)
+    expect(tableIn(doc(), 0).cell(0)).toEqual(cell)
+  })
+
+  it('restyles a box of its own where it stands, as wide as it was', () => {
+    const { plugin, doc } = open()
+    plugin.insertTitleBox(TITLE, null, { look: 'box' })
+    const was = tableIn(doc(), 0)
+    // narrowed by hand after it was made
+    doc().setCellProperties(0, 0, was.control, 0, JSON.stringify({ width: 17000 }))
+    for (const look of ['bands', 'shaded', 'lines'] as const) {
+      expect(plugin.insertTitleBox(TITLE, null, { look })).toMatchObject({
+        ok: true,
+        look,
+        restyled: true,
+      })
+      const table = tableIn(doc(), 0)
+      expect([table.control, table.cell(0).width]).toEqual([was.control, 17000])
+    }
+    const table = tableIn(doc(), 0)
+    expect([table.rows, table.cell(0).fillType, table.cell(0).borderTop.type]).toEqual([
+      1,
+      'none',
+      1,
+    ])
+    expect(doc().getTextInCell(0, 0, table.control, 0, 0, 0, TITLE.length)).toBe(TITLE)
+    expect(plugin.listTables().tables).toHaveLength(1)
   })
 
   it('refuses text in a table cell and a look it does not know', () => {

@@ -819,7 +819,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_title_box',
     edits: true,
     description:
-      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. Called on the text of a title box (or of any one-column box whose only text it is), it makes that box again in place, and what you leave out stays as it is (a new look given without a colour takes the default colour of that look). One undo step.',
+      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. Called on the text of a title box this tool made, it draws that box again in place, the same table as wide as it was: the look and colours you leave out stay (a new look given without a colour takes the default colour of that look), and so do the words and their look but for what you pass. The text of any other table is refused; change that table with format_cells. One undo step.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -5429,7 +5429,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           return bad(
             call,
             result.reason === 'in_table'
-              ? 'Nothing was changed: that text is inside a table cell, and a title box is made from a paragraph of the body text or from the only text of a one-column box.'
+              ? `Nothing was changed: that text is inside ${result.table === undefined ? 'a table' : `table ${result.table}`}, which is not a title box made by insert_title_box, and a table the user made is not drawn again. Make the title box from a paragraph of the body text, or change the lines and fill of that table with format_cells.`
               : placeRefusal(result),
           )
         }
@@ -5441,7 +5441,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         const made = result.restyled
-          ? `The text was in a box already: restyled the box round it (table ${result.table}) as a ${result.look} title box; no table was added.`
+          ? `The text was in a title box made here already: drew that box (table ${result.table}) again in place as a ${result.look} title box; no table was added.`
           : `Made the title a ${result.look} title box.${tableNumberNote(result)}`
         return {
           output: `${made}${titleColourNote(result)}${standInNote(result.standIn)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,

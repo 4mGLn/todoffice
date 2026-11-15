@@ -3126,17 +3126,21 @@ describe('the look of a document', () => {
     ).toContain('The text colour was left as it was')
   })
 
-  it('says why a title box could not be made', async () => {
+  it('says why a title box could not be made, naming the table and the way to change it', async () => {
     const { call } = setup({
       insertTitleBox: vi.fn(async () => ({
         ok: false as const,
         reason: 'in_table' as const,
         count: 1,
+        table: 3,
       })),
     })
     const result = await call('insert_title_box', { find: '운영 계획' })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain('inside a table cell')
+    expect(result.output).toContain(
+      'inside table 3, which is not a title box made by insert_title_box',
+    )
+    expect(result.output).toContain('format_cells')
   })
 
   it('names the box it made again round the text', async () => {
@@ -3153,7 +3157,7 @@ describe('the look of a document', () => {
     })
     const result = await call('insert_title_box', { find: '운영 계획', look: 'lines' })
     expect(result.output).toBe(
-      'The text was in a box already: restyled the box round it (table 2) as a lines title box; no table was added.',
+      'The text was in a title box made here already: drew that box (table 2) again in place as a lines title box; no table was added.',
     )
     expect(result.mutated).toBe(true)
   })
