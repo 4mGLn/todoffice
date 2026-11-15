@@ -17,8 +17,9 @@
 
 - `ieumoffice map read <파일>`(MCP `map_read`)은 시트마다 `# ` 머리글이 있는 개요 글을 인쇄하고, `--json`은 주제마다 id·제목·메모·연결·자식 id를 담은 구조를 돌려준다. 연산이 겨냥하는 id는 여기서 나온다.
 - `ieumoffice map apply <파일> --ops`(MCP `map_apply`)는 연산 여섯 개로 고친다: `add_topic`, `rename_topic`, `move_topic`, `delete_topic`, `set_note`, `set_link`. 모두 주제 id를 겨냥하고, 쓰기는 모두 `reconcileSheet`로만 간다(상태를 `sheetToView`로 받아 고치고 되돌리는 길 — 앱의 편집과 같은 길). 그래서 고치지 않은 `content.json`의 키와 다른 압축 항목은 바이트 그대로 남는다. 트리를 통째로 다시 만들지 않는다.
+- `add_topic`·`move_topic`로 들어오는 토픽은 결정 0102의 "들어오는 토픽은 부모의 서식을 받는다"를 그대로 따른다. 새 부모에게 직접 적힌 선 값 가운데 엔진이 쓰는 것을 그 토픽과 그 아래 가지에 적고, 부모에 적힌 값이 없으면 들어온 토픽의 서식을 그대로 둔다.
 - `delete_topic`은 지우면 보존 요소(경계, 부유 주제, 부름말, 요약 아래 가지, 그 아래의 모든 것)를 잃는 주제를 개수와 함께 거절한다. 앱의 AI 거절과 같은 규칙이고, 같은 `countPreservedWithTopics`를 쓴다. 물을 사람이 없는 명령어에서 "그래도 지울까요"는 없다.
-- 묶음은 다른 문서 명령처럼 기본이 "하나라도 거절되면 아무것도 쓰지 않음"이고, `--best-effort`·`--stop-on-error`를 받는다. 빈 묶음(`--ops []`)은 있는 그대로 저장한다(바이트 그대로). 연산이 새로 만든 주제의 id는 `detail.results[].created`로 돌려준다.
+- 묶음은 다른 문서 명령처럼 기본이 "하나라도 거절되면 아무것도 쓰지 않음"이고, `--best-effort`·`--stop-on-error`를 받는다. 빈 묶음(`--ops []`)은 아무것도 고치지 않으므로 아무것도 쓰지 않는다(`--out`으로 다른 파일을 가리킬 때만 그대로 복사해 쓴다). 연산이 새로 만든 주제의 id는 `detail.results[].created`로 돌려준다.
 - `ieumoffice map create --outline <파일|->`(MCP `map_create`)는 개요 글에서 새 `.xmind`를 만든다(`createXmindDocumentFromOutline`). `--out`이 없으면 개요 파일 이름에 `.xmind`를 붙인다.
 - `guide map`은 연산 목록을 같은 정의에서 만든다(`src/formats/map.ts`의 `MAP_OP_FIELDS`와 JSON 스키마). MCP는 이 목록으로 연산마다 형식을 알린다(`map-ops`). 주제 id는 한 시트 안에서만 하나이므로, 같은 id가 여러 시트에 있으면 어느 쪽인지 못 박지 못해 거절한다.
 - 저장은 `XmindDocument.save`로만 간다. 바뀐 게 없으면 원본 바이트가 그대로 나가고, 있으면 `content.json`만 다시 쓴다.
