@@ -76,7 +76,7 @@
 | [0073](0073-login-window-before-the-browser.md)               | 로그인이 끝나지 않으면 코드를 붙여 넣는 창을 먼저 내놓고, 로그인하지 않은 카드에도 그 길을 둔다      | 2026-10-27 |
 | [0074](0074-ai-adds-new-pictures.md)                          | AI는 새 그림을 넣을 수 있고, 문서에 있던 그림은 건드리지 않는다                                      | 2026-10-27 |
 | [0075](0075-xmind-picture-entries.md)                         | 마인드맵 AI의 그림은 파일 안 `resources/` 항목으로 넣고, 그때만 manifest에 적는다                    | 2026-10-27 |
-| [0076](0076-codex-cli-image-generation.md)                    | Codex 구독 이미지 생성은 채팅과 분리한 `codex exec` 한 번으로 넣고, 로그인 파일은 읽지 않는다        | 2026-10-27 |
+| [0076](0076-codex-cli-image-generation.md)                    | Codex 구독 이미지 생성은 채팅과 분리한 `codex exec` 한 번으로 넣는다(대체됨 → 0145)                  | 2026-10-27 |
 | [0077](0077-update-in-installer-window.md)                    | 업데이트는 설치 진행 창으로 하고, 끝나면 앱과 문서를 다시 연다                                       | 2026-10-27 |
 | [0078](0078-save-dir-when-documents-is-blocked.md)            | 문서 폴더를 쓸 수 없으면 홈 폴더 아래로 내려가고 한 번 알린다                                        | 2026-10-27 |
 | [0079](0079-hwp-edit-from-command-line.md)                    | 터미널 명령어로 한글 문서를 만들고 고친다. 연산은 편집기 AI의 도구를 그대로 쓴다                     | 2026-10-27 |
@@ -140,3 +140,4 @@
 | [0142](0142-isolate-html-conversion-window.md)                | HTML을 Word로 바꾸는 숨은 창은 따로 떼어 둔 세션에서, 허락한 것만 불러온다                           | 2026-11-13 |
 | [0143](0143-editor-choice-and-ai-off.md)                      | 쓸 편집기와 AI 사용 여부를 사용자가 고르고, 끈 것은 화면에서 뺀다(1단계, 디스크에서 지우기는 2단계)  | 2026-11-14 |
 | [0144](0144-hwp-print-draws-screen-fonts.md)                  | 한글의 화면은 문서의 글꼴로, 인쇄와 PDF는 화면이 보여 주는 글꼴과 줄 나눔으로 그린다                 | 2026-11-14 |
+| [0145](0145-codex-image-app-server-thread.md)                 | Codex 그림은 app-server의 일회용 스레드로 만들고 응답의 `result`로 받는다                            | 2026-11-15 |
