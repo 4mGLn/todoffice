@@ -34,6 +34,7 @@ type HwpDocument = InstanceType<Engine['HwpDocument']>
 /** Tools of the in-app AI that need the app's window, the network or a model: not ops here. */
 const NOT_HEADLESS: Record<string, string> = {
   read_url: 'reads a web page; use `ieumoffice read-url`',
+  web_search: 'searches the web; use `ieumoffice search`',
   image_search: 'searches the web for pictures',
   generate_image: 'asks an image model',
   insert_image: 'pictures come from the chat or the web in the app',
