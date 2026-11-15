@@ -31,7 +31,6 @@ import type {
 import type { IntegrationsApi } from '../../shared/integrations-api'
 import { markText } from '../../shared/text-marks'
 import {
-  AiMark,
   aiProviderDisplayName,
   aiSubscriptionCardView,
   aiSubscriptionText,
@@ -854,8 +853,10 @@ function GroupPicker({ groups, count, onCancel, onPick, onCreate, onRemove }: Gr
 }
 
 // ── Settings entry (bottom-left) ─────────────────────────
-// Shows the AI that requests run on (homeAiEntry) and the word "Settings":
-// the AI's name alone did not say this is the way into Settings. Clicking it
+// Reads "Settings", with the state of the AI that requests run on (homeAiEntry)
+// on the line below. The AI's name stays in the tooltip only: in large type it
+// made the entry look like a Claude or ChatGPT account and left out every
+// other kind of AI. Clicking it
 // opens the settings modal (SettingsModal.tsx) on its AI section, where the
 // connect cards live; the other preferences (language, theme, save location,
 // update channel) are one click away in the same dialog.
@@ -944,13 +945,16 @@ function AccountEntry({
     (summary.state === 'connected' ||
       summary.state === 'needs-connection' ||
       summary.state === 'off')
-  const label = !aiOn
-    ? t('settings')
-    : named
-      ? names
-      : summary.state === 'checking'
-        ? aiSubscriptionText(lang, 'cardChecking')
-        : aiSubscriptionText(lang, 'pickerNotConnected')
+  // the line under "Settings": the AI's state without its name
+  const aiLine = !aiOn
+    ? null
+    : t('homeEntryAiState', {
+        state:
+          stateText ??
+          (summary.state === 'checking'
+            ? aiSubscriptionText(lang, 'cardChecking')
+            : t('freeStatusNotConnected')),
+      })
 
   return (
     <div className="account-entry">
@@ -977,21 +981,19 @@ function AccountEntry({
               ? t('settings')
               : aiSubscriptionText(lang, 'connectTitle')
         }
-        aria-label={t('settings')}
       >
         <span
           className={`account-avatar${aiOn && summary.state === 'connected' ? ' logged-in' : ''}`}
         >
-          {aiOn ? <AiMark size={16} /> : <SettingsGlyph />}
+          <SettingsGlyph />
           {skillUpdate && (
             <span className="account-badge" role="img" aria-label={t('intgUpdateDue')} />
           )}
         </span>
         <span className="account-text">
-          <span className="account-name">{label}</span>
-          {aiOn && stateText && <span className="account-sub">{stateText}</span>}
+          <span className="account-name">{t('settings')}</span>
+          {aiLine && <span className="account-sub">{aiLine}</span>}
         </span>
-        <span className="account-settings">{t('settings')}</span>
         <svg
           className="account-chevron"
           width="14"

@@ -2,7 +2,7 @@
 
 ## Membuka tetapan
 
-Baris di penjuru kiri bawah pada Laman Utama akan membuka panel tetapan. Ia memaparkan Sambungkan AI sehingga ada AI yang disambungkan. Panel ini mempunyai lima bahagian: Akaun, AI, Umum, Integrasi dan Perihal.
+Baris di penjuru kiri bawah pada Laman Utama akan membuka panel tetapan. Baris di bawahnya menunjukkan sama ada AI telah disambungkan. Panel ini mempunyai lima bahagian: Akaun, AI, Umum, Integrasi dan Perihal.
 
 **Akaun** menunjukkan keadaan sambungan Claude, ChatGPT dan Codex anda, dan **Urus sambungan** membawa anda ke bahagian AI. AI mempunyai babnya sendiri: [Sambungan langganan](help://subscription) dan [Model AI dan tetapan](help://ai-models).
 

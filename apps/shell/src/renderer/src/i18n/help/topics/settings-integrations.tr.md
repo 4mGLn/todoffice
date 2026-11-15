@@ -2,7 +2,7 @@
 
 ## Ayarları açma
 
-Giriş ekranının sol altındaki satır ayarlar panelini açar (bir AI bağlanana kadar “AI bağla” yazar). Beş bölümü vardır: Hesap, AI, Genel, Entegrasyonlar ve Hakkında.
+Giriş ekranının sol altındaki satır ayarlar panelini açar (altındaki satır bir AI'nin bağlı olup olmadığını gösterir). Beş bölümü vardır: Hesap, AI, Genel, Entegrasyonlar ve Hakkında.
 
 **Hesap**, Claude, ChatGPT ve Codex bağlantılarınızın durumunu gösterir; **Bağlantıları yönet** AI bölümüne götürür. AI’ın kendi makaleleri var: [Abonelik bağlantısı](help://subscription) ve [AI modelleri ve ayarlar](help://ai-models).
 

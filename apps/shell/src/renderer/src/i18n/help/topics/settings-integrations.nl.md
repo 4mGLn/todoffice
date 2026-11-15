@@ -2,7 +2,7 @@
 
 ## Instellingen openen
 
-De regel linksonder op Start opent het instellingenpaneel (er staat AI koppelen tot er een AI is verbonden). Het paneel heeft vijf secties: Account, AI, Algemeen, Integraties en Over.
+De regel linksonder op Start opent het instellingenpaneel (de regel eronder laat zien of er een AI is verbonden). Het paneel heeft vijf secties: Account, AI, Algemeen, Integraties en Over.
 
 **Account** laat zien hoe het met je verbindingen met Claude, ChatGPT en Codex staat, en **Verbindingen beheren** brengt je naar de sectie AI. Over AI zijn er eigen artikelen: [Abonnementsverbinding](help://subscription) en [AI-modellen en instellingen](help://ai-models).
 
