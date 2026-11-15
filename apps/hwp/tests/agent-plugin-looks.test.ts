@@ -373,6 +373,38 @@ describe('insertTable: looks', () => {
     expect(cellFont(form.doc(), Math.max(...paras))).toBe('나눔스퀘어 10')
   })
 
+  it('takes the look of the plain body line it follows, or else the body without bold lines', () => {
+    const cellFont = (source: HwpDocument, para: number) => {
+      const table = tableIn(source, para)
+      const chars = JSON.parse(
+        source.getCellCharPropertiesAt(0, para, table.control, table.cols, 0, 0),
+      ) as { fontSize: number; fontFamily: string }
+      return `${chars.fontFamily} ${chars.fontSize / 100}`
+    }
+    const TITLE_LINE = '2026학년도 1학기 학부모 상담 주간 운영 계획 안내'
+    const ROWS_2 = [
+      ['날짜', '내용'],
+      ['11. 20.', '1학년 상담'],
+    ]
+    // a 20 pt bold title longer than the two 10 pt lines under it
+    const titled = open(blank([TITLE_LINE, '일정', '상담은 교실에서 합니다.']))
+    titled.plugin.formatText(TITLE_LINE, null, false, { size: 20, bold: true })
+    titled.plugin.insertTable('일정', null, 'after', ROWS_2, true)
+    expect(cellFont(titled.doc(), 2)).toBe('함초롬바탕 10')
+    // after a plain line smaller than the body, the table takes that line's look
+    const small = open(blank(['본문 첫째 줄입니다.', '본문 둘째 줄입니다.', '작은 줄', '끝 줄']))
+    small.plugin.formatText('본문 첫째 줄입니다.', null, false, { size: 12 })
+    small.plugin.formatText('본문 둘째 줄입니다.', null, false, { size: 12 })
+    small.plugin.formatText('작은 줄', null, false, { size: 9 })
+    small.plugin.insertTable('작은 줄', null, 'after', ROWS_2, true)
+    expect(cellFont(small.doc(), 3)).toBe('함초롬바탕 9')
+    // after a plain line larger than the body, the body's look
+    const large = open(blank(['본문 첫째 줄입니다.', '본문 둘째 줄입니다.', '큰 줄', '끝 줄']))
+    large.plugin.formatText('큰 줄', null, false, { size: 14 })
+    large.plugin.insertTable('큰 줄', null, 'after', ROWS_2, true)
+    expect(cellFont(large.doc(), 3)).toBe('함초롬바탕 10')
+  })
+
   it('keeps the outline at the edge of an open table and the header line under the header when rows are added', () => {
     /** The line under each row of column 1, and the line over the table, as widths. */
     const lines = (source: HwpDocument) => {

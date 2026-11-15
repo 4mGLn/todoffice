@@ -2879,44 +2879,68 @@ const BODY_STYLE = '바탕글'
 const HEADING_STYLE = /개요|제목|heading|title/i
 
 /**
- * The font of the body text, for a new table or table of contents. Not the font of the line
- * a table is put next to, which is often a heading.
+ * The runs of a body paragraph by character look, and whether it is a heading (an outline
+ * level, a heading or 개요/제목 style) or bold (most of its characters). Null when empty or
+ * unreadable.
  */
-function bodyFontOf(doc) {
+function bodyRunsOf(doc, styles, sec, para) {
+  try {
+    const length = doc.getParagraphLength(sec, para)
+    if (length === 0) return null
+    const heading =
+      parse(doc.getParaPropertiesAt(sec, para)).headType === 'Outline' ||
+      HEADING_STYLE.test(styles.get(parse(doc.getStyleAt(sec, para)).id) ?? '')
+    const starts = parse(doc.getCharShapeRuns(sec, para, 0, length)).map(
+      (run) => run.startOffset ?? 0,
+    )
+    const runs = []
+    starts.forEach((start, index) => {
+      const chars = (starts[index + 1] ?? length) - start
+      if (chars <= 0) return
+      const props = parse(doc.getCharPropertiesAt(sec, para, start))
+      runs.push({ props, size: props.fontSize, bold: props.bold === true, chars })
+    })
+    const boldChars = runs.reduce((sum, run) => sum + (run.bold ? run.chars : 0), 0)
+    return { heading, bold: boldChars * 2 > length, runs }
+  } catch {
+    return null
+  }
+}
+
+function mostCharsOf(runs, key) {
+  const totals = new Map()
+  for (const run of runs) totals.set(key(run), (totals.get(key(run)) ?? 0) + run.chars)
+  return [...totals].sort((a, b) => b[1] - a[1])[0]?.[0]
+}
+
+/**
+ * The font of the body text, for a new table or table of contents. When the body paragraph
+ * `beside` ({ sec, para }) the table goes after is plain body text (no heading, not bold, no
+ * larger than the size most body text has), its look; else the look most characters of the
+ * body have, bold paragraphs and headings left out.
+ */
+function bodyFontOf(doc, beside = null) {
   const styles = new Map(parse(doc.getStyleList()).map((style) => [style.id, style.name]))
   const runs = []
   let counted = 0
   for (let sec = 0; sec < doc.getSectionCount(); sec++) {
     const count = doc.getParagraphCount(sec)
     for (let para = 0; para < count && counted < MAX_LOOK_PARAGRAPHS; para++) {
-      try {
-        const length = doc.getParagraphLength(sec, para)
-        if (length === 0) continue
-        if (parse(doc.getParaPropertiesAt(sec, para)).headType === 'Outline') continue
-        if (HEADING_STYLE.test(styles.get(parse(doc.getStyleAt(sec, para)).id) ?? '')) continue
-        counted += 1
-        const starts = parse(doc.getCharShapeRuns(sec, para, 0, length)).map(
-          (run) => run.startOffset ?? 0,
-        )
-        starts.forEach((start, index) => {
-          const chars = (starts[index + 1] ?? length) - start
-          if (chars <= 0) return
-          const props = parse(doc.getCharPropertiesAt(sec, para, start))
-          runs.push({ props, size: props.fontSize, bold: props.bold === true, chars })
-        })
-      } catch {}
+      const look = bodyRunsOf(doc, styles, sec, para)
+      if (!look || look.heading || look.bold) continue
+      counted += 1
+      runs.push(...look.runs)
     }
   }
-  const commonest = (list, key) => {
-    const totals = new Map()
-    for (const run of list) totals.set(key(run), (totals.get(key(run)) ?? 0) + run.chars)
-    return [...totals].sort((a, b) => b[1] - a[1])[0]?.[0]
+  const size = mostCharsOf(runs, (run) => run.size)
+  const near = beside && bodyRunsOf(doc, styles, beside.sec, beside.para)
+  if (near && !near.heading && !near.bold && size !== undefined) {
+    const own = mostCharsOf(near.runs, (run) => `${run.props.fontFamily}|${run.size}`)
+    const chosen = near.runs.find((run) => `${run.props.fontFamily}|${run.size}` === own)
+    if (chosen && chosen.size <= size) return fontOf(() => JSON.stringify(chosen.props))
   }
-  const size = commonest(runs, (run) => run.size)
-  const body = runs.filter((run) => !(run.bold && run.size > size))
-  const lookOf = (run) => `${run.props.fontFamily}|${run.size}|${run.bold}`
-  const look = commonest(body, lookOf)
-  const chosen = body.find((run) => lookOf(run) === look)
+  const look = mostCharsOf(runs, (run) => `${run.props.fontFamily}|${run.size}`)
+  const chosen = runs.find((run) => `${run.props.fontFamily}|${run.size}` === look)
   if (!chosen) {
     return fontOf(() =>
       JSON.stringify(parse(doc.getStyleDetail(styleIdOf(doc, BODY_STYLE) ?? 0)).charProps),
@@ -7544,7 +7568,12 @@ export const agentPlugin = {
               if (!box) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
               let at = box.index
-              const body = look.font && look.size ? null : bodyFontOf(doc)
+              const { sec: here } = box.place(at, 0)
+              const beside = where === 'before' ? at - 1 : at
+              const body =
+                look.font && look.size
+                  ? null
+                  : bodyFontOf(doc, beside >= 0 ? { sec: here, para: beside } : null)
               const font = {
                 family: look.font ?? body.family,
                 points: look.size ?? body.points,

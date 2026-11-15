@@ -688,7 +688,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_table',
     edits: true,
     description:
-      'Add a table after or before the paragraph that contains the anchor text, or at the end of the document. Cells are plain one-line text; short rows are padded with empty cells. The table takes the font and size most characters of the body text have, headings left out. It cannot be put inside a cell of another table.',
+      'Add a table after or before the paragraph that contains the anchor text, or at the end of the document. Cells are plain one-line text; short rows are padded with empty cells. The table takes the font and size of the paragraph it follows when that is plain body text (no heading, not bold, no larger than most body text); otherwise the font and size most characters of the body have, headings and bold paragraphs left out. It cannot be put inside a cell of another table.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -728,11 +728,11 @@ const TOOLS: HwpToolDef[] = [
         },
         size: {
           type: 'number',
-          description: 'font size of the table text in points; default the size most body text has',
+          description: 'font size of the table text in points; default as the description says',
         },
         font: {
           type: 'string',
-          description: 'font of the table text; default the font most body text has',
+          description: 'font of the table text; default as the description says',
         },
         width_percent: {
           type: 'number',
