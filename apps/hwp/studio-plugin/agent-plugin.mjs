@@ -5813,7 +5813,11 @@ function isMadeContents(doc, made, table) {
   )
 }
 
-/** The text of the paragraph right above `para`, or '' when that is empty or holds a table. */
+/**
+ * The text of the paragraph right above `para`, or '' when that is empty or holds a table:
+ * refresh_toc writes the table right after the line it is given, which past a table is not
+ * this one.
+ */
 function lineAbove(doc, tables, sec, para) {
   if (para === 0 || tables.some((table) => table.sec === sec && table.para === para - 1)) return ''
   return bodyText(doc, sec, para - 1).trim()
