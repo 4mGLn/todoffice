@@ -1226,11 +1226,13 @@ export class AgentLoop<TSnapshot = unknown> {
     if (toolCalls.length === 0 && !this.cancelled && !this.finalizing) {
       // snapshot copy: the live array keeps growing if the corrective turn
       // runs more tools, and the hook must see the state at check time
+      const generation = this.generation
       const correction =
         !this.verifyRetryUsed && this.turnText && skill.verifyResponse
-          ? skill.verifyResponse(this.turnText, [...this.executedCalls])
+          ? await skill.verifyResponse(this.turnText, [...this.executedCalls])
           : null
-      if (correction) {
+      if (generation !== this.generation) return // reset while the check ran
+      if (correction && !this.cancelled) {
         this.verifyRetryUsed = true
         this.history.push({ role: 'assistant', text: this.turnText })
         this.history.push({ role: 'user', text: correction })

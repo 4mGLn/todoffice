@@ -2389,6 +2389,52 @@ describe('AgentLoop: verifyResponse (claimed-action guard)', () => {
     expect(loop.busy).toBe(false)
   })
 
+  it('waits for a check that answers later, and drops it when the conversation is reset meanwhile', async () => {
+    let answer: (correction: string | null) => void = () => {}
+    const verifyResponse = vi.fn(
+      () =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve
+        }),
+    )
+    const transport = scriptedTransport([
+      claimText,
+      (cb) => {
+        cb.onDelta('Fixed it')
+        cb.onDone()
+      },
+    ])
+    const onDone = vi.fn()
+    const loop = new AgentLoop({
+      transport,
+      skill: { ...makeSkill(), verifyResponse },
+      events: { onDone },
+    })
+    loop.run('x')
+    await flush()
+    expect(transport.requests).toHaveLength(1)
+    expect(onDone).not.toHaveBeenCalled()
+    answer('measure again')
+    await flush()
+    await flush()
+    expect(transport.requests).toHaveLength(2)
+    expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ text: 'Fixed it' }))
+
+    const stale = new AgentLoop({
+      transport: scriptedTransport([claimText, claimText]),
+      skill: { ...makeSkill(), verifyResponse },
+      events: { onDone },
+    })
+    onDone.mockClear()
+    stale.run('x')
+    await flush()
+    stale.reset()
+    answer('measure again')
+    await flush()
+    expect(stale.messages).toEqual([])
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
   it('passes successful and failed executions with their ok flag', async () => {
     const transport = scriptedTransport([
       (cb) => {
@@ -2469,22 +2515,22 @@ describe('composeSkills', () => {
     expect(() => composeSkills('x', '', [make('a'), make('b')]).tools).toThrow(/duplicate/)
   })
 
-  it('verifyResponse returns the first non-null correction across skills', () => {
-    const make = (id: string, correction: string | null): AgentSkill => ({
+  it('verifyResponse returns the first non-null correction across skills', async () => {
+    const make = (id: string, correction: string | null, later = false): AgentSkill => ({
       id,
       systemPrompt: '',
       tools: [],
       executeTool: () => ({ output: '', summary: '' }),
-      verifyResponse: () => correction,
+      verifyResponse: () => (later ? Promise.resolve(correction) : correction),
     })
     const merged = composeSkills('x', '', [
-      make('a', null),
-      make('b', 'fix from b'),
+      make('a', null, true),
+      make('b', 'fix from b', true),
       make('c', 'fix from c'),
     ])
-    expect(merged.verifyResponse?.('text', [])).toBe('fix from b')
+    expect(await merged.verifyResponse?.('text', [])).toBe('fix from b')
     const clean = composeSkills('y', '', [make('a', null)])
-    expect(clean.verifyResponse?.('text', [])).toBeNull()
+    expect(await clean.verifyResponse?.('text', [])).toBeNull()
   })
 })
 
