@@ -2430,9 +2430,19 @@ describe('what a change leaves on the pages', () => {
     ['서|명', false],
     ['name |example', false],
     ['name| example', false],
+    ['said|“yes”', false],
+    ['“yes”|said', false],
+    ['‘A’|B', false],
+    ['said|"yes"', false],
+    ['"yes"|said', false],
+    ["it|'s", false],
+    ['“|yes', true],
+    ['yes|”', true],
+    ['"|yes', true],
+    ['yes|"', true],
   ])('counts a line break at %s as inside a word: %s', (text, counts) => {
     const at = text.indexOf('|')
-    expect(splitsWord(text[at - 1]!, text[at + 1]!)).toBe(counts)
+    expect(splitsWord(text.slice(0, at), text.slice(at + 1))).toBe(counts)
   })
 
   it('does not count a line that starts at a bracket or beside Hangul as a broken word', () => {

@@ -3990,17 +3990,23 @@ function overflowIn(runs, box, paragraphs) {
 /** Hangul and other CJK script: text written in it breaks between any two characters. */
 const BREAKS_ANYWHERE = /[ᄀ-ᇿ぀-ヿ㄰-㆏一-鿿가-힯]/
 
-const CLOSING_BRACKET = /\p{Pe}/u
-const OPENING_BRACKET = /\p{Ps}/u
+const CLOSING_MARK = /\p{Pe}|\p{Pf}/u
+const OPENING_MARK = /\p{Ps}|\p{Pi}/u
+const STRAIGHT_QUOTE = /["']/
 
 /**
- * Whether a line break between the characters `before` and `after` splits a word. A Korean
+ * Whether a line break between the texts `left` and `right` splits a word. A Korean
  * paragraph breaks per syllable by Hangul's default, so a break beside Hangul is no broken
- * word, except a number cut from the Hangul word it goes with (2026|년).
+ * word, except a number cut from the Hangul word it goes with (2026|년). A straight quote
+ * closes a word when a word is on its left and opens one when a word is on its right.
  */
-export function splitsWord(before, after) {
+export function splitsWord(left, right) {
+  const [before = '', prev = ''] = [...left].reverse()
+  const [after = '', next = ''] = right
   if (!/\S/.test(before) || !/\S/.test(after)) return false
-  if (CLOSING_BRACKET.test(before) || OPENING_BRACKET.test(after)) return false
+  const closes = CLOSING_MARK.test(before) || (STRAIGHT_QUOTE.test(before) && /\S/.test(prev))
+  const opens = OPENING_MARK.test(after) || (STRAIGHT_QUOTE.test(after) && /\S/.test(next))
+  if (closes || opens) return false
   const anywhere = [before, after].filter((char) => BREAKS_ANYWHERE.test(char)).length
   if (anywhere === 0) return true
   return anywhere === 1 && (/\d/.test(before) || /\d/.test(after))
@@ -4025,7 +4031,7 @@ function breaksInsideWord(runs, box, paragraphs) {
     const text = paragraphs()[para]
     const ordered = [...lines].sort((a, b) => a[0] - b[0])
     for (const [, start] of ordered.slice(1)) {
-      if (splitsWord(engineSlice(text, start - 1, start), engineSlice(text, start, start + 1))) {
+      if (splitsWord(engineSlice(text, Math.max(0, start - 2), start), engineSlice(text, start))) {
         return true
       }
     }
