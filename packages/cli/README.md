@@ -90,6 +90,10 @@ ieumoffice diagram apply flow.drawio --ops '[{"op":"add_shape","label":"Check","
 ieumoffice create --type drawio --mermaid flow.mmd [--ops @more.json] --out flow.drawio   # Mermaid drawn by draw.io (a hidden IeumOffice), then the ops; --out x.drawio.png writes that format
 ieumoffice convert flow.drawio --to png [--page Two] [--out pictures]  # one PNG per page (flow-p1.png ...) into the folder, or one file with --page; --to svg the same, --to pdf one file
 ieumoffice guide diagram                                                # the diagram ops, built from the same definitions as the in-app AI's tools
+ieumoffice map read plan.xmind --json                          # every topic of a mind map (.xmind) with the ids ops target; plain `map read` prints the outline, one `# ` heading per sheet
+ieumoffice map apply plan.xmind --ops '[{"op":"rename_topic","id":"<id>","title":"New"}]' --json   # the map ops (`guide map`: add_topic, rename_topic, move_topic, delete_topic, set_note, set_link); untouched parts of the file stay byte for byte, a delete that would take preserved elements is refused with the count
+ieumoffice map create --outline plan.md --out plan.xmind       # a new .xmind from a markdown outline (`# ` sheet heading, `- ` topic item); without --out the outline name gets .xmind
+ieumoffice guide map                                           # the map ops, built from the same definitions `map apply` checks against
 ieumoffice guide docs                                                   # op signatures + restricted-HTML rules (`guide <domain> --json` = the catalog with each op's schema and a fingerprint)
 ieumoffice selection report.docx --json   # what the user has selected in the editor showing the file
 ieumoffice skill list   # coding agents found on this machine and the skill version each has
