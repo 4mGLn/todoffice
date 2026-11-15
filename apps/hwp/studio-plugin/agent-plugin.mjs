@@ -2223,10 +2223,12 @@ function paragraphFormatOf(doc, paragraph) {
   if (tabs) {
     // a stop's place is counted from the left edge of the text, whatever the paragraph's
     // margins are, in twice the engine's unit; the right edge is the width of a column
-    // less the right margin the same call sets
-    const edge = columnWidthUnits(doc, 0) * 2 - (rest.marginRight ?? 0)
+    // less the right margin the same call sets. A .hwp keeps the doubled number as it is,
+    // and Hangul lays out a line again past a stop stored odd as out of reach, so every
+    // place is a whole unit doubled, as Hangul stores its own
+    const edge = 2 * (columnWidthUnits(doc, 0) - Math.round((rest.marginRight ?? 0) / 2))
     rest.tabStops = tabs.map((tab) => ({
-      position: tab.atMm === null ? edge : Math.round(((tab.atMm * 7200) / 25.4) * 2),
+      position: tab.atMm === null ? edge : 2 * Math.round((tab.atMm * 7200) / 25.4),
       type: tab.type,
       fill: tab.fill,
     }))

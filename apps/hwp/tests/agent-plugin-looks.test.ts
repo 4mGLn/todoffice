@@ -19,7 +19,7 @@ import {
   type AgentPluginHost,
 } from '../studio-plugin/agent-plugin.mjs'
 import { installFontPresence } from '../studio-plugin/pc-fonts.mjs'
-import { EXAM_PAPER, examColumnWidthMm } from '../studio-plugin/document-looks.mjs'
+import { EXAM_PAPER, examChoiceStops, examColumnWidthMm } from '../studio-plugin/document-looks.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -2178,6 +2178,27 @@ describe('equations, a diagonal, the page border, tab stops, the size of a pictu
     expect(() => plugin.setPageBorder({ line: 'solid', color: 'navy' })).toThrow(/color/)
   })
 
+  it('stores every tab stop a whole unit doubled, as Hangul reads a .hwp stop', () => {
+    const lines = ['① 다섯	②	③	④	⑤', '① 셋	②	③', '① 둘	②', '성명	(인)']
+    const { plugin, doc } = open(blank(lines))
+    const places = [...examChoiceStops(5), ...examChoiceStops(3), ...examChoiceStops(2)]
+    expect(places).toContain(25.8)
+    plugin.formatParagraph('① 다섯', null, {
+      tabs: examChoiceStops(5).map((atMm) => ({ atMm })),
+    })
+    plugin.formatParagraph('① 셋', null, {
+      tabs: [...examChoiceStops(3), 33.33, 0.7].map((atMm) => ({ atMm })),
+    })
+    plugin.formatParagraph('① 둘', null, { tabs: examChoiceStops(2).map((atMm) => ({ atMm })) })
+    plugin.formatParagraph('성명', null, { marginRight: 10.125, tabs: [{ leader: 'dots' }] })
+    for (const saved of [doc(), new HwpDocument(doc().exportHwp())]) {
+      const stored = [0, 1, 2, 3].flatMap((para) => tabsOf(saved, para).map((tab) => tab.position))
+      expect(stored).toHaveLength(places.length + 3)
+      for (const position of stored) expect(position % 2).toBe(0)
+    }
+    expect(tabsOf(doc(), 0)[0]!.position).toBe(14626)
+  })
+
   it('sets tab stops with a leader: the right edge of the text unless a place is given', () => {
     const lines = ['차례', '제1장 추진 배경\t3', '제2장 세부 계획\t12', '성명: 홍길동\t(인)', '끝']
     const { plugin, doc, steps } = open(blank(lines))
@@ -2203,8 +2224,8 @@ describe('equations, a diagonal, the page border, tab stops, the size of a pictu
       tabs: [{ leader: 'line' }, { atMm: 60, align: 'center' }, { atMm: 30.5, align: 'decimal' }],
     })
     expect(tabsOf(doc(), 3)).toEqual([
-      { position: Math.round(((30.5 * 7200) / 25.4) * 2), type: 3, fill: 0 },
-      { position: Math.round(((60 * 7200) / 25.4) * 2), type: 2, fill: 0 },
+      { position: 2 * Math.round((30.5 * 7200) / 25.4), type: 3, fill: 0 },
+      { position: 2 * Math.round((60 * 7200) / 25.4), type: 2, fill: 0 },
       { position: edge, type: 1, fill: 1 },
     ])
     for (const saved of [doc().exportHwp(), doc().exportHwpx()]) {
