@@ -196,7 +196,6 @@ export const es = {
   aiTableRowsRemoved: '{count} fila(s) eliminada(s)',
   aiTableColsRemoved: '{count} columna(s) eliminada(s)',
   aiTableRemoved: 'tabla eliminada',
-  aiShowChange: 'Mostrar este lugar en el documento',
   aiAttachTitle: 'Adjuntar archivos locales (o arrástralos al panel)',
   aiRemoveAttachmentTitle: 'Quitar dato adjunto',
   aiSumReadAttachment: 'Leer dato adjunto',
@@ -212,12 +211,6 @@ export const es = {
   aiUnfinishedSteps: 'Pasos sin terminar: {n}',
   aiUnfinishedNote:
     'Estos pasos no se aplicaron al documento. Revise estas partes aunque la respuesta diga que está hecho.',
-  aiChangesTitle: 'Cambios hechos en el documento: {count}',
-  aiClearMarks: 'Ocultar marcas',
-  aiRevert: 'Deshacer estos cambios',
-  aiReverted: 'Cambios deshechos',
-  aiRevertRefused:
-    'No se pudieron deshacer estos cambios de una vez. Si el documento se editó después, usa Deshacer del editor (Ctrl+Z).',
   memoTitle: 'Comentarios',
   memoOpen: 'Comentarios',
   memoAdd: 'Añadir comentario',

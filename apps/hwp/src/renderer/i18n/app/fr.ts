@@ -195,7 +195,6 @@ export const fr = {
   aiTableRowsRemoved: '{count} ligne(s) supprimée(s)',
   aiTableColsRemoved: '{count} colonne(s) supprimée(s)',
   aiTableRemoved: 'tableau supprimé',
-  aiShowChange: 'Afficher cet endroit dans le document',
   aiAttachTitle: 'Joindre des fichiers locaux (ou faites-les glisser sur le panneau)',
   aiRemoveAttachmentTitle: 'Supprimer la pièce jointe',
   aiSumReadAttachment: 'Lire la pièce jointe',
@@ -211,12 +210,6 @@ export const fr = {
   aiUnfinishedSteps: 'Étapes non terminées : {n}',
   aiUnfinishedNote:
     "Ces étapes n'ont pas été appliquées au document. Vérifiez ces passages même si la réponse dit que c'est fait.",
-  aiChangesTitle: 'Modifications apportées au document : {count}',
-  aiClearMarks: 'Masquer les marques',
-  aiRevert: 'Annuler ces modifications',
-  aiReverted: 'Modifications annulées',
-  aiRevertRefused:
-    'Ces modifications n’ont pas pu être annulées d’un coup. Si le document a été modifié depuis, utilisez l’annulation de l’éditeur (Ctrl+Z).',
   memoTitle: 'Commentaires',
   memoOpen: 'Commentaires',
   memoAdd: 'Ajouter un commentaire',

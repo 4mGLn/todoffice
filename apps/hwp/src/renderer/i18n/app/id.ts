@@ -193,7 +193,6 @@ export const id = {
   aiTableRowsRemoved: '{count} baris dihapus',
   aiTableColsRemoved: '{count} kolom dihapus',
   aiTableRemoved: 'tabel dihapus',
-  aiShowChange: 'Tampilkan tempat ini di dokumen',
   aiAttachTitle: 'Lampirkan file lokal (atau seret ke panel)',
   aiRemoveAttachmentTitle: 'Hapus lampiran',
   aiSumReadAttachment: 'Baca lampiran',
@@ -209,12 +208,6 @@ export const id = {
   aiUnfinishedSteps: 'Langkah yang belum selesai: {n}',
   aiUnfinishedNote:
     'Langkah-langkah ini tidak diterapkan ke dokumen. Periksa bagian ini meskipun balasan mengatakan sudah selesai.',
-  aiChangesTitle: 'Perubahan pada dokumen: {count}',
-  aiClearMarks: 'Sembunyikan tanda',
-  aiRevert: 'Batalkan perubahan ini',
-  aiReverted: 'Perubahan dibatalkan',
-  aiRevertRefused:
-    'Perubahan ini tidak dapat dibatalkan sekaligus. Jika dokumen diedit setelahnya, gunakan Urungkan milik editor (Ctrl+Z).',
   memoTitle: 'Komentar',
   memoOpen: 'Komentar',
   memoAdd: 'Tambahkan komentar',

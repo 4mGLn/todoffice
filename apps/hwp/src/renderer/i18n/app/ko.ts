@@ -192,7 +192,6 @@ export const ko = {
   aiTableRowsRemoved: '행 {count}개 삭제',
   aiTableColsRemoved: '열 {count}개 삭제',
   aiTableRemoved: '표 삭제',
-  aiShowChange: '문서에서 이 곳 보기',
   aiAttachTitle: '로컬 파일을 첨부 (패널로 끌어다 놓아도 됩니다)',
   aiRemoveAttachmentTitle: '첨부 파일 제거',
   aiSumReadAttachment: '첨부 파일 읽기',
@@ -208,12 +207,6 @@ export const ko = {
   aiUnfinishedSteps: '끝내지 못한 단계 {n}개',
   aiUnfinishedNote:
     '아래 단계는 문서에 반영되지 않았습니다. 답에 끝냈다고 적혀 있어도 이 부분은 확인하세요.',
-  aiChangesTitle: '문서 {count}곳을 고쳤습니다',
-  aiClearMarks: '표시 지우기',
-  aiRevert: '되돌리기',
-  aiReverted: '되돌렸습니다',
-  aiRevertRefused:
-    '한꺼번에 되돌리지 못했습니다. 그 뒤에 문서를 고쳤다면 편집기의 실행 취소(Ctrl+Z)를 쓰세요.',
   memoTitle: '메모',
   memoOpen: '메모',
   memoAdd: '메모 넣기',

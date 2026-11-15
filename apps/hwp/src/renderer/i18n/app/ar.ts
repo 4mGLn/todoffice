@@ -191,7 +191,6 @@ export const ar = {
   aiTableRowsRemoved: 'تم حذف {count} صف',
   aiTableColsRemoved: 'تم حذف {count} عمود',
   aiTableRemoved: 'تم حذف الجدول',
-  aiShowChange: 'إظهار هذا الموضع في المستند',
   aiAttachTitle: 'إرفاق ملفات محلية (أو اسحبها إلى اللوحة)',
   aiRemoveAttachmentTitle: 'إزالة المرفق',
   aiSumReadAttachment: 'قراءة المرفق',
@@ -206,12 +205,6 @@ export const ar = {
   aiUnfinishedSteps: 'خطوات لم تكتمل: {n}',
   aiUnfinishedNote:
     'لم تُطبَّق هذه الخطوات على المستند. تحقّق من هذه المواضع حتى لو قال الرد إن العمل اكتمل.',
-  aiChangesTitle: 'عدد التغييرات في المستند: {count}',
-  aiClearMarks: 'إخفاء العلامات',
-  aiRevert: 'التراجع عن هذه التغييرات',
-  aiReverted: 'تم التراجع عن التغييرات',
-  aiRevertRefused:
-    'تعذّر التراجع عن هذه التغييرات دفعة واحدة. إذا عُدّل المستند بعدها، فاستخدم أمر التراجع في المحرر (Ctrl+Z).',
   memoTitle: 'التعليقات',
   memoOpen: 'التعليقات',
   memoAdd: 'إضافة تعليق',

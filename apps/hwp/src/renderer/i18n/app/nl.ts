@@ -193,7 +193,6 @@ export const nl = {
   aiTableRowsRemoved: '{count} rij(en) verwijderd',
   aiTableColsRemoved: '{count} kolom(men) verwijderd',
   aiTableRemoved: 'tabel verwijderd',
-  aiShowChange: 'Deze plaats in het document tonen',
   aiAttachTitle: 'Lokale bestanden bijvoegen (of sleep ze naar het paneel)',
   aiRemoveAttachmentTitle: 'Bijlage verwijderen',
   aiSumReadAttachment: 'Bijlage lezen',
@@ -209,12 +208,6 @@ export const nl = {
   aiUnfinishedSteps: 'Niet afgeronde stappen: {n}',
   aiUnfinishedNote:
     'Deze stappen zijn niet op het document toegepast. Controleer deze delen, ook als het antwoord zegt dat het klaar is.',
-  aiChangesTitle: 'Wijzigingen in het document: {count}',
-  aiClearMarks: 'Markeringen verbergen',
-  aiRevert: 'Deze wijzigingen ongedaan maken',
-  aiReverted: 'Wijzigingen ongedaan gemaakt',
-  aiRevertRefused:
-    'Deze wijzigingen konden niet in één keer ongedaan worden gemaakt. Is het document daarna bewerkt, gebruik dan Ongedaan maken van de editor (Ctrl+Z).',
   memoTitle: 'Opmerkingen',
   memoOpen: 'Opmerkingen',
   memoAdd: 'Opmerking toevoegen',

@@ -195,7 +195,6 @@ export const pt = {
   aiTableRowsRemoved: '{count} linha(s) removida(s)',
   aiTableColsRemoved: '{count} coluna(s) removida(s)',
   aiTableRemoved: 'tabela removida',
-  aiShowChange: 'Mostrar este local no documento',
   aiAttachTitle: 'Anexar arquivos locais (ou arraste-os para o painel)',
   aiRemoveAttachmentTitle: 'Remover anexo',
   aiSumReadAttachment: 'Ler anexo',
@@ -211,12 +210,6 @@ export const pt = {
   aiUnfinishedSteps: 'Etapas não concluídas: {n}',
   aiUnfinishedNote:
     'Estas etapas não foram aplicadas ao documento. Verifique estas partes mesmo que a resposta diga que está feito.',
-  aiChangesTitle: 'Alterações feitas no documento: {count}',
-  aiClearMarks: 'Ocultar marcas',
-  aiRevert: 'Desfazer estas alterações',
-  aiReverted: 'Alterações desfeitas',
-  aiRevertRefused:
-    'Não foi possível desfazer estas alterações de uma vez. Se o documento foi editado depois, use o Desfazer do editor (Ctrl+Z).',
   memoTitle: 'Comentários',
   memoOpen: 'Comentários',
   memoAdd: 'Adicionar comentário',

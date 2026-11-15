@@ -66,6 +66,7 @@ const METHODS = [
   'measureTabs',
   'savePreview',
   'clearMarks',
+  'hasMarks',
   'listStyles',
   'readStyle',
   'createStyle',

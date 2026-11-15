@@ -193,7 +193,6 @@ export const ja = {
   aiTableRowsRemoved: '{count} 行を削除',
   aiTableColsRemoved: '{count} 列を削除',
   aiTableRemoved: '表を削除',
-  aiShowChange: '文書内でこの場所を表示',
   aiAttachTitle: 'ローカルファイルを添付(パネルへのドラッグ&ドロップも可)',
   aiRemoveAttachmentTitle: '添付ファイルを削除',
   aiSumReadAttachment: '添付ファイルを読み取り',
@@ -208,12 +207,6 @@ export const ja = {
   aiUnfinishedSteps: '完了しなかった手順：{n} 件',
   aiUnfinishedNote:
     '次の手順は文書に反映されていません。返答に完了と書かれていても、この部分を確認してください。',
-  aiChangesTitle: '文書を {count} か所変更しました',
-  aiClearMarks: '表示を消す',
-  aiRevert: '変更を元に戻す',
-  aiReverted: '元に戻しました',
-  aiRevertRefused:
-    'まとめて元に戻せませんでした。その後に文書を編集した場合は、エディターの「元に戻す」（Ctrl+Z）を使ってください。',
   memoTitle: 'コメント',
   memoOpen: 'コメント',
   memoAdd: 'コメントを追加',
