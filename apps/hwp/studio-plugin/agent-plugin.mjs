@@ -2878,11 +2878,7 @@ const BODY_STYLE = '바탕글'
 
 const HEADING_STYLE = /개요|제목|heading|title/i
 
-/**
- * The runs of a body paragraph by character look, and whether it is a heading (an outline
- * level, a heading or 개요/제목 style) or bold (most of its characters). Null when empty or
- * unreadable.
- */
+/** The character runs of a body paragraph and whether it is a heading or mostly bold. Null when empty or unreadable. */
 function bodyRunsOf(doc, styles, sec, para) {
   try {
     const length = doc.getParagraphLength(sec, para)
@@ -5732,7 +5728,6 @@ const PAGE_CELL = /^\s*\d+(?:\s*[~\-–]\s*\d+)?\s*$/
 const TOC_TITLES = ['차례', '목차']
 const TOC_TITLE_CHARS = 12
 
-/** A 차례 or 목차 line, spaces aside. */
 const isTocTitle = (text) => TOC_TITLES.includes(text.replace(/\s/g, ''))
 
 /** The two-column table in the body paragraph after `para`, numbered as listTables numbers tables. */
@@ -5761,9 +5756,9 @@ function holdsPages(doc, table) {
 }
 
 /**
- * Contents the document has already, under a 차례 or 목차 line (spaces aside): a two-column
- * table right after it whose second column holds page numbers, or Hangul's own contents,
- * lines whose first one with text ends in a tab and a page number.
+ * Contents the document has already under a 차례 or 목차 line: a two-column table right
+ * after it whose second column holds page numbers, or Hangul's own contents, whose first
+ * line with text ends in a tab and a page number.
  */
 function contentsOf(doc) {
   const sections = doc.getSectionCount()
@@ -10685,13 +10680,14 @@ export const agentPlugin = {
               : !isReplaceable(picked.hit) || cellPathOf(picked.hit)
                 ? 'unsupported_place'
                 : null
-            return { entry, hits, hit: reason ? null : picked.hit, reason }
+            const hit = reason ? null : picked.hit
+            const text = hit ? bodyText(doc, hit.sec, hit.para) : ''
+            return { entry, hits, hit, text, reason }
           })
         const refusal = host.read((doc) => {
           const located = locate(doc, anchor, occurrence, where)
           if (located.refusal) return located.refusal
           if (located.box.inTable) return { ok: false, reason: 'in_table', count: 1 }
-          // a second one would be a second list to keep in step
           const there = contentsOf(doc)
           if (there) return { ok: false, reason: 'toc_exists', count: 1, ...there }
           const missing = headingsOf(doc).find((heading) => heading.reason)
@@ -10718,20 +10714,12 @@ export const agentPlugin = {
               if (headings.some((heading) => !heading.hit)) {
                 throw fail('CHANGED', 'the document changed mid-call')
               }
-              // read before a paragraph is split: the hits name paragraphs as they are now
               const look = tocLookOf(doc, entries)
               const width = textWidthPt(doc, sec)
-              const rows = headings.map(({ entry, hit }) => {
+              const rows = headings.map(({ entry, text }) => {
                 const level = look.levels.get(entry.level)
                 return {
-                  text: oneLine(
-                    clip(
-                      bodyText(doc, hit.sec, hit.para).replace(/\s+/g, ' ').trim(),
-                      MAX_TOC_TEXT,
-                    ),
-                    level,
-                    width,
-                  ),
+                  text: oneLine(clip(text.replace(/\s+/g, ' ').trim(), MAX_TOC_TEXT), level, width),
                   look: level,
                   page: 0,
                 }

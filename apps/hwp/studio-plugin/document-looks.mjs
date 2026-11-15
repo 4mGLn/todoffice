@@ -210,10 +210,7 @@ export function headRowsOf(edges, flagged) {
   return head
 }
 
-/**
- * `edge` with each place a merged cell runs across (null) given the line of the nearest
- * column of that edge that has one, or `fallback`'s line in that column when none has.
- */
+/** `edge` with each merged-cell gap (null) filled from the nearest column that has a line, else from `fallback`. */
 function filledEdge(edge, fallback) {
   return edge.map((line, col) => {
     if (line) return line

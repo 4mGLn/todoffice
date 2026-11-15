@@ -2330,10 +2330,7 @@ const NOT_FOUND_HELP =
   'Not found; nothing was changed. The text must match exactly (letters, spaces, punctuation) and lie inside one paragraph or one table cell. Read that part of the document again. Call find_text with a shorter piece (spaces count) to see how the document writes it. The guide text of an empty form field is not document text: use fill_field for it.'
 const IN_TABLE_HELP =
   'Nothing was changed: that paragraph is inside a table cell, and a table cannot be put inside another table here. Anchor the new table to a paragraph of the body text, or add the content to the cell as paragraphs.'
-/**
- * The refusal of a title box for text in a table. Nothing records which tables insert_title_box
- * made, so no table is drawn again; the way to a new look goes through delete_table.
- */
+/** The refusal of a title box for text in a table, as the model reads it. */
 function titleInTableRefusal(table: number | undefined): string {
   const name = table === undefined ? 'that table' : `table ${table}`
   return `Nothing was changed: that text is inside ${name}. A title box is made only from a paragraph of the body text, and no table is drawn again as one, not even a title box made before: the document does not tell which tables insert_title_box made. To change the lines or fill of ${name}, use format_cells. To give a title box made before another look: delete_table ${table ?? 'it'} (its words go with it), put the title back with insert_paragraphs before the line that follows, and call insert_title_box on it. The line that held the box stays, empty.`

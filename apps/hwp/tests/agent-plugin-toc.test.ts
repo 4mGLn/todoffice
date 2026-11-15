@@ -376,12 +376,13 @@ describe('telling a table of contents from a table of the user', () => {
       title: '구성원 수',
     })
     expect([steps(), doc().exportHwp()]).toEqual([before, was])
-    // the headings occur in the count table too, which stands between them
-    const body = [
+    const bodyHeadingsPastCountTable = [
       { ...TWO[0], occurrence: 1 },
       { ...TWO[1], occurrence: 2 },
     ]
-    expect(plugin.insertToc('보고서', null, 'after', '차 례', body)).toMatchObject({
+    expect(
+      plugin.insertToc('보고서', null, 'after', '차 례', bodyHeadingsPastCountTable),
+    ).toMatchObject({
       ok: true,
       table: 1,
       tables: 2,
