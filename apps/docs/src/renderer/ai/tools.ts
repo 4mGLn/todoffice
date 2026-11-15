@@ -1288,10 +1288,14 @@ async function insertImageBytes(
     // freshness baseline stale, so only our own insertion may mark the doc
     // seen. Checked right before the write — there is no async gap after.
     const userEditedDuringFetch = editedExternally(editor)
+    // The editor leaves a picture it just placed selected, and the user may have text
+    // selected: inserting over a selection would replace it (a second AI picture used to
+    // wipe out the first). A non-empty selection is kept and the picture goes after it.
+    const { selection } = editor.state
     editor
       .chain()
       .focus()
-      .insertContent({
+      .insertContentAt(selection.empty ? selection.from : selection.to, {
         type: 'docProtected',
         attrs: {
           docxIndex: null,
