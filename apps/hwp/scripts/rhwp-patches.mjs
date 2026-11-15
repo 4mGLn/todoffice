@@ -145,8 +145,8 @@
  *   font in the stand-in, even one that is installed. The print and the PDF read the
  *   engine's list without the alias and drew the font itself, so the paper did not look
  *   like the page. The aliases keep their place and the list is weighed by its first real
- *   name. Upstream has the same defect (edwardkim/rhwp#9077); the patch is dropped with the
- *   release that fixes it.
+ *   name. Upstream had the same defect (edwardkim/rhwp#9077) and fixed it on devel the same
+ *   way (PR #9093); the patch is dropped with the release that has that fix.
  */
 
 import { CLIPBOARD_HTML_MODULE } from '../studio-plugin/clipboard-html.mjs'

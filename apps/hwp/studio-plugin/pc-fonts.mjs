@@ -145,6 +145,35 @@ export function installFontPresence(probe) {
   presence = probe
 }
 
+/** How long a print waits for the start-up look at the PC's fonts before it goes on. */
+export const PRINT_FONTS_WAIT_MS = 30_000
+
+/**
+ * Whether the pages for print can be drawn in the fonts the screen shows (print-fonts.mjs),
+ * once the start-up look at the PC's fonts is over: a print asked for in the first seconds
+ * of a document would otherwise go out in the engine's fonts. A page that is not shown (a
+ * headless export, a tab behind another) is never given the PC's list, so it is answered
+ * at once; a look that takes longer than `wait` ms is not waited for further.
+ */
+export async function printFontsReady({
+  wait = PRINT_FONTS_WAIT_MS,
+  doc = globalThis.document,
+} = {}) {
+  if (doc?.visibilityState && doc.visibilityState !== 'visible') return pcFontsKnown()
+  let timer
+  try {
+    await Promise.race([
+      settled.catch(() => {}),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, wait)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+  return pcFontsKnown()
+}
+
 /** Resolves once the start-up look at the PC's fonts is over. */
 export function whenPcFontsSettled() {
   return settled

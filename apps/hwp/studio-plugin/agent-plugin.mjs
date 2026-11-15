@@ -57,7 +57,13 @@ import {
   titleBoxCells,
 } from './document-looks.mjs'
 import { equationSvgForThisPc, isEquationSvgFamily } from './equation-fonts.mjs'
-import { fontOnPc, missingFonts, setMissingFontLabels, whenPcFontsSettled } from './pc-fonts.mjs'
+import {
+  fontOnPc,
+  missingFonts,
+  printFontsReady,
+  setMissingFontLabels,
+  whenPcFontsSettled,
+} from './pc-fonts.mjs'
 import { printSvgForThisPc, screenFonts } from './print-fonts.mjs'
 
 export const AGENT_PLUGIN_ID = 'ieum-agent'
@@ -7333,6 +7339,14 @@ export const agentPlugin = {
        * call lays the pages out the way printPages does (withPrintWidths) and puts the
        * screen's state back before it returns.
        */
+      /**
+       * Resolves, once the start-up look at the PC's fonts is over, with whether the
+       * pages for print can be drawn in the fonts the screen shows. A print, its page sizes
+       * and the preview ask first: a print asked for in the first seconds of a document
+       * would otherwise go out in the engine's fonts and layout. Reads nothing.
+       */
+      printFontsReady: guarded(() => printFontsReady()),
+
       printPageSizes: guarded((from) =>
         host.read((doc) =>
           withPrintWidths(doc, screenFonts(), () => {
