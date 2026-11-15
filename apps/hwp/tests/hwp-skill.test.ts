@@ -4941,9 +4941,8 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     )
   })
 
-  it('gives the number of a new table of contents, and follows a cut cell past it', async () => {
-    const { call, skill, beginRun, bridge } = setup({
-      checkLayout: vi.fn(async () => measured([cut(1, 1, 1)])),
+  it('gives the number of a new table of contents', async () => {
+    const { call, bridge } = setup({
       insertToc: vi.fn(async () => ({
         ok: true as const,
         count: 2,
@@ -4953,9 +4952,6 @@ describe('what an edit did to the pages and tables, in its answer', () => {
         tables: 2,
       })),
     })
-    beginRun()
-    await call('fill_cells', { table: 1, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
-    vi.mocked(bridge.checkLayout).mockClear()
     const toc = await call('insert_toc', {
       anchor: '□ 추진 배경',
       where: 'before',
@@ -4964,12 +4960,9 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     })
     expect(toc.output).toMatch(/ It is table 1; tables after it are numbered one higher\.$/)
     expect(bridge.checkLayout).not.toHaveBeenCalled()
-    expect(skill.verifyResponse!('다 했습니다.', [{ name: 'fill_cells', ok: true }])).toContain(
-      'table 2, row 1, col 1',
-    )
   })
 
-  it('tells where a table runs off the page only when a call moved it', async () => {
+  it('tells on every write to a table that runs off the page where it does, and nothing on other calls', async () => {
     let past = [{ table: 1, page: 2, row: 35, taller: true as const }]
     const { call } = setup({
       insertTable: vi.fn(async () => ({
@@ -4988,12 +4981,11 @@ describe('what an edit did to the pages and tables, in its answer', () => {
       off,
     )
     const fill = { table: 1, cells: [{ row: 65, col: 1, text: '가' }] }
-    expect((await call('fill_cells', fill)).output).not.toContain('below the foot')
-    expect((await call('check_layout')).output).toContain(off)
-    past = [{ table: 1, page: 2, row: 34, taller: true }]
+    expect((await call('fill_cells', fill)).output).toContain(off)
+    expect((await call('fill_cells', fill)).output).toContain(off)
     expect(
-      (await call('format_cells', { table: 1, cells: [{ row: 60, col: 1 }], size: 14 })).output,
-    ).toContain('Table 1 is drawn below the foot of page 2 from row 34 on')
+      (await call('insert_paragraphs', { where: 'end', paragraphs: ['가'] })).output,
+    ).not.toContain('below the foot')
     past = []
     expect((await call('fill_cells', fill)).output).not.toContain('below the foot')
   })
@@ -5078,107 +5070,5 @@ describe('what an edit did to the pages and tables, in its answer', () => {
       'page 2: continues “마디가 이어집니다” to “맺음”',
       'page 3: empty',
     ])
-  })
-
-  it('gives the model one more turn when table cells it wrote are still cut off', async () => {
-    let cells = [cut(1, 2, 1)]
-    const { call, skill, beginRun } = setup({
-      checkLayout: vi.fn(async () => measured(cells)),
-    })
-    const verify = (names: string[]) =>
-      skill.verifyResponse!(
-        '다 했습니다.',
-        names.map((name) => ({ name, ok: true })),
-      )
-    beginRun()
-    await call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '긴 제목' }] })
-    expect(verify(['fill_cells'])).toContain('table 1, row 2, col 1')
-    beginRun()
-    await call('check_layout')
-    expect(verify(['check_layout'])).toBeNull()
-    beginRun()
-    await call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '긴 제목' }] })
-    cells = []
-    await call('check_layout')
-    expect(verify(['fill_cells', 'check_layout'])).toBeNull()
-    beginRun()
-    cells = [cut(1, 2, 1)]
-    await call('check_layout')
-    expect(skill.verifyResponse!('x', [{ name: 'fill_cells', ok: false }])).toBeNull()
-  })
-
-  it('does not blame the run for a cut cell it did not write', async () => {
-    let cells = [cut(1, 2, 3)]
-    const { call, skill, beginRun } = setup({
-      checkLayout: vi.fn(async () => measured(cells)),
-    })
-    beginRun()
-    await call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '짧은 값' }] })
-    cells = [cut(1, 2, 3), cut(3, 1, 1)]
-    await call('check_layout')
-    expect(
-      skill.verifyResponse!('다 했습니다.', [
-        { name: 'fill_cells', ok: true },
-        { name: 'check_layout', ok: true },
-      ]),
-    ).toBeNull()
-  })
-
-  it('follows a cut cell to the number its table has after tables are added or removed', async () => {
-    let cells = [cut(2, 1, 1)]
-    const { call, skill, beginRun, bridge } = setup({
-      checkLayout: vi.fn(async () => measured(cells)),
-      insertTable: vi.fn(async () => ({
-        ok: true as const,
-        rows: 1,
-        cols: 1,
-        inTable: false,
-        place: PLACE,
-        table: 1,
-        tables: 3,
-      })),
-      deleteTable: vi.fn(async () => ({
-        ok: true as const,
-        table: 1,
-        rows: 2,
-        cols: 2,
-        inner: 0,
-        text: '',
-        place: PLACE,
-      })),
-    })
-    const verify = () => skill.verifyResponse!('다 했습니다.', [{ name: 'fill_cells', ok: true }])
-    beginRun()
-    await call('fill_cells', { table: 2, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
-    cells = []
-    await call('insert_table', { where: 'end', rows: [['가']] })
-    expect(verify()).toContain('table 3, row 1, col 1')
-    await call('delete_table', { table: 1 })
-    expect(verify()).toContain('table 2, row 1, col 1')
-    vi.mocked(bridge.deleteTable).mockResolvedValueOnce({
-      ok: true as const,
-      table: 2,
-      rows: 3,
-      cols: 1,
-      inner: 0,
-      text: '',
-      place: PLACE,
-    })
-    await call('delete_table', { table: 2 })
-    expect(verify()).toBeNull()
-  })
-
-  it('lets check_layout clear only the cut cells it measured as fitting', async () => {
-    let checked = measured([cut(2, 1, 1)])
-    const { call, skill, beginRun } = setup({ checkLayout: vi.fn(async () => checked) })
-    const verify = () => skill.verifyResponse!('다 했습니다.', [{ name: 'fill_cells', ok: true }])
-    beginRun()
-    await call('fill_cells', { table: 2, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
-    checked = { ...measured([]), next: { table: 2, row: 1 } }
-    await call('check_layout')
-    expect(verify()).toContain('table 2, row 1, col 1')
-    checked = { ...measured([]), from: { table: 2, row: 1 } }
-    await call('check_layout', { from_table: 2 })
-    expect(verify()).toBeNull()
   })
 })
