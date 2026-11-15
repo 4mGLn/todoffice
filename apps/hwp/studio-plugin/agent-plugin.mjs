@@ -5448,6 +5448,51 @@ function notesOf(doc) {
   return { notes, elsewhere: Math.max(0, controls.length - notes.length) }
 }
 
+/** Most equations listEquations lists, and how many characters it shows on either side. */
+const MAX_LISTED_EQUATIONS = 200
+const EQUATION_CONTEXT_CHARS = 20
+
+/**
+ * The equations of the body text in reading order: where each one is (section, paragraph,
+ * its control and its place in the text) and its script. `elsewhere` counts the ones in
+ * table cells, notes and text boxes: the engine reads only the first of a cell paragraph
+ * and removes none there, so they are left out.
+ */
+function equationsOf(doc) {
+  const total = parse(doc.getControls()).filter((control) => control.ctrlId === 'eqed').length
+  const equations = []
+  if (total === 0) return { equations, elsewhere: 0 }
+  const sections = doc.getSectionCount()
+  for (let sec = 0; sec < sections; sec++) {
+    const paragraphs = doc.getParagraphCount(sec)
+    for (let para = 0; para < paragraphs && equations.length < total; para++) {
+      const positions = parse(doc.getControlTextPositions(sec, para))
+      positions.forEach((offset, control) => {
+        let props
+        try {
+          props = parse(doc.getEquationProperties(sec, para, control, -1, -1))
+        } catch {
+          return // not an equation: a table, a picture, a section definition
+        }
+        equations.push({ sec, para, control, offset, script: String(props.script ?? '') })
+      })
+    }
+  }
+  return { equations, elsewhere: Math.max(0, total - equations.length) }
+}
+
+/** The words right in front of an equation and right after it, in its paragraph. */
+function equationContext(doc, equation) {
+  const { sec, para, offset } = equation
+  const length = doc.getParagraphLength(sec, para)
+  const from = Math.max(0, offset - EQUATION_CONTEXT_CHARS)
+  const to = Math.min(length, offset + EQUATION_CONTEXT_CHARS)
+  return {
+    before: offset > from ? doc.getTextRange(sec, para, from, offset - from) : '',
+    after: to > offset ? doc.getTextRange(sec, para, offset, to - offset) : '',
+  }
+}
+
 /** The text in front of a note's mark, cut to a few words. */
 function noteContext(doc, note) {
   const start = Math.max(0, note.offset - NOTE_CONTEXT_CHARS)
@@ -10912,6 +10957,88 @@ export const agentPlugin = {
                 changed,
                 ...(missing.length > 0 ? { missing } : {}),
                 place: { sec: table.sec, para: table.para, offset: 0, length: 0 },
+              }
+            },
+            options,
+          ),
+        )
+      }),
+
+      /**
+       * The equations of the body text in reading order: number in this list (what
+       * editEquation takes), the words in front of it and after it, and its script.
+       */
+      listEquations: guarded(() =>
+        host.read((doc) => {
+          const { equations, elsewhere } = equationsOf(doc)
+          return {
+            count: equations.length,
+            elsewhere,
+            equations: equations.slice(0, MAX_LISTED_EQUATIONS).map((equation, index) => ({
+              equation: index + 1,
+              ...equationContext(doc, equation),
+              script: equation.script,
+            })),
+          }
+        }),
+      ),
+
+      /**
+       * Give an equation of the body text (its number from listEquations) a new script, or
+       * remove it when `script` is null; the text round it stays as it is. One undo step.
+       */
+      editEquation: guarded((number, script, options) => {
+        const removing = script === null
+        if (
+          !removing &&
+          (typeof script !== 'string' ||
+            !script.trim() ||
+            script.length > MAX_EQUATION_SCRIPT ||
+            CONTROL_CHARS.test(script))
+        ) {
+          throw fail(
+            'BAD_ARGUMENT',
+            `script must be one line of 1 to ${MAX_EQUATION_SCRIPT} characters`,
+          )
+        }
+        const refusal = host.read((doc) => {
+          const { equations } = equationsOf(doc)
+          return Number.isInteger(number) && equations[number - 1]
+            ? null
+            : { ok: false, reason: 'no_such_equation', count: equations.length }
+        })
+        if (refusal) return refusal
+        return keepingObjects((mustKeep) =>
+          change(
+            removing ? 'remove-equation' : 'edit-equation',
+            (doc) => {
+              const equation = equationsOf(doc).equations[number - 1]
+              if (!equation) throw fail('CHANGED', 'the document changed mid-call')
+              const { sec, para, control, offset } = equation
+              const before = objectsOf(doc)
+              if (removing) {
+                expectOk(doc.deleteEquationControl(sec, para, control), 'remove the equation')
+                // the one control less is the equation
+                mustKeep({ ...before, controls: before.controls - 1 }, objectsOf(doc))
+              } else {
+                expectOk(
+                  doc.setEquationProperties(
+                    sec,
+                    para,
+                    control,
+                    -1,
+                    -1,
+                    JSON.stringify({ script: script.trim() }),
+                  ),
+                  'change the equation',
+                )
+                mustKeep(before, objectsOf(doc))
+              }
+              return {
+                ok: true,
+                removed: removing,
+                was: equation.script,
+                place: { sec, para, offset, length: removing ? 0 : 1 },
               }
             },
             options,

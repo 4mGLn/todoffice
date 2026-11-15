@@ -851,7 +851,7 @@ describe('insert_paragraphs', () => {
       paragraphs: ['x'],
     })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain('a table, a picture or a form field')
+    expect(result.output).toContain('a table, a picture, an equation or a form field')
     expect(result.summary).toBe('aiToolNotDone:{"what":"제목"}')
     expect(changes).toEqual([])
   })
@@ -2353,6 +2353,70 @@ describe('a table of contents', () => {
   })
 })
 
+describe('equations', () => {
+  it('lists the equations with the words round them', async () => {
+    const { call } = setup({
+      listEquations: vi.fn(async () => ({
+        count: 2,
+        elsewhere: 1,
+        equations: [
+          { equation: 1, before: '넓이는 ', after: ' 이다.', script: 'x^2' },
+          { equation: 2, before: '비는\t', after: ' 이다.', script: '{a} over {b}' },
+        ],
+      })),
+    })
+    const result = await call('list_equations', {})
+    expect(result.output).toBe(
+      [
+        '1. (in "넓이는 … 이다.") x^2',
+        '2. (in "비는 … 이다.") {a} over {b}',
+        '1 more equation(s) sit inside table cells, notes or text boxes, which these tools cannot reach.',
+      ].join('\n'),
+    )
+    expect(result.summary).toBe('aiToolEquations:{"count":2}')
+  })
+
+  it('changes the script of an equation, or removes it', async () => {
+    const editEquation = vi.fn(async (_number: number, script: string | null) => ({
+      ok: true as const,
+      removed: script === null,
+      was: '{a} over {b}',
+      place: PLACE,
+    }))
+    const { call, changes } = setup({ editEquation })
+    const changed = await call('edit_equation', { equation: 2, script: '{1} over {2}' })
+    expect(editEquation).toHaveBeenCalledWith(2, '{1} over {2}')
+    expect(changed.output).toBe('Changed equation 2 from {a} over {b} to {1} over {2}.')
+    expect(changed.mutated).toBe(true)
+    const removed = await call('edit_equation', { equation: 2, remove: true })
+    expect(editEquation).toHaveBeenLastCalledWith(2, null)
+    expect(removed.output).toBe(
+      'Removed equation 2 ({a} over {b}). Equations after it are numbered one lower.',
+    )
+    expect(changes.map((change) => change.kind)).toEqual(['replace', 'delete'])
+  })
+
+  it('refuses LaTeX, a script with remove, and a number the body has not', async () => {
+    const { call, bridge } = setup({
+      editEquation: vi.fn(async () => ({
+        ok: false as const,
+        reason: 'no_such_equation' as const,
+        count: 3,
+      })),
+    })
+    const latex = await call('edit_equation', { equation: 1, script: String.raw`\frac{1}{2}` })
+    expect(latex.isError).toBe(true)
+    expect(latex.output).toContain('LaTeX')
+    const both = await call('edit_equation', { equation: 1, script: 'x', remove: true })
+    expect(both.isError).toBe(true)
+    expect(bridge.editEquation).not.toHaveBeenCalled()
+    const missing = await call('edit_equation', { equation: 7, script: 'x' })
+    expect(missing.output).toBe(
+      'There is no equation 7: the body text has 3. Call list_equations for the numbers.',
+    )
+  })
+})
+
 describe('footnotes and endnotes', () => {
   it('puts a note after the words it is about and lists it as a change', async () => {
     const { bridge, call, changes } = setup()
@@ -3623,6 +3687,8 @@ describe('the skill as the model sees it', () => {
       'insert_break',
       'set_page_border',
       'insert_equations',
+      'list_equations',
+      'edit_equation',
       'set_page_number',
       'set_header_footer',
       'read_formatting',

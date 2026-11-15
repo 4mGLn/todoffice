@@ -1640,6 +1640,28 @@ const TOOLS: HwpToolDef[] = [
     },
   },
   {
+    name: 'list_equations',
+    edits: false,
+    description:
+      'List the equations (수식) of the body text in reading order: their number in this list (what edit_equation takes), the words in front of each and after it, and its script.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'edit_equation',
+    edits: true,
+    description:
+      'Give one equation of the body text a new script, or remove it; the text round it stays as it is. Its number is from list_equations, and the script is written as for insert_equations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        equation: { type: 'integer', description: 'the equation number from list_equations' },
+        script: { type: 'string', description: 'the new script, one line' },
+        remove: { type: 'boolean', description: 'true removes the equation; give no script then' },
+      },
+      required: ['equation'],
+    },
+  },
+  {
     name: 'set_page_number',
     edits: true,
     description:
@@ -2310,10 +2332,18 @@ const NOT_FOUND_HELP =
   'Not found; nothing was changed. The text must match exactly (letters, spaces, punctuation) and lie inside one paragraph or one table cell. Read that part of the document again. Call find_text with a shorter piece (spaces count) to see how the document writes it. The guide text of an empty form field is not document text: use fill_field for it.'
 const IN_TABLE_HELP =
   'Nothing was changed: that paragraph is inside a table cell, and a table cannot be put inside another table here. Anchor the new table to a paragraph of the body text, or add the content to the cell as paragraphs.'
+/** The refusal of a script written in LaTeX, which the equation editor does not read. */
+const latexHelp = (what: string): string =>
+  `Nothing was changed: ${what} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum from {i=1} to {n}, LEFT ( ... RIGHT ).`
+
+/** Where an equation stands, as list_equations shows it: the words round it, … in its place. */
+const equationPlace = (equation: { before: string; after: string }): string =>
+  `${equation.before}…${equation.after}`.replace(/\s+/g, ' ')
+
 const HAS_OBJECTS_HELP =
-  'Nothing was changed: a table, a picture or a form field sits in that paragraph, and the change would have moved or removed it. Use the paragraph before or after it as the anchor, or tell the user.'
+  'Nothing was changed: a table, a picture, an equation or a form field sits in that paragraph, and the change would have moved or removed it. Use the paragraph before or after it as the anchor, or tell the user. An equation can be removed first with edit_equation (its number is in list_equations).'
 const SPANS_OBJECT_ADVICE =
-  'Replace the words in front of it or the words behind it on their own, with replace_text.'
+  'Replace the words in front of it or the words behind it on their own, with replace_text; an equation itself is changed with edit_equation (list_equations shows the words round each).'
 const SPANS_OBJECT_HELP = `Nothing was changed: an equation or another object of the line (a footnote mark, a picture set in the text) stands inside the text to be replaced, and the new text has no place for it. ${SPANS_OBJECT_ADVICE}`
 const BREAK_BY_HAND =
   'Do not put the break on another paragraph instead: the page or column would turn at a different line. Tell the user that this break has to be typed in the editor in front of the paragraph, with Ctrl+Enter for a page or Ctrl+Shift+Enter for a column.'
@@ -4912,6 +4942,81 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           summary: label('aiToolTocRefresh', { count: result.changed }),
         }
       }
+      case 'list_equations': {
+        const listed = await bridge.listEquations()
+        const elsewhere =
+          listed.elsewhere > 0
+            ? `\n${listed.elsewhere} more equation(s) sit inside table cells, notes or text boxes, which these tools cannot reach.`
+            : ''
+        const lines = listed.equations.map(
+          (equation) =>
+            `${equation.equation}. (in "${equationPlace(equation)}") ${equation.script}`,
+        )
+        return {
+          output:
+            listed.count === 0
+              ? `This document has no equations in its body text.${elsewhere}`
+              : `${lines.join('\n')}${listed.count > listed.equations.length ? `\n[${listed.count - listed.equations.length} more not listed]` : ''}${elsewhere}`,
+          summary: label('aiToolEquations', { count: listed.count }),
+        }
+      }
+      case 'edit_equation': {
+        const number = call.input.equation
+        if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) {
+          return bad(call, 'equation must be an equation number from list_equations')
+        }
+        const remove = call.input.remove === true
+        const given = call.input.script
+        if (remove && isGiven(given)) {
+          return bad(call, 'Nothing was changed: give a new script or remove: true, not both.')
+        }
+        if (!remove && (typeof given !== 'string' || !given.trim())) {
+          return bad(call, 'Nothing was changed: give the new script, or remove: true.')
+        }
+        let script: string | null = null
+        if (!remove) {
+          const text = given as string
+          if (hasLineBreak(text)) {
+            return bad(
+              call,
+              'Nothing was changed: the script has a line break. A script is one line; rows go into matrix {…} or cases {…} with # between them.',
+            )
+          }
+          if (text.includes('\\')) return bad(call, latexHelp('the script'))
+          script = equationScript(text)
+        }
+        const outcome = await changeWithMemoApproval(
+          () => bridge.editEquation(number, script),
+          (options) => bridge.editEquation(number, script, options),
+        )
+        if (outcome.kind !== 'done')
+          return bad(call, memoRemovalDeclined(outcome.refusal, outcome.kind))
+        const result = outcome.result
+        if (!result.ok) {
+          return bad(
+            call,
+            result.count === 0
+              ? 'This document has no equations in its body text.'
+              : `There is no equation ${number}: the body text has ${result.count}. Call list_equations for the numbers.`,
+          )
+        }
+        deps.onChange({
+          kind: result.removed ? 'delete' : 'replace',
+          from: result.was,
+          to: result.removed ? '' : (script ?? ''),
+          count: 1,
+          place: result.place,
+        })
+        return {
+          output: result.removed
+            ? `Removed equation ${number} (${result.was}). Equations after it are numbered one lower.`
+            : `Changed equation ${number} from ${result.was} to ${script}.`,
+          mutated: true,
+          summary: label(result.removed ? 'aiToolEquationRemove' : 'aiToolEquationEdit', {
+            number,
+          }),
+        }
+      }
       case 'list_notes': {
         const listed = await bridge.listNotes()
         const elsewhere =
@@ -5515,10 +5620,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           }
           // the mark of LaTeX, which the equation editor does not read
           if (item.script.includes('\\')) {
-            return bad(
-              call,
-              `Nothing was changed: the script of equation ${index + 1} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum from {i=1} to {n}, LEFT ( ... RIGHT ).`,
-            )
+            return bad(call, latexHelp(`the script of equation ${index + 1}`))
           }
           items.push({
             find: item.find,

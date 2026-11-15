@@ -2073,6 +2073,73 @@ describe('equations, a diagonal, the page border, tab stops, the size of a pictu
     }
   })
 
+  it('lists the equations with the words round them, changes one and removes another', () => {
+    const lines = [
+      '넓이는 [[1]] 이다.',
+      '비는 [[2]] 이다.',
+      '근은 [[3]] 이다.',
+      '합은 [[4]] 이다.',
+      '원의 넓이는 [[5]] 이다.',
+    ]
+    const { plugin, doc, steps } = open(blank(lines))
+    expect(plugin.listEquations()).toEqual({ count: 0, elsewhere: 0, equations: [] })
+    plugin.insertEquations(
+      ['x^2', '{a} over {b}', 'sqrt {x}', 'x_1 + x_2', 'pi r^2'].map((script, index) => ({
+        find: `[[${index + 1}]]`,
+        script,
+      })),
+    )
+    const listed = plugin.listEquations()
+    expect(listed).toMatchObject({ count: 5, elsewhere: 0 })
+    expect(listed.equations[0]).toEqual({
+      equation: 1,
+      before: '넓이는 ',
+      after: ' 이다.',
+      script: 'x^2',
+    })
+    expect(listed.equations.map((equation) => equation.script)).toEqual([
+      'x^2',
+      '{a} over {b}',
+      'sqrt {x}',
+      'x_1 + x_2',
+      'pi r^2',
+    ])
+    const before = steps()
+    expect(plugin.editEquation(2, '{1} over {2}')).toMatchObject({
+      ok: true,
+      removed: false,
+      was: '{a} over {b}',
+    })
+    const second = equationsOf(doc())[1]
+    expect(
+      (
+        JSON.parse(doc().getEquationProperties(0, second.para, second.controlIndex, -1, -1)) as {
+          script: string
+        }
+      ).script,
+    ).toBe('{1} over {2}')
+    expect(plugin.editEquation(4, null)).toMatchObject({
+      ok: true,
+      removed: true,
+      was: 'x_1 + x_2',
+    })
+    expect(steps()).toBe(before + 2)
+    expect(textOf(doc(), 3)).toBe('합은  이다.')
+    expect(plugin.listEquations().equations.map((equation) => equation.script)).toEqual([
+      'x^2',
+      '{1} over {2}',
+      'sqrt {x}',
+      'pi r^2',
+    ])
+    for (const saved of [doc().exportHwpx(), doc().exportHwp()]) {
+      expect(equationsOf(new HwpDocument(saved))).toHaveLength(4)
+    }
+    // the line that held it holds no object now, so it can go
+    expect(plugin.deleteParagraph('합은', null)).toMatchObject({ ok: true })
+    expect(plugin.editEquation(9, 'x')).toEqual({ ok: false, reason: 'no_such_equation', count: 4 })
+    expect(() => plugin.editEquation(1, 'x\ny')).toThrow(/one line/)
+  })
+
   it('keeps the text when asked to, and leaves the document alone when one cannot be placed', () => {
     const { plugin, doc, steps } = withTable(false)
     const before = steps()

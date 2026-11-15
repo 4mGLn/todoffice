@@ -25,6 +25,7 @@ const TARGET_ARGS = [
   'table',
   'field',
   'note',
+  'equation',
   'picture',
   'name',
   'title',

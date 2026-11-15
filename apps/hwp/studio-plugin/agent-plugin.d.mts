@@ -1269,6 +1269,26 @@ export type AgentFormatLookResult =
   | { ok: false; reason: 'has_objects'; count: number }
   | AgentMemoRemovalRefusal
 
+/** An equation of the body text: its number, the words on either side of it, its script. */
+export interface AgentListedEquation {
+  equation: number
+  before: string
+  after: string
+  script: string
+}
+
+export interface AgentEquationList {
+  count: number
+  /** equations inside table cells, notes or text boxes, which these tools do not reach */
+  elsewhere: number
+  equations: AgentListedEquation[]
+}
+
+export type AgentEditEquationResult =
+  /** `was` is the script the equation had */
+  | { ok: true; removed: boolean; was: string; place: AgentPlace }
+  | { ok: false; reason: 'no_such_equation'; count: number }
+
 export interface AgentNoteList {
   count: number
   /** notes inside table cells or text boxes, which have no address here */
@@ -1663,6 +1683,14 @@ export interface AgentPluginSurface {
     options?: AgentChangeOptions,
   ): AgentRefreshTocResult
   listNotes(): AgentNoteList
+  /** the equations of the body text, numbered for editEquation */
+  listEquations(): AgentEquationList
+  /** a new script for an equation of listEquations, or null to remove it */
+  editEquation(
+    equation: number,
+    script: string | null,
+    options?: AgentChangeOptions,
+  ): AgentEditEquationResult
   insertNote(
     kind: AgentNoteKind,
     anchor: string,

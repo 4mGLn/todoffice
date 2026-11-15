@@ -85,6 +85,8 @@ const METHODS = [
   'insertBreak',
   'setPageBorder',
   'insertEquations',
+  'listEquations',
+  'editEquation',
   'resizePicture',
   'setPageNumber',
   'setHeaderFooter',
