@@ -68,7 +68,7 @@ async function asAiJob<T>(
 export function registerMindmapImageIpc(options: MindmapImageIpcOptions): void {
   ipcMain.handle(
     MINDMAP_CHANNELS.aiGenerateImage,
-    (e, op: { prompt?: unknown; aspectRatio?: unknown }) => {
+    (e, op: { prompt?: unknown; aspectRatio?: unknown; model?: unknown }) => {
       const refusal = aiOffRefusal(e.sender.id)
       if (refusal) return { error: refusal }
       // ends with its tab, or when the tab's AI run is stopped
@@ -78,6 +78,8 @@ export function registerMindmapImageIpc(options: MindmapImageIpcOptions): void {
           {
             prompt: String(op?.prompt ?? ''),
             aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
+            // passed through as given; generateImageTool decides what the name means
+            model: op?.model ? String(op.model) : undefined,
           },
           {
             mediaRoots: documentMediaRoots(options.filePathOf(e.sender.id), options.pastedImageDir),

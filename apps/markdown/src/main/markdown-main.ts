@@ -1497,7 +1497,7 @@ function registerMarkdownIpc(): void {
   // shell-registered, but image generation is gated per app
   ipcMain.handle(
     MARKDOWN_CHANNELS.aiGenerateImage,
-    (e, op: { prompt?: unknown; aspectRatio?: unknown }) =>
+    (e, op: { prompt?: unknown; aspectRatio?: unknown; model?: unknown }) =>
       // refused while AI is off, else one running AI job; ends with its tab,
       // or when the tab's AI run is stopped
       aiImageCall(e.sender.id, () =>
@@ -1507,6 +1507,8 @@ function registerMarkdownIpc(): void {
             {
               prompt: String(op?.prompt ?? ''),
               aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
+              // passed through as given; generateImageTool decides what the name means
+              model: op?.model ? String(op.model) : undefined,
             },
             // markdown keeps pasted/picked images as doc-relative assets, so the
             // open document's own directory is the media root

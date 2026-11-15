@@ -4007,7 +4007,7 @@ export function registerSheetsIpc(): void {
   // owns its channel the way pdf does.
   ipcMain.handle(
     IPC_CHANNELS.aiGenerateImage,
-    (event, op: { prompt?: unknown; aspectRatio?: unknown }) =>
+    (event, op: { prompt?: unknown; aspectRatio?: unknown; model?: unknown }) =>
       // ends with its tab, or when the tab's AI run is stopped; refused while AI is turned off
       screenMediaCall(
         event.sender,
@@ -4017,6 +4017,8 @@ export function registerSheetsIpc(): void {
             {
               prompt: String(op?.prompt ?? ''),
               ...(op?.aspectRatio ? { aspectRatio: String(op.aspectRatio) } : {}),
+              // passed through as given; generateImageTool decides what the name means
+              ...(op?.model ? { model: String(op.model) } : {}),
             },
             {
               mediaRoots: sheetsMediaRoots(event.sender.id),

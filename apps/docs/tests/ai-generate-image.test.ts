@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { editorExtensions } from '../src/renderer/editor/extensions'
-import { executeTool } from '../src/renderer/ai/tools'
+import { AGENT_TOOLS, executeTool } from '../src/renderer/ai/tools'
+import { createDocsSkill } from '../src/renderer/ai/docs-skill'
 
 const editors = new Set<Editor>()
 afterEach(() => {
@@ -114,5 +115,44 @@ describe('generate_image', () => {
       { prompt: 'a watercolor fox', aspectRatio: '16:9' },
     )
     expect(received).toEqual({ prompt: 'a watercolor fox', aspectRatio: '16:9' })
+  })
+
+  it('passes a model the user named through to the channel', async () => {
+    let received: unknown = null
+    await runWithDesktop(
+      {
+        aiGenerateImage: (op: unknown) => {
+          received = op
+          return Promise.resolve({ error: 'stop here' })
+        },
+      },
+      { prompt: 'a watercolor fox', model: 'gpt-image-2' },
+    )
+    expect(received).toEqual({ prompt: 'a watercolor fox', model: 'gpt-image-2' })
+  })
+
+  it('offers model as an optional input', () => {
+    const tool = AGENT_TOOLS.find((t) => t.name === 'generate_image')!
+    expect(tool.inputSchema.properties).toHaveProperty('model')
+    expect(tool.inputSchema.required).toEqual(['prompt'])
+  })
+})
+
+describe('generate_image while no image route exists', () => {
+  it('is hidden, and the note tells the model the ChatGPT plan path', () => {
+    const skill = createDocsSkill(
+      () => createEditor(),
+      () => NUM_IDS,
+      undefined,
+      undefined,
+      undefined,
+      () => false,
+    )
+    expect(skill.tools.map((t) => t.name)).not.toContain('generate_image')
+    expect(skill.systemPrompt).toContain('generate_image is currently unavailable')
+    expect(skill.systemPrompt).toContain(
+      'Codex program signed in with the same ChatGPT account (Settings > AI > Codex)',
+    )
+    expect(skill.systemPrompt).toContain('OpenAI does not allow it')
   })
 })

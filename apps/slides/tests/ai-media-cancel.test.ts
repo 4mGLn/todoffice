@@ -141,3 +141,17 @@ describe.each(CALLS)('$channel, cancelling', ({ channel, tool, op, done }) => {
     await stopped.result
   })
 })
+
+describe('ai:generate-image, model', () => {
+  it('hands a model the user named to the tool unchanged', async () => {
+    generateImageTool.mockResolvedValue({ url: 'file:///fake/out.png' })
+    await handlers.get('ai:generate-image')!(
+      { sender: new FakeContents() },
+      { prompt: 'a red kite', model: 'gpt-image-2' },
+    )
+    expect(generateImageTool.mock.calls.at(-1)![1]).toMatchObject({
+      prompt: 'a red kite',
+      model: 'gpt-image-2',
+    })
+  })
+})
