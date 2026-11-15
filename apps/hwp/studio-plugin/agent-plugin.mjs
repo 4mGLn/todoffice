@@ -57,6 +57,7 @@ import {
   tableLookBlocks,
   textColorOnFill,
   titleBoxCells,
+  titleBoxLookOf,
 } from './document-looks.mjs'
 import { equationSvgForThisPc } from './equation-fonts.mjs'
 import { fontOnPc, missingFonts, setMissingFontLabels, whenPcFontsSettled } from './pc-fonts.mjs'
@@ -3492,6 +3493,72 @@ function titleBoxOf(spec) {
     standIns,
     textColorDropped,
   }
+}
+
+/**
+ * The box round a text of a table cell that insertTitleBox makes again: a table of the
+ * body of one column, alone in its paragraph, whose only text is the one paragraph of the
+ * cell `hit` is in. A title box is one, and so is a one-cell box the user made; their
+ * cells are alike, so the two are not told apart. Its control, the text and the look of
+ * its first character, and its look as titleBoxLookOf reads it. Null for any other table.
+ */
+function boxAround(doc, hit) {
+  const path = cellPathOf(hit)
+  if (path.length !== 1) return null
+  const { sec, para } = hit
+  const control = path[0].controlIndex
+  const dims = parse(doc.getTableDimensions(sec, para, control))
+  if (dims.colCount !== 1 || doc.getParagraphLength(sec, para) !== 0) return null
+  const objects =
+    sec === 0
+      ? parse(doc.getControls()).filter(
+          (one) => one.list === 0 && one.para === para && !PAGE_CONTROLS.has(one.ctrlId),
+        ).length
+      : containerOf(doc, { sec, para }).objectPositions(para).length
+  if (objects !== 1) return null
+  const textOf = (cell, k) => {
+    const length = doc.getCellParagraphLength(sec, para, control, cell, k)
+    return length > 0 ? doc.getTextInCell(sec, para, control, cell, k, 0, length) : ''
+  }
+  let title = null
+  for (let cell = 0; cell < dims.cellCount; cell++) {
+    const paragraphs = doc.getCellParagraphCount(sec, para, control, cell)
+    const text = Array.from({ length: paragraphs }, (_, k) => textOf(cell, k)).join('')
+    if (!text.trim()) continue
+    if (title !== null || paragraphs !== 1 || cell !== path[0].cellIndex) return null
+    title = cell
+  }
+  if (title === null) return null
+  const text = textOf(title, 0)
+  if (CONTROL_CHARS.test(text)) return null
+  const cells = Array.from({ length: dims.cellCount }, (_, cell) =>
+    parse(doc.getCellProperties(sec, para, control, cell)),
+  )
+  return {
+    sec,
+    para,
+    control,
+    text,
+    chars: parse(doc.getCellCharPropertiesAt(sec, para, control, title, 0, 0)),
+    look: titleBoxLookOf(cells),
+  }
+}
+
+/**
+ * What a title box made again round `around` looks like: the look and colours the call
+ * gives, else the ones the box has. A change of look without a colour takes that look's
+ * own colour.
+ */
+function restyleOf(spec, around) {
+  const given = spec ?? {}
+  const was = around.look
+  const look = given.look ?? was?.look
+  const keep = was && look === was.look && given.color == null && given.color2 == null
+  return titleBoxOf({
+    ...given,
+    ...(look ? { look } : {}),
+    ...(keep ? { color: was.color, color2: was.color2 } : {}),
+  })
 }
 
 /**
@@ -8668,7 +8735,7 @@ export const agentPlugin = {
        * object of the document; nothing that was there may be gone. One undo step.
        */
       insertTitleBox: guarded((find, occurrence, spec, options) => {
-        const wanted = titleBoxOf(spec)
+        const asked = titleBoxOf(spec)
         const plan = (doc) => {
           const hits = searchAll(doc, find)
           const picked = pickHit(hits, occurrence)
@@ -8682,13 +8749,19 @@ export const agentPlugin = {
           })
           if (!picked.hit) return refuse(picked.reason)
           if (!isReplaceable(picked.hit)) return refuse('unsupported_place')
-          if (cellPathOf(picked.hit)) return refuse('in_table')
+          if (cellPathOf(picked.hit)) {
+            // the text of a box already there: the box is made again round it
+            const around = boxAround(doc, picked.hit)
+            if (!around) return refuse('in_table')
+            const box = containerOf(doc, { sec: around.sec, para: around.para })
+            return { box, text: around.text, length: 0, around, wanted: restyleOf(spec, around) }
+          }
           const box = containerOf(doc, picked.hit)
           if (holdsContentObject(doc, picked.hit.sec, box)) return refuse('has_objects')
           const length = box.length(box.index)
           const text = box.text(box.index, length)
           if (!text.trim()) return refuse('not_found')
-          return { box, text, length }
+          return { box, text, length, around: null, wanted: asked }
         }
         const refusal = host.read((doc) => plan(doc).refusal ?? null)
         if (refusal) return refusal
@@ -8696,14 +8769,22 @@ export const agentPlugin = {
           change(
             'insert-title-box',
             (doc) => {
-              const { box, text, length } = plan(doc)
+              const { box, text, length, around, wanted } = plan(doc)
               if (!box) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
               const k = box.index
               const { sec } = box.place(k, 0)
               // the look the title has now goes into the box with it
-              const now = parse(doc.getCharPropertiesAt(sec, k, 0))
+              const now = around ? around.chars : parse(doc.getCharPropertiesAt(sec, k, 0))
               const points = Number(now.fontSize) / 100
+              const carried =
+                typeof now.textColor === 'string' && HEX_COLOR.test(now.textColor)
+                  ? now.textColor
+                  : null
+              // words made white on the fill of the old box would not show on the new one
+              const behind = wanted.look === 'shaded' ? wanted.color : '#ffffff'
+              const shows = carried && contrastRatio(carried, behind) >= MIN_TEXT_CONTRAST
+              const color = carried && (shows || !around) ? carried : around ? '#000000' : null
               const look = formatOf(
                 {
                   ...(typeof now.fontFamily === 'string' && now.fontFamily
@@ -8711,9 +8792,7 @@ export const agentPlugin = {
                     : {}),
                   ...(points >= MIN_FONT_PT && points <= MAX_FONT_PT ? { size: points } : {}),
                   bold: now.bold === true,
-                  ...(typeof now.textColor === 'string' && HEX_COLOR.test(now.textColor)
-                    ? { color: now.textColor }
-                    : {}),
+                  ...(color ? { color } : {}),
                   ...(wanted.text ?? {}),
                 },
                 false,
@@ -8723,7 +8802,12 @@ export const agentPlugin = {
                 : null
               if (whitened) look.chars = { ...look.chars, textColor: whitened }
               const titlePoints = look.chars?.fontSize ? look.chars.fontSize / 100 : points
-              box.deleteText(k, length)
+              if (around) {
+                expectOk(
+                  doc.deleteTableControl(sec, k, around.control),
+                  'take the old box away',
+                )
+              } else box.deleteText(k, length)
               const layout = titleBoxCells(wanted.look, wanted.color, wanted.color2)
               // where the text runs in columns the box is as wide as one of them
               const inColumns = columnsOf(doc, sec).count > 1
@@ -8835,6 +8919,7 @@ export const agentPlugin = {
                 ok: true,
                 look: wanted.look,
                 rows: layout.rows,
+                ...(around ? { restyled: true } : {}),
                 place: box.place(k, 0),
                 ...tableNumberOf(doc, sec, k, control),
                 ...(wanted.textColorDropped ? { textColorDropped: true } : {}),

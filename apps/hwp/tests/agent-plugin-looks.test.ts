@@ -581,6 +581,84 @@ describe('insertTitleBox', () => {
     }
   })
 
+  it('makes a title box again in place when called on its text, keeping what the call leaves out', () => {
+    const { plugin, doc, steps } = open()
+    plugin.formatParagraph(TITLE, null, { size: 18, bold: true })
+    plugin.insertTitleBox(TITLE, null, { look: 'bands', color: '#1F3864', color2: '#C00000' })
+    const before = steps()
+    // a colour only: the bands stay, both of them in the new colour
+    expect(plugin.insertTitleBox(TITLE, null, { color: '#1B5E20' })).toMatchObject({
+      ok: true,
+      look: 'bands',
+      restyled: true,
+      table: 1,
+      tables: 1,
+    })
+    expect(steps()).toBe(before + 1)
+    let table = tableIn(doc(), 0)
+    expect([table.rows, table.cell(0).fillColor, table.cell(2).fillColor]).toEqual([
+      3,
+      '#1b5e20',
+      '#1b5e20',
+    ])
+    const chars = JSON.parse(doc().getCellCharPropertiesAt(0, 0, table.control, 1, 0, 0)) as {
+      fontSize: number
+      bold: boolean
+    }
+    expect(chars).toMatchObject({ fontSize: 1800, bold: true })
+    // a size only: the look and its colour stay
+    plugin.insertTitleBox(TITLE, null, { size: 22 })
+    table = tableIn(doc(), 0)
+    expect([table.rows, table.cell(0).fillColor]).toEqual([3, '#1b5e20'])
+    // another look: one cell, in that look's colour, the words still there and the rest in place
+    expect(plugin.insertTitleBox(TITLE, null, { look: 'lines' })).toMatchObject({
+      ok: true,
+      look: 'lines',
+      restyled: true,
+    })
+    table = tableIn(doc(), 0)
+    expect([table.rows, table.cell(0).borderTop.type, table.cell(0).borderTop.color]).toEqual([
+      1,
+      1,
+      '#000000',
+    ])
+    expect(doc().getTextInCell(0, 0, table.control, 0, 0, 0, TITLE.length)).toBe(TITLE)
+    expect(doc().getTextRange(0, 1, 0, 7)).toBe('□ 추진 배경')
+    expect(plugin.listTables().tables).toHaveLength(1)
+    for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
+      expect(tableIn(new HwpDocument(bytes), 0).rows).toBe(1)
+    }
+  })
+
+  it('gives the words of a dark shaded box back their black on a box without the fill', () => {
+    const { plugin, doc } = open()
+    expect(plugin.insertTitleBox(TITLE, null, { look: 'shaded', color: '#1F3864' })).toMatchObject(
+      { ok: true, textColor: '#ffffff' },
+    )
+    plugin.insertTitleBox(TITLE, null, { look: 'box' })
+    const table = tableIn(doc(), 0)
+    const chars = JSON.parse(doc().getCellCharPropertiesAt(0, 0, table.control, 0, 0, 0)) as {
+      textColor: string
+    }
+    expect(chars.textColor).toBe('#000000')
+  })
+
+  it('makes a one-cell box of the user a title box too, and leaves a box of two texts alone', () => {
+    const { plugin, doc, steps } = open()
+    plugin.insertTable('□ 세부 일정', null, 'after', [['안전 교육은 출발 전날에 합니다.']])
+    expect(
+      plugin.insertTitleBox('안전 교육은', null, { look: 'shaded', color: '#E7EDF5' }),
+    ).toMatchObject({ ok: true, restyled: true, table: 1, look: 'shaded' })
+    expect(tableIn(doc(), 5).cell(0).fillColor).toBe('#e7edf5')
+    plugin.insertTable('□ 세부 일정', null, 'after', [['첫째 칸 글'], ['둘째 칸 글']])
+    const before = steps()
+    expect(plugin.insertTitleBox('첫째 칸 글', null, { look: 'box' })).toMatchObject({
+      ok: false,
+      reason: 'in_table',
+    })
+    expect(steps()).toBe(before)
+  })
+
   it('refuses text in a table cell and a look it does not know', () => {
     const { plugin, steps } = withTable()
     const before = steps()

@@ -810,7 +810,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_title_box',
     edits: true,
     description:
-      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. One undo step.',
+      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. Called on the text of a title box (or of any one-column box whose only text it is), it makes that box again in place, and what you leave out stays as it is (a new look given without a colour takes the default colour of that look). One undo step.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -5286,7 +5286,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           return bad(
             call,
             result.reason === 'in_table'
-              ? 'Nothing was changed: that text is inside a table cell, and a title box is made from a paragraph of the body text.'
+              ? 'Nothing was changed: that text is inside a table cell, and a title box is made from a paragraph of the body text or from the only text of a one-column box.'
               : placeRefusal(result),
           )
         }
@@ -5297,8 +5297,11 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: 1,
           place: result.place,
         })
+        const made = result.restyled
+          ? `The text was in a box already: restyled the box round it (table ${result.table}) as a ${result.look} title box; no table was added.`
+          : `Made the title a ${result.look} title box.${tableNumberNote(result)}`
         return {
-          output: `Made the title a ${result.look} title box.${tableNumberNote(result)}${titleColourNote(result)}${standInNote(result.standIn)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
+          output: `${made}${titleColourNote(result)}${standInNote(result.standIn)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
           mutated: true,
           summary: label('aiToolTitleBox'),
         }

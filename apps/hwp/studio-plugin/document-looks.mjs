@@ -257,6 +257,38 @@ export function titleBoxCells(look, color, color2) {
   }
 }
 
+/**
+ * The look of a title box read back from the properties of its cells (getCellProperties,
+ * top to bottom), as titleBoxCells would have drawn it: `{ look, color, color2 }`, color2
+ * null where both are one colour. Null for cells no look of titleBoxCells draws.
+ */
+export function titleBoxLookOf(cells) {
+  const drawn = (line) => Boolean(line) && line.type !== 0
+  const second = (one, other) => (other && other !== one ? other : null)
+  if (cells.length === 3) {
+    const [top, , bottom] = cells
+    if (top.fillType !== 'solid' || bottom.fillType !== 'solid') return null
+    return { look: 'bands', color: top.fillColor, color2: second(top.fillColor, bottom.fillColor) }
+  }
+  if (cells.length !== 1) return null
+  const [cell] = cells
+  if (cell.fillType === 'solid') {
+    return {
+      look: 'shaded',
+      color: cell.fillColor,
+      color2: drawn(cell.borderTop) ? cell.borderTop.color : null,
+    }
+  }
+  if (drawn(cell.borderLeft) && drawn(cell.borderTop)) {
+    return { look: 'box', color: cell.borderTop.color, color2: null }
+  }
+  if (drawn(cell.borderTop) && drawn(cell.borderBottom)) {
+    const color = cell.borderTop.color
+    return { look: 'lines', color, color2: second(color, cell.borderBottom.color) }
+  }
+  return null
+}
+
 /** The colours a title box takes when none is given: the main one, by look. */
 export const TITLE_BOX_COLORS = {
   bands: '#1f3864',

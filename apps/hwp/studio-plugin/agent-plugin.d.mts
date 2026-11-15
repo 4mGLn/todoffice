@@ -243,6 +243,8 @@ export type AgentTitleBoxResult =
       look: string
       /** the rows of the box: the title's and any bands */
       rows: number
+      /** the text was in a one-column box already, and that box was made again in this look */
+      restyled?: true
       place: AgentPlace
       /** the box's number, as listTables numbers tables, and how many tables there are now */
       table?: number
@@ -254,7 +256,7 @@ export type AgentTitleBoxResult =
       standIn?: AgentStandInFont[]
     }
   | AgentPlaceRefusal
-  /** the title is inside a table cell, where a box cannot be made */
+  /** the title is inside a table cell, and not the only text of a one-column box */
   | { ok: false; reason: 'in_table'; count: number }
 
 /** Which fonts Korean documents use this PC has and lacks; both are empty when that is not known. */

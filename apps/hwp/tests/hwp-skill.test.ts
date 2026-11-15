@@ -3047,6 +3047,25 @@ describe('the look of a document', () => {
     expect(result.output).toContain('inside a table cell')
   })
 
+  it('names the box it made again round the text', async () => {
+    const { call } = setup({
+      insertTitleBox: vi.fn(async () => ({
+        ok: true as const,
+        look: 'lines',
+        rows: 1,
+        restyled: true as const,
+        table: 2,
+        tables: 3,
+        place: PLACE,
+      })),
+    })
+    const result = await call('insert_title_box', { find: '운영 계획', look: 'lines' })
+    expect(result.output).toBe(
+      'The text was in a box already: restyled the box round it (table 2) as a lines title box; no table was added.',
+    )
+    expect(result.mutated).toBe(true)
+  })
+
   it('numbers the pages and writes a footer', async () => {
     const { call, changes, bridge } = setup()
     const numbered = await call('set_page_number', { position: 'bottom_center', dashes: true })
