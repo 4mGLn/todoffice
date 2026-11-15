@@ -229,7 +229,9 @@ function printPageOf(doc, page, screen) {
 }
 /**
  * How a mark looks: a light fill over the changed text and a line under it, warm so it is
- * not taken for the editor's blue selection. The page is paper white in every theme.
+ * not taken for the editor's blue selection. The page is paper white in every theme, so these
+ * are the light values of the app's `--color-ai-changed-bg` and `--color-ai-changed-line`:
+ * the editor's frame does not load the app's tokens (a test keeps the two the same).
  */
 const MARK_FILL = 'rgba(255, 193, 7, 0.24)'
 const MARK_LINE = 'rgba(214, 140, 0, 0.85)'
@@ -11807,6 +11809,12 @@ export const agentPlugin = {
         refreshMarks()
         return { ok: true }
       }),
+
+      /**
+       * Whether the pages carry marks of changes now. They go by themselves when the user
+       * edits the document, and the AI panel asks so its button to clear them goes too.
+       */
+      hasMarks: guarded(() => ({ ok: true, shown: marks.length > 0 })),
 
       /**
        * How the editor lays out the tabs a save found without a width (`spots`, from the

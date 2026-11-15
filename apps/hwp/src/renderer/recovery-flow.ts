@@ -208,6 +208,7 @@ const READING_CALLS: ReadonlySet<string> = new Set([
   'previewPage',
   'reveal',
   'clearMarks',
+  'hasMarks',
   'installFileMenu',
 ])
 

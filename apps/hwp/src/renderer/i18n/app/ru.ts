@@ -199,7 +199,6 @@ export const ru = {
   aiTableRowsRemoved: 'Удалено строк: {count}',
   aiTableColsRemoved: 'Удалено столбцов: {count}',
   aiTableRemoved: 'Таблица удалена',
-  aiShowChange: 'Показать это место в документе',
   aiAttachTitle: 'Прикрепить локальные файлы (или перетащите их на панель)',
   aiRemoveAttachmentTitle: 'Удалить вложение',
   aiSumReadAttachment: 'Чтение вложения',
@@ -215,12 +214,6 @@ export const ru = {
   aiUnfinishedSteps: 'Незавершённые шаги: {n}',
   aiUnfinishedNote:
     'Эти шаги не были применены к документу. Проверьте эти места, даже если в ответе сказано, что всё готово.',
-  aiChangesTitle: 'Изменений в документе: {count}',
-  aiClearMarks: 'Скрыть отметки',
-  aiRevert: 'Отменить эти изменения',
-  aiReverted: 'Изменения отменены',
-  aiRevertRefused:
-    'Не удалось отменить эти изменения разом. Если документ после этого редактировался, используйте отмену в редакторе (Ctrl+Z).',
   memoTitle: 'Примечания',
   memoOpen: 'Примечания',
   memoAdd: 'Добавить примечание',

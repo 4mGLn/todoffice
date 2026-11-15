@@ -198,7 +198,6 @@ export const hi = {
   aiTableRowsRemoved: '{count} पंक्तियाँ हटाई गईं',
   aiTableColsRemoved: '{count} स्तंभ हटाए गए',
   aiTableRemoved: 'तालिका हटाई गई',
-  aiShowChange: 'दस्तावेज़ में यह स्थान दिखाएँ',
   aiAttachTitle: 'स्थानीय फ़ाइलें संलग्न करें (या उन्हें पैनल पर खींचें)',
   aiRemoveAttachmentTitle: 'अनुलग्नक हटाएँ',
   aiSumReadAttachment: 'अनुलग्नक पढ़ें',
@@ -214,12 +213,6 @@ export const hi = {
   aiUnfinishedSteps: 'अधूरे चरण: {n}',
   aiUnfinishedNote:
     'ये चरण दस्तावेज़ पर लागू नहीं हुए। जवाब में काम पूरा बताया गया हो, तब भी इन हिस्सों को जाँच लें।',
-  aiChangesTitle: 'दस्तावेज़ में बदलाव: {count}',
-  aiClearMarks: 'चिह्न छिपाएँ',
-  aiRevert: 'ये बदलाव वापस लें',
-  aiReverted: 'बदलाव वापस लिए गए',
-  aiRevertRefused:
-    'ये बदलाव एक साथ वापस नहीं लिए जा सके। अगर उसके बाद दस्तावेज़ संपादित हुआ है, तो संपादक का पूर्ववत करें (Ctrl+Z) इस्तेमाल करें।',
   memoTitle: 'टिप्पणियाँ',
   memoOpen: 'टिप्पणियाँ',
   memoAdd: 'टिप्पणी जोड़ें',

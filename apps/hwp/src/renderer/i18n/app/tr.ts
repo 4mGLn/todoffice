@@ -197,7 +197,6 @@ export const tr = {
   aiTableRowsRemoved: '{count} satır kaldırıldı',
   aiTableColsRemoved: '{count} sütun kaldırıldı',
   aiTableRemoved: 'tablo kaldırıldı',
-  aiShowChange: 'Bu yeri belgede göster',
   aiAttachTitle: 'Yerel dosya ekle (veya panelin üzerine sürükleyin)',
   aiRemoveAttachmentTitle: 'Eki kaldır',
   aiSumReadAttachment: 'Ek okundu',
@@ -213,12 +212,6 @@ export const tr = {
   aiUnfinishedSteps: 'Tamamlanmamış adımlar: {n}',
   aiUnfinishedNote:
     'Bu adımlar belgeye uygulanmadı. Yanıt işin bittiğini söylese bile bu bölümleri denetleyin.',
-  aiChangesTitle: 'Belgede yapılan değişiklikler: {count}',
-  aiClearMarks: 'İşaretleri gizle',
-  aiRevert: 'Bu değişiklikleri geri al',
-  aiReverted: 'Değişiklikler geri alındı',
-  aiRevertRefused:
-    'Bu değişiklikler birlikte geri alınamadı. Belge daha sonra düzenlendiyse düzenleyicinin kendi Geri Al işlevini (Ctrl+Z) kullanın.',
   memoTitle: 'Notlar',
   memoOpen: 'Notlar',
   memoAdd: 'Not ekle',

@@ -200,7 +200,6 @@ export const it = {
   aiTableRowsRemoved: '{count} riga/righe rimossa/e',
   aiTableColsRemoved: '{count} colonna/e rimossa/e',
   aiTableRemoved: 'tabella rimossa',
-  aiShowChange: 'Mostra questo punto nel documento',
   aiAttachTitle: 'Allega file locali (o trascinali sul pannello)',
   aiRemoveAttachmentTitle: 'Rimuovi allegato',
   aiSumReadAttachment: 'Lettura allegato',
@@ -216,12 +215,6 @@ export const it = {
   aiUnfinishedSteps: 'Passaggi non completati: {n}',
   aiUnfinishedNote:
     'Questi passaggi non sono stati applicati al documento. Controlla queste parti anche se la risposta dice che è fatto.',
-  aiChangesTitle: 'Modifiche apportate al documento: {count}',
-  aiClearMarks: 'Nascondi segni',
-  aiRevert: 'Annulla queste modifiche',
-  aiReverted: 'Modifiche annullate',
-  aiRevertRefused:
-    'Non è stato possibile annullare queste modifiche in un colpo solo. Se il documento è stato modificato in seguito, usa Annulla dell’editor (Ctrl+Z).',
   memoTitle: 'Commenti',
   memoOpen: 'Commenti',
   memoAdd: 'Aggiungi commento',

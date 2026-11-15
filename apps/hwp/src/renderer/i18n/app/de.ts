@@ -201,7 +201,6 @@ export const de = {
   aiTableRowsRemoved: '{count} Zeile(n) entfernt',
   aiTableColsRemoved: '{count} Spalte(n) entfernt',
   aiTableRemoved: 'Tabelle entfernt',
-  aiShowChange: 'Diese Stelle im Dokument anzeigen',
   aiAttachTitle: 'Lokale Dateien anhängen (oder auf den Bereich ziehen)',
   aiRemoveAttachmentTitle: 'Anlage entfernen',
   aiSumReadAttachment: 'Anlage lesen',
@@ -217,12 +216,6 @@ export const de = {
   aiUnfinishedSteps: 'Nicht abgeschlossene Schritte: {n}',
   aiUnfinishedNote:
     'Diese Schritte wurden nicht auf das Dokument angewendet. Prüfen Sie diese Stellen, auch wenn die Antwort sagt, dass alles erledigt ist.',
-  aiChangesTitle: 'Änderungen am Dokument: {count}',
-  aiClearMarks: 'Markierungen ausblenden',
-  aiRevert: 'Diese Änderungen zurücknehmen',
-  aiReverted: 'Änderungen zurückgenommen',
-  aiRevertRefused:
-    'Diese Änderungen konnten nicht zusammen zurückgenommen werden. Wurde das Dokument danach bearbeitet, verwenden Sie „Rückgängig“ im Editor (Ctrl+Z).',
   memoTitle: 'Kommentare',
   memoOpen: 'Kommentare',
   memoAdd: 'Kommentar hinzufügen',

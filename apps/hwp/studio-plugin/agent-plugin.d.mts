@@ -1808,6 +1808,8 @@ export interface AgentPluginSurface {
   ): AgentHeaderFooterResult
   /** take the marks of the changes made so far off the pages */
   clearMarks(): { ok: true }
+  /** whether the pages carry marks of changes now (a user edit takes them off) */
+  hasMarks(): { ok: true; shown: boolean }
   undo(steps: number, expectedForeign: number): AgentUndoResult
   /** the memos of the document in document order, with their pages and anchor rectangles */
   listMemos(): AgentMemoList

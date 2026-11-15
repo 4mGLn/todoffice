@@ -147,3 +147,4 @@
 | [0148](0148-openrouter-free-picker-lists-new-free-models.md)  | OpenRouter 무료 연결의 선택기는 시험된 모델 뒤에 OpenRouter가 새로 내놓은 무료 모델도 보인다         | 2026-11-15 |
 | [0149](0149-settings-in-app-menu-and-comma-key.md)            | 설정과 업데이트 확인을 Mac 앱 이름 메뉴에 두고, ⌘,·Ctrl+,로 설정을 연다(워드 탭 빼고)                | 2026-11-15 |
 | [0150](0150-map-edit-from-command-line.md)                    | 터미널 명령어로 마인드맵을 읽고 고치고 만든다. 고치기는 앱 편집과 같은 길을 탄다                     | 2026-11-15 |
+| [0151](0151-one-ai-changes-card-and-marks.md)                 | AI가 문서를 고친 차례는 모든 편집기에서 같은 카드와 같은 노란 표시로 알린다                          | 2026-11-16 |

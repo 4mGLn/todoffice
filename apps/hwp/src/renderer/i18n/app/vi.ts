@@ -197,7 +197,6 @@ export const vi = {
   aiTableRowsRemoved: 'Đã xóa {count} hàng',
   aiTableColsRemoved: 'Đã xóa {count} cột',
   aiTableRemoved: 'Đã xóa bảng',
-  aiShowChange: 'Hiển thị vị trí này trong tài liệu',
   aiAttachTitle: 'Đính kèm tệp cục bộ (hoặc kéo thả vào bảng điều khiển)',
   aiRemoveAttachmentTitle: 'Xóa tệp đính kèm',
   aiSumReadAttachment: 'Đọc tệp đính kèm',
@@ -213,12 +212,6 @@ export const vi = {
   aiUnfinishedSteps: 'Bước chưa hoàn thành: {n}',
   aiUnfinishedNote:
     'Các bước này chưa được áp dụng vào tài liệu. Hãy kiểm tra những phần này dù câu trả lời nói rằng đã xong.',
-  aiChangesTitle: 'Thay đổi trong tài liệu: {count}',
-  aiClearMarks: 'Ẩn đánh dấu',
-  aiRevert: 'Hoàn tác các thay đổi này',
-  aiReverted: 'Đã hoàn tác thay đổi',
-  aiRevertRefused:
-    'Không thể hoàn tác các thay đổi này cùng lúc. Nếu tài liệu đã được sửa sau đó, hãy dùng Hoàn tác của trình soạn thảo (Ctrl+Z).',
   memoTitle: 'Ghi chú',
   memoOpen: 'Ghi chú',
   memoAdd: 'Thêm ghi chú',
