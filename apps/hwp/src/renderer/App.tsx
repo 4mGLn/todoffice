@@ -512,6 +512,7 @@ export default function App() {
     if (!frame) return
     void agentBridge
       .installFileMenu({
+        open: t('fileOpen'),
         save: t('fileSave'),
         saveAs: t('fileSaveAs'),
         importPdf: t('fileImportPdf'),
@@ -523,6 +524,7 @@ export default function App() {
     const onCommand = (event: Event) => {
       const command = (event as CustomEvent<unknown>).detail
       if (
+        command === 'open' ||
         command === 'save' ||
         command === 'saveAs' ||
         command === 'importPdf' ||
