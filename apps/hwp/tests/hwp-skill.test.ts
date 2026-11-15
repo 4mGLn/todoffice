@@ -3903,6 +3903,7 @@ describe('the skill as the model sees it', () => {
     expect(skill).toContain(
       "one column wide where it can read that column's width, and refuses where it cannot",
     )
+    expect(skill).toContain('Then give the line under the box `space_before` 6')
     const { page, columns, body, questionIndentPt } = EXAM_PAPER
     expect(skill).toContain(
       `paper "${page.paper}", margin_left ${page.marginLeft}, margin_right ${page.marginRight}, margin_top ${page.marginTop}, margin_bottom ${page.marginBottom}, margin_header ${page.marginHeader} and margin_footer ${page.marginFooter}`,
