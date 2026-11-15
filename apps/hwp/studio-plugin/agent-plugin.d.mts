@@ -1485,7 +1485,7 @@ export type AgentInsertTocResult =
       count: number
       matches?: AgentMatch[]
     }
-  /** contents insertToc made in this document are there: table `table`, under the line `title` when one is above it */
+  /** contents insertToc made in this document are there: table `table`, and `title` when the paragraph right above it is a line of text */
   | { ok: false; reason: 'toc_exists'; count: number; table: number; title?: string }
   /** a 차례 or 목차 line `title` has Hangul's contents of tab lines under it already */
   | { ok: false; reason: 'toc_exists'; count: number; lines: true; title: string }

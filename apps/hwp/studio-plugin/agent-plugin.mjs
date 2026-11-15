@@ -5789,18 +5789,16 @@ function isMadeContents(doc, made, table) {
   )
 }
 
-function lineAbove(doc, sec, para) {
-  for (let k = para - 1; k >= 0; k--) {
-    const text = bodyText(doc, sec, k).trim()
-    if (text) return text
-  }
-  return ''
+/** The text of the paragraph right above `para`, or '' when that is empty or holds a table. */
+function lineAbove(doc, tables, sec, para) {
+  if (para === 0 || tables.some((table) => table.sec === sec && table.para === para - 1)) return ''
+  return bodyText(doc, sec, para - 1).trim()
 }
 
 /**
  * Contents the document has already: a table insertToc made since the document was opened
- * (its number and the line above it), or Hangul's own contents under a 차례 or 목차 line,
- * whose first line with text ends in a tab and a page number.
+ * (its number and the line of text right above it), or Hangul's own contents under a 차례 or
+ * 목차 line, whose first line with text ends in a tab and a page number.
  */
 function contentsOf(doc, made) {
   if (made.length > 0) {
@@ -5808,7 +5806,7 @@ function contentsOf(doc, made) {
     for (let i = 0; i < tables.length; i++) {
       if (!isMadeContents(doc, made, tables[i])) continue
       // the line as it reads now: a title retyped since is still the line refresh_toc takes
-      const title = lineAbove(doc, tables[i].sec, tables[i].para)
+      const title = lineAbove(doc, tables, tables[i].sec, tables[i].para)
       return { table: i + 1, ...(title ? { title } : {}) }
     }
   }

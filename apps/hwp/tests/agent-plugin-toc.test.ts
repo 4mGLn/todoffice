@@ -303,6 +303,52 @@ describe('a second table of contents', () => {
     expect(steps()).toBe(before)
   })
 
+  it('names no line for contents right under a table, and its way leaves that table', () => {
+    const doc = HwpDocument.createEmpty()
+    doc.createBlankDocument()
+    const lines = [
+      '학교 현황',
+      'Ⅰ. 학생 현황',
+      '올해 학생 수는 늘었다.',
+      'Ⅱ. 교사 현황',
+      '끝 줄이다.',
+    ]
+    lines.forEach((text, k) => {
+      if (k > 0) doc.splitParagraph(0, k - 1, doc.getParagraphLength(0, k - 1))
+      doc.insertText(0, k, 0, text)
+    })
+    const { plugin, steps } = open(doc)
+    plugin.insertTable('학교 현황', null, 'after', [
+      ['학생 수', '328'],
+      ['교사 수', '25'],
+    ])
+    const entries = [
+      { find: 'Ⅰ. 학생 현황', level: 1 },
+      { find: 'Ⅱ. 교사 현황', level: 1 },
+    ]
+    expect(plugin.insertToc('Ⅰ. 학생 현황', null, 'before', null, entries)).toMatchObject({
+      ok: true,
+      table: 2,
+    })
+    const before = steps()
+    const again = entries.map((entry) => ({ ...entry, occurrence: 2 }))
+    expect(plugin.insertToc('올해 학생', null, 'before', null, again)).toEqual({
+      ok: false,
+      reason: 'toc_exists',
+      count: 1,
+      table: 2,
+    })
+    expect(steps()).toBe(before)
+    expect(plugin.deleteTable(2)).toMatchObject({ ok: true })
+    expect(plugin.insertToc('Ⅰ. 학생 현황', null, 'before', null, entries)).toMatchObject({
+      ok: true,
+      table: 2,
+    })
+    const user = plugin.readTable(1)
+    if (!user.ok) throw new Error('no table')
+    expect(user.cells.map((cell) => cell.text)).toEqual(['학생 수', '328', '교사 수', '25'])
+  })
+
   it('refuses a second contents where Hangul wrote them as lines with a tab to the page', () => {
     const { plugin, doc, steps } = open()
     doc().splitParagraph(0, 0, doc().getParagraphLength(0, 0))
@@ -535,11 +581,11 @@ describe('contents this tool made, whatever line is above them', () => {
     expect(plugin.refreshToc('차 례', null)).toEqual({ ok: false, reason: 'no_toc', count: 0 })
     const before = steps()
     const again = entries.map((entry) => ({ ...entry, occurrence: 2 }))
-    expect(plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', again)).toMatchObject({
+    expect(plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', again)).toEqual({
       ok: false,
       reason: 'toc_exists',
+      count: 1,
       table: 1,
-      title: '차 례',
     })
     expect(steps()).toBe(before)
   })
