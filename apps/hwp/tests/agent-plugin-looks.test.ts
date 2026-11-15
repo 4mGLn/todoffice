@@ -2511,14 +2511,15 @@ describe('where an equation of a choice is', () => {
     expect(plain.plugin.listEquations().equations[0]).not.toHaveProperty('previous')
   })
 
-  it('takes 가. and Ⅰ. for questions, a question that names a circled mark, and 1) choices', () => {
-    const previousOf = (lines: string[], count: number) => {
-      const { plugin } = open(blank(lines))
-      plugin.insertEquations(
-        Array.from({ length: count }, (_, index) => ({ find: `[[${index + 1}]]`, script: 'x' })),
-      )
-      return plugin.listEquations().equations.map((equation) => equation.previous ?? null)
-    }
+  const previousOf = (lines: string[], count: number) => {
+    const { plugin } = open(blank(lines))
+    plugin.insertEquations(
+      Array.from({ length: count }, (_, index) => ({ find: `[[${index + 1}]]`, script: 'x' })),
+    )
+    return plugin.listEquations().equations.map((equation) => equation.previous ?? null)
+  }
+
+  it('takes 가. for questions, a question that names a circled mark, and 1) choices', () => {
     expect(
       previousOf(
         [
@@ -2544,6 +2545,61 @@ describe('where an equation of a choice is', () => {
     expect(
       previousOf(['1. 다음 중 옳은 식을 고르시오.', '1) [[1]]  2) [[2]]', '3) [[3]]'], 3),
     ).toEqual(Array(3).fill('1. 다음 중 옳은 식을 고르시오.'))
+  })
+
+  it('takes a line numbered like the question above for the next question', () => {
+    expect(
+      previousOf(
+        ['[서답형] 각 2점', '1) [[1]]을 구하시오.', '2) [[2]]을 구하시오.', '3) [[3]]을 구하시오.'],
+        3,
+      ),
+    ).toEqual([null, null, null])
+    expect(
+      previousOf(
+        [
+          '1) 다음 값을 구하시오.',
+          '[[1]]',
+          '2) 다음 식을 줄이시오.',
+          '[[2]]',
+          '3) 방정식을 푸시오.',
+          '[[3]]',
+        ],
+        3,
+      ),
+    ).toEqual(['1) 다음 값을 구하시오.', '2) 다음 식을 줄이시오.', '3) 방정식을 푸시오.'])
+    expect(
+      previousOf(
+        [
+          '(1) 다음 값을 구하시오. [[1]]',
+          '(2) 다음 값을 구하시오.',
+          '① [[2]] ② [[3]]',
+          '(3) 방정식을 푸시오.',
+          '① [[4]]',
+        ],
+        4,
+      ),
+    ).toEqual([null, '(2) 다음 값을 구하시오.', '(2) 다음 값을 구하시오.', '(3) 방정식을 푸시오.'])
+    expect(
+      previousOf(
+        [
+          '1. 다음 글을 읽고 답하시오.',
+          '글이 여기에 온다.',
+          '(1) [[1]]의 값은?',
+          '① [[2]]',
+          '2. 다음 값은?',
+          '1) [[3]]',
+        ],
+        3,
+      ),
+    ).toEqual([null, '(1) 의 값은?', '2. 다음 값은?'])
+  })
+
+  it('takes Ⅰ. and Ⅱ. for the start of a part, not a question', () => {
+    expect(previousOf(['Ⅰ. 선택형', '[[1]]'], 1)).toEqual([null])
+    expect(previousOf(['1. 다음 값은?', '① [[1]]', 'Ⅱ. 서답형', '[[2]]'], 2)).toEqual([
+      '1. 다음 값은?',
+      null,
+    ])
   })
 })
 

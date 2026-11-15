@@ -5475,18 +5475,26 @@ function equationsOf(doc) {
 const MIN_EQUATION_LETTERS = 10
 const lettersOf = (text) => text.replace(/[\s①-⓿❶-➓]/g, '')
 
-// 1. 1) (1) 가. (가) Ⅰ. 문 1, as questions of a test paper are numbered
-const QUESTION_START =
-  /^\s*(?:문\s*\d+|\d+\s*[.)](?!\d)|\(\s*\d+\s*\)|[가나다라마바사아자차카타파하]\s*\.|\(\s*[가나다라마바사아자차카타파하]\s*\)|[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ]+\s*\.)/
+// how the questions of a test paper are numbered; 1) and (1) number choices too
+const QUESTION_STYLES = [
+  { name: '문', start: /^\s*문\s*\d+/ },
+  { name: '1.', start: /^\s*\d+\s*\.(?!\d)/ },
+  { name: '1)', start: /^\s*\d+\s*\)(?!\d)/, choice: true },
+  { name: '(1)', start: /^\s*\(\s*\d+\s*\)/, choice: true },
+  { name: '가.', start: /^\s*[가나다라마바사아자차카타파하]\s*\./ },
+  { name: '(가)', start: /^\s*\(\s*[가나다라마바사아자차카타파하]\s*\)/ },
+]
+const PART_START = /^\s*[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ]+\s*\./
 const CHOICE_START = /^\s*[①-⑳❶-❿➀-➉]/
-const NUMBER_CHOICE_START = /^\s*(?:\d+\s*\)|\(\s*\d+\s*\))/
 
 /**
- * On a test paper 1) and (1) number questions and choices alike: one right after a
- * question, or after such a choice, is a choice.
+ * A line numbered in the style of a question above it in the same part is the next
+ * question; 1) or (1) in another style right after a question, or after such a choice, is
+ * a choice. Ⅰ. starts a part.
  */
 function lineKindsOf(doc, sec) {
   const kinds = []
+  let styles = []
   let last = null
   for (let para = 0; para < doc.getParagraphCount(sec); para++) {
     const text = bodyText(doc, sec, para)
@@ -5494,11 +5502,23 @@ function lineKindsOf(doc, sec) {
       kinds.push(null)
       continue
     }
-    const numbered = NUMBER_CHOICE_START.test(text) && (last === 'question' || last === 'numbered')
-    const kind =
-      CHOICE_START.test(text) || numbered ? 'choice' : QUESTION_START.test(text) ? 'question' : null
+    const style = QUESTION_STYLES.find(({ start }) => start.test(text))
+    const open = style ? styles.indexOf(style.name) : -1
+    let kind = null
+    if (PART_START.test(text)) {
+      kind = 'part'
+      styles = []
+    } else if (CHOICE_START.test(text)) kind = 'choice'
+    else if (style && open >= 0) {
+      kind = 'question'
+      styles = styles.slice(0, open + 1)
+    } else if (style?.choice && (last === 'question' || last === 'numbered')) kind = 'numbered'
+    else if (style) {
+      kind = 'question'
+      styles.push(style.name)
+    }
     kinds.push(kind)
-    last = numbered ? 'numbered' : kind
+    last = kind
   }
   return kinds
 }
@@ -5521,7 +5541,7 @@ function equationContext(doc, equation, kinds) {
   if (!kinds.has(sec)) kinds.set(sec, lineKindsOf(doc, sec))
   const lines = kinds.get(sec)
   if (lines[para] === 'question') return { before, after }
-  for (let k = para - 1; k >= 0; k--) {
+  for (let k = para - 1; k >= 0 && lines[k] !== 'part'; k--) {
     if (lines[k] !== 'question') continue
     return { before, after, previous: clip(squash(bodyText(doc, sec, k)), EQUATION_CONTEXT_CHARS) }
   }

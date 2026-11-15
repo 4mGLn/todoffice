@@ -2380,10 +2380,11 @@ describe('equations', () => {
   it('names in list_equations which lines count as questions and which as choices', () => {
     const { skill } = setup()
     const tool = skill.tools.find((offered) => offered.name === 'list_equations')
+    expect(tool?.description).toContain('(1., 1), (1), 가., (가), 문 1), whatever it holds after')
     expect(tool?.description).toContain(
-      '(1., 1), (1), 가., (가), Ⅰ., 문 1), whatever it holds after',
+      '(1) after 1), (1) after (1), 1. after 1.) is the next question',
     )
-    expect(tool?.description).toContain('with 1) or (1) right after a question or such a choice')
+    expect(tool?.description).toContain('A line that begins with Ⅰ. or Ⅱ. starts a part')
   })
 
   it('lists the equations with the words round them', async () => {
