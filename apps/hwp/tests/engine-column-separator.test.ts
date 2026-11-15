@@ -1,10 +1,6 @@
 /**
- * The line between the columns (rhwp patch 0051).
- *
- * The engine always read, saved and drew the separator line of a column definition, but no
- * call could set it, and `getColumnDef` did not report it. A test paper in the form Korean
- * schools use has two columns with a line between them. Patch 0051 adds
- * `setColumnSeparator(section, json)` and the three separator fields of `getColumnDef`.
+ * rhwp patch 0051: `setColumnSeparator(section, json)` and the three separator fields of
+ * `getColumnDef`.
  */
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'

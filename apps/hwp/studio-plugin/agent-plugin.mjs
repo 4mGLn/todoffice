@@ -5818,9 +5818,10 @@ function columnsOf(doc, sec) {
   const gapPt = count > 1 && Number.isFinite(def.spacing) ? Math.max(0, def.spacing) / 100 : 0
   const line =
     count > 1
-      ? (COLUMN_LINES.find((name) => BORDER_LINES[name] === def.separatorType) ?? null)
+      ? (COLUMN_LINES.find((name) => name !== 'none' && BORDER_LINES[name] === def.separatorType) ??
+        null)
       : null
-  return { count, gapPt, line: line === 'none' ? null : line }
+  return { count, gapPt, line }
 }
 
 /** The lines the engine draws between columns. */
@@ -5903,9 +5904,9 @@ function floatAcrossColumns(doc, sec, para, control) {
 const UNITS_PER_PX = 75
 
 /**
- * The drawn height of each row of every table of the document's first paragraph that lies
- * across the columns, in the engine's units, in the order of those tables. A row drawn only
- * by merged cells has none.
+ * Every table of the document's first paragraph that lies across the columns, in order:
+ * the drawn height of each row in the engine's units (a row drawn only by merged cells has
+ * none) and the cells of one row each.
  */
 function acrossRowHeights(doc) {
   const tables = []
@@ -5920,12 +5921,12 @@ function acrossRowHeights(doc) {
       continue
     }
     const first = Math.min(...boxes.map((box) => box.pageIndex))
+    const cells = boxes.filter((box) => box.pageIndex === first && box.rowSpan === 1)
     const rows = []
-    for (const box of boxes) {
-      if (box.pageIndex !== first || box.rowSpan !== 1) continue
+    for (const box of cells) {
       rows[box.row] = Math.max(rows[box.row] ?? 0, Math.round(box.h * UNITS_PER_PX))
     }
-    tables.push({ control, rows })
+    tables.push({ control, rows, cells })
   }
   return tables
 }
@@ -5941,22 +5942,17 @@ function acrossRowHeights(doc) {
 function fitAcrossRows(doc, before) {
   if (before.length === 0) return
   const after = acrossRowHeights(doc)
-  after.forEach(({ control, rows }, index) => {
+  after.forEach(({ control, rows, cells }, index) => {
     const was = before[index]?.rows ?? []
-    for (let row = 0; row < rows.length; row++) {
+    for (const { row, cellIdx } of cells) {
       const drawn = rows[row]
       if (!(drawn > (was[row] ?? 0) + UNITS_PER_PX)) continue
-      const cells = parse(doc.getTableCellBboxes(0, 0, control)).filter(
-        (box) => box.row === row && box.rowSpan === 1,
-      )
-      for (const { cellIdx } of cells) {
-        const stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
-        if (stored < drawn - UNITS_PER_PX) {
-          expectOk(
-            doc.setCellProperties(0, 0, control, cellIdx, JSON.stringify({ height: drawn })),
-            'fit the head table',
-          )
-        }
+      const stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
+      if (stored < drawn - UNITS_PER_PX) {
+        expectOk(
+          doc.setCellProperties(0, 0, control, cellIdx, JSON.stringify({ height: drawn })),
+          'fit the head table',
+        )
       }
     }
   })
