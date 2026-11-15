@@ -5904,13 +5904,14 @@ function floatAcrossColumns(doc, sec, para, control) {
 const UNITS_PER_PX = 75
 
 /**
- * Every table of the document's first paragraph that lies across the columns, in order:
- * the drawn height of each row in the engine's units (a row drawn only by merged cells has
- * none) and the cells of one row each.
+ * Every table of the document's first paragraph that lies across two or more columns, in
+ * order: the drawn height of each row in the engine's units (a row drawn only by merged
+ * cells has none) and the cells of one row each.
  */
 function acrossRowHeights(doc) {
   const tables = []
   if (doc.getSectionCount() === 0 || doc.getParagraphCount(0) === 0) return tables
+  if (columnsOf(doc, 0).count < 2) return tables
   const controls = parse(doc.getControlTextPositions(0, 0)).length
   for (let control = 0; control < controls; control++) {
     if (!placementOf(doc, 0, 0, control).across) continue
@@ -5933,27 +5934,56 @@ function acrossRowHeights(doc) {
 
 /**
  * Store the drawn height of the rows of a table across the columns that a change made
- * taller (`before` is acrossRowHeights from before it); other rows keep theirs. The engine
+ * taller (`before` is acrossRowHeights from before it; a table that was not across the
+ * columns then is measured against its stored heights); other rows keep theirs. The engine
  * starts the other columns below the sum of the stored row heights, which text growing in
  * a cell does not change.
+ *
+ * `raised` remembers the cells this did so (`control:cell` to the height they had and the
+ * one they got). Each change first gives them back the height they had, as long as nothing
+ * else set theirs since, and raises them again only as far as their text still needs, so a
+ * row that later needs less, or a table no longer across columns, does not keep the height.
  */
-function fitAcrossRows(doc, before) {
-  if (before.length === 0) return
+function fitAcrossRows(doc, before, raised) {
+  const lowered = new Map()
+  for (const [key, { original, to }] of raised) {
+    const [control, cellIdx] = key.split(':').map(Number)
+    raised.delete(key)
+    let stored
+    try {
+      stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
+    } catch {
+      continue
+    }
+    if (stored !== to) continue
+    expectOk(
+      doc.setCellProperties(0, 0, control, cellIdx, JSON.stringify({ height: original })),
+      'fit the head table',
+    )
+    lowered.set(key, original)
+  }
   const after = acrossRowHeights(doc)
   after.forEach(({ control, rows, cells }, index) => {
-    const was = before[index]?.rows ?? []
+    const was = before[index]?.rows
     for (const { row, cellIdx } of cells) {
+      const key = `${control}:${cellIdx}`
       const drawn = rows[row]
-      if (!(drawn > (was[row] ?? 0) + UNITS_PER_PX)) continue
+      if (was && !lowered.has(key) && !(drawn > (was[row] ?? 0) + UNITS_PER_PX)) continue
       const stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
       if (stored < drawn - UNITS_PER_PX) {
         expectOk(
           doc.setCellProperties(0, 0, control, cellIdx, JSON.stringify({ height: drawn })),
           'fit the head table',
         )
+        raised.set(key, { original: lowered.get(key) ?? stored, to: drawn })
       }
     }
   })
+}
+
+/** Forget the raised cells of a table whose row heights a call set (fitAcrossRows). */
+function forgetRaised(raised, control) {
+  for (const key of raised.keys()) if (key.startsWith(`${control}:`)) raised.delete(key)
 }
 
 function checkTocEntries(entries) {
@@ -6485,9 +6515,12 @@ export const agentPlugin = {
     // the contents insertToc made in this document: the heading rows each wrote, squashed.
     // The document keeps no mark of them, so another document opened here starts with none.
     let contentsMade = []
+    // the head-table cells fitAcrossRows raised in this document
+    const raisedCells = new Map()
     host.events.on('document-swapped', () => {
       revision += 1
       contentsMade = []
+      raisedCells.clear()
     })
     // the text is read for every request; it only changes when the document does
     let text = null
@@ -7412,7 +7445,7 @@ export const agentPlugin = {
             const watched = MEMO_CHANGES.has(label) || allowMemoRemoval ? null : memoEntriesOf(doc)
             const across = acrossRowHeights(doc)
             const result = fn(doc)
-            fitAcrossRows(doc, across)
+            fitAcrossRows(doc, across, raisedCells)
             if (watched && watched.length > 0) {
               const left = new Set(memoEntriesOf(doc).map((entry) => entry.id))
               const gone = watched.filter(
@@ -8940,6 +8973,9 @@ export const agentPlugin = {
                   ),
                   'set the column widths',
                 )
+              }
+              if (props.height !== undefined && table.sec === 0 && table.para === 0) {
+                forgetRaised(raisedCells, table.path[0].controlIndex)
               }
               let count = 0
               for (const rect of blocks)

@@ -3298,6 +3298,62 @@ describe('a test paper in two columns', () => {
     for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
   })
 
+  /** The stored height of every cell of the document's first table. */
+  function storedHeights(doc: HwpDocument) {
+    const table = tableIn(doc, 0)
+    return Array.from({ length: table.cells }, (_, index) => table.cell(index).height)
+  }
+
+  it('gives a head row back its height once its text needs less, and leaves a height row_height_mm set', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.formatCells(1, { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 }, { heightMm: 14 })
+    const first = columnStarts(doc())
+    const heights = storedHeights(doc())
+    const tall = '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄'
+    plugin.fillCells(1, [{ row: 2, col: 5, text: tall }], true)
+    const grown = columnStarts(doc())
+    expect(grown.foot).toBeGreaterThan(first.foot + 50)
+    for (const start of grown.starts) expect(start).toBeGreaterThanOrEqual(grown.foot)
+    plugin.fillCells(1, [{ row: 2, col: 5, text: '계' }], true)
+    expect(storedHeights(doc())).toEqual(heights)
+    const back = columnStarts(doc())
+    expect(Math.abs(back.foot - first.foot)).toBeLessThan(1)
+    for (const start of back.starts) expect(start).toBeGreaterThanOrEqual(back.foot)
+    plugin.fillCells(1, [{ row: 2, col: 5, text: tall }], true)
+    plugin.setColumns({ count: 1 })
+    expect(storedHeights(doc())).toEqual(heights)
+  })
+
+  it('leaves the rows of a table laid across a page of one column as they are stored', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 8))
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD.slice(1), { acrossColumns: true })
+    const heights = storedHeights(doc())
+    const foot = () => {
+      const head = tableIn(doc(), 0)
+      return (JSON.parse(doc().getTableBBox(0, 0, head.control)) as { height: number }).height
+    }
+    const short = foot()
+    plugin.fillCells(1, [{ row: 1, col: 5, text: '담당\n김교사\n(서명)\n2026. 11. 16.' }], true)
+    expect(foot()).toBeGreaterThan(short + 20)
+    expect(storedHeights(doc())).toEqual(heights)
+    plugin.fillCells(1, [{ row: 1, col: 5, text: '담당' }], true)
+    expect(Math.abs(foot() - short)).toBeLessThan(1)
+  })
+
+  it('keeps every column below a head whose text grew while it lay in one column', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.fillCells(1, [{ row: 2, col: 5, text: '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄' }], true)
+    plugin.setColumns({ count: 2 })
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
   it('lays a head made in one column across the columns set after it', () => {
     const { plugin, doc } = open(blank(['']))
     plugin.insertParagraphs('', null, 'end', QUESTIONS)
