@@ -394,6 +394,13 @@ describe('insertTable: looks', () => {
       expect(cellFont(doc(), 2)).toBe('함초롬바탕 10')
     })
 
+    it('takes the body line it follows when a longer title of a size of its own is not bold', () => {
+      const { plugin, doc } = open(blank([TITLE_LINE, '상담은 아래와 같이 합니다.']))
+      plugin.formatText(TITLE_LINE, null, false, { size: 20, font: '돋움' })
+      plugin.insertTable('상담은 아래와', null, 'after', ROWS_2, true)
+      expect(cellFont(doc(), 2)).toBe('함초롬바탕 10')
+    })
+
     it('takes the look of the body after a small plain line such as a unit note', () => {
       const { plugin, doc } = open(
         blank([

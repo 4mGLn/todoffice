@@ -2918,6 +2918,7 @@ function bodyFontOf(doc, beside = null, fallback = null) {
   const styles = new Map(parse(doc.getStyleList()).map((style) => [style.id, style.name]))
   const plain = []
   const notBold = []
+  const sizes = new Map()
   let counted = 0
   for (let sec = 0; sec < doc.getSectionCount(); sec++) {
     const count = doc.getParagraphCount(sec)
@@ -2928,6 +2929,8 @@ function bodyFontOf(doc, beside = null, fallback = null) {
       if (look.heading || look.bold) continue
       counted += 1
       plain.push(...look.runs)
+      const own = mostCharsOf(look.runs, (run) => run.size)
+      sizes.set(own, (sizes.get(own) ?? 0) + 1)
     }
   }
   const key = (run) => `${run.props.fontFamily}|${run.size}`
@@ -2936,7 +2939,8 @@ function bodyFontOf(doc, beside = null, fallback = null) {
     const chosen = runs.find((run) => key(run) === most)
     return chosen ? fontOf(() => JSON.stringify(chosen.props)) : null
   }
-  const size = mostCharsOf(plain, (run) => run.size)
+  // by paragraphs, not characters: one long title line of its own size is not the body
+  const size = [...sizes].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0]
   const near = beside && bodyRunsOf(doc, styles, beside.sec, beside.para)
   if (near && !near.heading && !near.bold && size !== undefined) {
     const own = mostCharsOf(near.runs, key)
