@@ -1,6 +1,6 @@
 ---
 name: hwp-exam-paper
-description: 'Write a test paper in a Hangul (.hwp / .hwpx) document in the form Korean schools hand in (원안지): fill the school form that is open with its own styles, or build one from nothing on B4 in two columns with a line between them, a head table with the approval box, the questions with their points, choices on tab stops, 〈보기〉 boxes, page numbers and the end mark. Use for 시험지, 평가지, 형성평가 and question sheets.'
+description: 'Write a test paper (시험지, 원안지) in a Hangul document: fill the school form that is open with its own styles, or build a B4 paper in two columns with a head table, points, choices on tab stops and page numbers.'
 metadata:
   ieum-editors: hwp
 ---
