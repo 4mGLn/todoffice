@@ -2406,6 +2406,37 @@ describe('where an equation of a choice is', () => {
     expect(listed[1]).toMatchObject({ before: '② ', previous: '1. 다음 중 이차방정식의 근은?' })
     expect(listed[2]).not.toHaveProperty('previous')
   })
+
+  it('names the question each short choice stands under, and none outside a question', () => {
+    const lines = [
+      '1. 다음 중 가장 큰 수를 고르시오.',
+      '① [[1]]',
+      '③ 3과 5의 최소공배수는 15이다.',
+      '2) 계산하면?',
+      '① [[2]]',
+      '(3) [[3]]의 값은?',
+      '문 4. 다음을 보고 답하시오.',
+      '① [[4]] ② [[5]]',
+    ]
+    const { plugin } = open(blank(lines))
+    plugin.insertEquations(
+      ['{1} over {2}', '3 times 4', 'sqrt {16}', 'a', 'b'].map((script, index) => ({
+        find: `[[${index + 1}]]`,
+        script,
+      })),
+    )
+    const previous = plugin.listEquations().equations.map((equation) => equation.previous ?? null)
+    expect(previous).toEqual([
+      '1. 다음 중 가장 큰 수를 고르시오…',
+      '2) 계산하면?',
+      null,
+      '문 4. 다음을 보고 답하시오.',
+      '문 4. 다음을 보고 답하시오.',
+    ])
+    const plain = open(blank(['○ 회의 안내를 적는 줄입니다.', '① [[1]]']))
+    plain.plugin.insertEquations([{ find: '[[1]]', script: 'x' }])
+    expect(plain.plugin.listEquations().equations[0]).not.toHaveProperty('previous')
+  })
 })
 
 describe('a paragraph that holds an object of its line', () => {

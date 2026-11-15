@@ -5464,10 +5464,15 @@ function equationsOf(doc) {
 const MIN_EQUATION_LETTERS = 10
 const lettersOf = (text) => text.replace(/[\s①-⓿❶-➓]/g, '')
 
+const QUESTION_START = /^\s*(?:문\s*)?(?:\d+\s*[.)](?!\d)|\(\s*\d+\s*\))/
+const CHOICE_MARK = /[①-⑳❶-❿➀-➉]/
+const isQuestion = (text) => QUESTION_START.test(text) && !CHOICE_MARK.test(text)
+
 /**
  * The words right in front of an equation and right after it, in its paragraph. Where
  * those are only a circled number or a few letters (a choice of a question), also
- * `previous`: the start of the nearest paragraph before it that says more (the question).
+ * `previous`: the start of the nearest paragraph above in its section that starts with a
+ * question number and holds no choice mark, unless its own paragraph starts with one.
  */
 function equationContext(doc, equation) {
   const { sec, para, offset } = equation
@@ -5477,10 +5482,10 @@ function equationContext(doc, equation) {
   const before = offset > from ? doc.getTextRange(sec, para, from, offset - from) : ''
   const after = to > offset ? doc.getTextRange(sec, para, offset, to - offset) : ''
   if (lettersOf(before + after).length >= MIN_EQUATION_LETTERS) return { before, after }
+  if (isQuestion(bodyText(doc, sec, para))) return { before, after }
   for (let k = para - 1; k >= 0; k--) {
     const text = squash(bodyText(doc, sec, k))
-    if (lettersOf(text).length < MIN_EQUATION_LETTERS) continue
-    return { before, after, previous: clip(text, EQUATION_CONTEXT_CHARS) }
+    if (isQuestion(text)) return { before, after, previous: clip(text, EQUATION_CONTEXT_CHARS) }
   }
   return { before, after }
 }
