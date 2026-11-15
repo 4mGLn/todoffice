@@ -35,7 +35,10 @@ function report() {
   return doc
 }
 
-function open(start: HwpDocument = report()) {
+function open(
+  start: HwpDocument = report(),
+  on: (event: string, fn: () => void) => number = () => 0,
+) {
   let doc = start
   const history: Uint8Array[] = []
   const host = {
@@ -51,7 +54,7 @@ function open(start: HwpDocument = report()) {
         throw thrown
       }
     },
-    events: { on: () => 0 },
+    events: { on },
     automation: { registerCommand: () => {}, execute: () => ({ ok: false }) },
   } as unknown as AgentPluginHost
   return { plugin: agentPlugin.activate(host), doc: () => doc, steps: () => history.length }
@@ -357,11 +360,11 @@ const TWO = [
 ]
 
 describe('telling a table of contents from a table of the user', () => {
-  it('leaves a count table whose first cells start body paragraphs alone', () => {
+  it('leaves a count table alone whose rows name no text of the body', () => {
     const { plugin, doc, steps } = withUserTable(
       [
-        ['Ⅰ. 개요', '328'],
-        ['Ⅱ. 결과', '24'],
+        ['학생', '328'],
+        ['교사', '24'],
       ],
       false,
       '구성원 수',
@@ -373,20 +376,32 @@ describe('telling a table of contents from a table of the user', () => {
       reason: 'not_toc',
       count: 0,
       table: 1,
-      title: '구성원 수',
+      row: '학생',
     })
     expect([steps(), doc().exportHwp()]).toEqual([before, was])
-    const bodyHeadingsPastCountTable = [
-      { ...TWO[0], occurrence: 1 },
-      { ...TWO[1], occurrence: 2 },
-    ]
-    expect(
-      plugin.insertToc('보고서', null, 'after', '차 례', bodyHeadingsPastCountTable),
-    ).toMatchObject({
+    expect(plugin.insertToc('보고서', null, 'after', '차 례', TWO)).toMatchObject({
       ok: true,
       table: 1,
       tables: 2,
     })
+  })
+
+  it('writes the pages of contents it did not make when every row names a heading', () => {
+    const { plugin, doc } = withUserTable(
+      [
+        ['Ⅰ. 개요', '7'],
+        ['Ⅱ. 결과', '9'],
+      ],
+      false,
+      '차 례',
+    )
+    expect(plugin.refreshToc('차 례', null)).toMatchObject({ ok: true, lines: 2, changed: 2 })
+    const table = plugin.readTable(1)
+    if (!table.ok) throw new Error('no table')
+    expect(table.cells.filter((cell) => cell.col === 2).map((cell) => cell.text)).toEqual([
+      String(pageOf(doc(), 'Ⅰ. 개요')),
+      String(pageOf(doc(), 'Ⅱ. 결과')),
+    ])
   })
 
   it('takes a two-column table of numbers without lines for no table of contents', () => {
@@ -410,15 +425,117 @@ describe('telling a table of contents from a table of the user', () => {
     })
   })
 
-  it('takes no table under a 차례 line for contents unless its second column holds pages', () => {
-    const { plugin } = withUserTable(
-      [
-        ['성명', '소속'],
-        ['김하늘', '교무부'],
-      ],
-      true,
+  it('makes contents beside a table of page-like numbers under a 차례 line and leaves it', () => {
+    const doc = HwpDocument.createEmpty()
+    doc.createBlankDocument()
+    const lines = [
+      '학급 회의 보고',
+      '1. 회의 안건',
       '차례',
-    )
-    expect(plugin.insertToc('보고서', null, 'after', '목 차', TWO)).toMatchObject({ ok: true })
+      '2. 결정 사항',
+      '김민수가 회장을 맡는다.',
+    ]
+    lines.forEach((text, k) => {
+      if (k > 0) doc.splitParagraph(0, k - 1, doc.getParagraphLength(0, k - 1))
+      doc.insertText(0, k, 0, text)
+    })
+    const { plugin, doc: now } = open(doc)
+    plugin.insertTable('차례', null, 'after', [
+      ['김민수', '1'],
+      ['이서연', '2'],
+      ['박지훈', '3'],
+    ])
+    const entries = [
+      { find: '1. 회의 안건', level: 1 },
+      { find: '2. 결정 사항', level: 1 },
+    ]
+    expect(plugin.insertToc('학급 회의 보고', null, 'after', '차 례', entries)).toMatchObject({
+      ok: true,
+      table: 1,
+      tables: 2,
+    })
+    const was = now().exportHwp()
+    expect(plugin.refreshToc('차례', null)).toMatchObject({
+      ok: false,
+      reason: 'not_toc',
+      table: 2,
+      row: '이서연',
+    })
+    expect(now().exportHwp()).toEqual(was)
+    expect(plugin.insertToc('김민수가', null, 'after', '목 차', entries)).toMatchObject({
+      ok: false,
+      reason: 'toc_exists',
+      table: 1,
+      title: '차 례',
+    })
+  })
+})
+
+describe('contents this tool made, whatever line is above them', () => {
+  const heads = ['Ⅰ. 개요', 'Ⅱ. 추진 결과', 'Ⅲ. 향후 계획']
+  function reportOf(on?: (event: string, fn: () => void) => number) {
+    const doc = HwpDocument.createEmpty()
+    doc.createBlankDocument()
+    const lines = ['사업 결과 보고서', heads[0], '개요 본문이다.', heads[1], '결과 본문이다.']
+    lines.push(heads[2], '계획 본문이다.')
+    lines.forEach((text, k) => {
+      if (k > 0) doc.splitParagraph(0, k - 1, doc.getParagraphLength(0, k - 1))
+      doc.insertText(0, k, 0, text)
+    })
+    return open(doc, on)
+  }
+  const entries = heads.map((find) => ({ find, level: 1 }))
+
+  it('writes the pages again under any title or none', () => {
+    for (const [title, line] of [
+      ['목차 (Contents)', '목차 (Contents)'],
+      [null, '사업 결과 보고서'],
+    ] as const) {
+      const { plugin, doc } = reportOf()
+      expect(plugin.insertToc('사업 결과 보고서', null, 'after', title, entries)).toMatchObject({
+        ok: true,
+      })
+      expect(plugin.insertBreak('Ⅲ. 향후 계획', 2, 'page')).toMatchObject({ ok: true })
+      expect(plugin.refreshToc(line, null)).toMatchObject({ ok: true, lines: 3, changed: 1 })
+      const table = plugin.readTable(1)
+      if (!table.ok) throw new Error('no table')
+      expect(table.cells.filter((cell) => cell.col === 2).map((cell) => cell.text)).toEqual([
+        '1',
+        '1',
+        String(pageOf(doc(), 'Ⅲ. 향후 계획')),
+      ])
+      expect(pageOf(doc(), 'Ⅲ. 향후 계획')).toBe(2)
+    }
+  })
+
+  it('finds them past an empty line under the title and refuses a second one', () => {
+    const { plugin, steps } = reportOf()
+    plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', entries)
+    plugin.insertParagraphs('차 례', null, 'after', [''])
+    expect(plugin.refreshToc('차 례', null)).toMatchObject({ ok: true, lines: 3 })
+    const before = steps()
+    const again = entries.map((entry) => ({ ...entry, occurrence: 2 }))
+    expect(plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', again)).toMatchObject({
+      ok: false,
+      reason: 'toc_exists',
+      table: 1,
+      title: '차 례',
+    })
+    expect(steps()).toBe(before)
+  })
+
+  it('forgets them once another document is opened in the editor', () => {
+    const handlers = new Map<string, () => void>()
+    const { plugin } = reportOf((event, fn) => {
+      handlers.set(event, fn)
+      return 0
+    })
+    plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', entries)
+    handlers.get('document-swapped')?.()
+    const again = entries.map((entry) => ({ ...entry, occurrence: 2 }))
+    expect(plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', again)).toMatchObject({
+      ok: true,
+      tables: 2,
+    })
   })
 })

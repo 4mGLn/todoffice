@@ -2322,7 +2322,30 @@ describe('a table of contents', () => {
     const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
     expect(result.isError).toBe(true)
     expect(result.output).toBe(
-      'Nothing was changed: the document has a table of contents already (table 1, under the line "차 례"). refresh_toc with that title line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc with anchor "차 례", where after and no title, so that the line stays its title.',
+      'Nothing was changed: the document has a table of contents already (table 1, under the line "차 례"), made by insert_toc. refresh_toc with that line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc with anchor "차 례", where after and no title, so that the line stays above it.',
+    )
+  })
+
+  it('refuses a second table of contents at the start of the document', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc again where it was.',
+    )
+  })
+
+  it('says that contents made before the document was opened are not known', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'insert_toc')
+    expect(tool?.description).toContain(
+      'Contents made before the document was last opened are not known',
     )
   })
 
@@ -2343,20 +2366,20 @@ describe('a table of contents', () => {
     )
   })
 
-  it('leaves a table after a line that is not 차례 or 목차 alone and says so', async () => {
+  it('leaves a table whose row names no text of the body alone and says so', async () => {
     const { call } = setup({
       refreshToc: async () => ({
         ok: false as const,
         reason: 'not_toc' as const,
         count: 0,
         table: 2,
-        title: '구성원 수',
+        row: '학생',
       }),
     })
     const result = await call('refresh_toc', { title: '구성원 수' })
     expect(result.isError).toBe(true)
     expect(result.output).toBe(
-      'Nothing was changed: table 2 follows the line "구성원 수", which is not a 차례 or 목차 line, so it is not taken for a table of contents and stays as it is. refresh_toc writes page numbers only into the two-column table right after a 차례 or 목차 line (spaces aside).',
+      'Nothing was changed: table 2 was not made by insert_toc since the document was opened, and its row "학생" names no text of the body, so it is not taken for a table of contents and stays as it is.',
     )
   })
 

@@ -1366,7 +1366,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_toc',
     edits: true,
     description:
-      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document. Refused when a 차례 or 목차 line (spaces aside) has contents under it already: a two-column table right after it whose second column holds page numbers, or lines Hangul made, each ending in a tab and a page number.',
+      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document. Refused when the document has contents already: a table insert_toc made since the document was opened whose heading column is as it wrote it, or lines Hangul made under a 차례 or 목차 line, each ending in a tab and a page number. Contents made before the document was last opened are not known: read the document before you add contents to it.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1383,7 +1383,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'refresh_toc',
     edits: true,
     description:
-      'Write the page numbers of a table of contents again, after the document changed. Pass the text of its title line, a 차례 or 목차 line (spaces aside): the two-column table right after that line is written, and a table after any other line is refused. It writes page numbers only: for headings added, renamed or removed, delete_table the table and call insert_toc again.',
+      'Write the page numbers of a table of contents again, after the document changed. Pass the text of the line right above it, its title line when it has one: the two-column table right after that line is written (contents insert_toc made since the document was opened are found past empty lines too). Any other table is written only when every row that holds a page number names text of the body, and refused otherwise. It writes page numbers only: for headings added, renamed or removed, delete_table the table and call insert_toc again.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -2819,12 +2819,16 @@ function matchLines(matches: AgentMatch[], count: number): string {
 
 /** The refusal of a second table of contents, as the model reads it. */
 function tocExistsRefusal(
-  result: { title: string } & ({ table: number } | { lines: true }),
+  result: { table: number; title?: string } | { lines: true; title: string },
 ): string {
   if ('lines' in result) {
     return `Nothing was changed: the document has contents already, made in Hangul as lines ending in a tab and a page number, under the line "${result.title}". They cannot be written again here; tell the user, who updates them in Hangul.`
   }
-  return `Nothing was changed: the document has a table of contents already (table ${result.table}, under the line "${result.title}"). refresh_toc with that title line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table ${result.table}, then call insert_toc with anchor "${result.title}", where after and no title, so that the line stays its title.`
+  const { table, title } = result
+  if (!title) {
+    return `Nothing was changed: the document has a table of contents already (table ${table}), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table ${table}, then call insert_toc again where it was.`
+  }
+  return `Nothing was changed: the document has a table of contents already (table ${table}, under the line "${title}"), made by insert_toc. refresh_toc with that line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table ${table}, then call insert_toc with anchor "${title}", where after and no title, so that the line stays above it.`
 }
 
 /** Why rows or columns were not added or removed, as the model reads it. */
@@ -4911,7 +4915,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           if (result.reason === 'not_toc') {
             return bad(
               call,
-              `Nothing was changed: table ${result.table} follows the line "${result.title}", which is not a 차례 or 목차 line, so it is not taken for a table of contents and stays as it is. refresh_toc writes page numbers only into the two-column table right after a 차례 or 목차 line (spaces aside).`,
+              `Nothing was changed: table ${result.table} was not made by insert_toc since the document was opened, and its row "${result.row}" names no text of the body, so it is not taken for a table of contents and stays as it is.`,
             )
           }
           if (result.reason === 'in_table') return bad(call, IN_TABLE_HELP)

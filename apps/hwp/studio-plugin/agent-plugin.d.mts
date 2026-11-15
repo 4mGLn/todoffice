@@ -1485,8 +1485,8 @@ export type AgentInsertTocResult =
       count: number
       matches?: AgentMatch[]
     }
-  /** a 차례 or 목차 line `title` has contents under it already: table `table` */
-  | { ok: false; reason: 'toc_exists'; count: number; table: number; title: string }
+  /** contents insertToc made in this document are there: table `table`, under its title or the line `title` */
+  | { ok: false; reason: 'toc_exists'; count: number; table: number; title?: string }
   /** a 차례 or 목차 line `title` has Hangul's contents of tab lines under it already */
   | { ok: false; reason: 'toc_exists'; count: number; lines: true; title: string }
 
@@ -1503,8 +1503,8 @@ export type AgentRefreshTocResult =
   | AgentPlaceRefusal
   | { ok: false; reason: 'in_table'; count: number }
   | { ok: false; reason: 'no_toc'; count: number }
-  /** the line `title` table `table` follows is not a 차례 or 목차 line, so the table is left alone */
-  | { ok: false; reason: 'not_toc'; count: number; table: number; title: string }
+  /** table `table`, which insertToc did not make here, has a row `row` that names no text of the body */
+  | { ok: false; reason: 'not_toc'; count: number; table: number; row: string }
 
 export type AgentUndoResult =
   { ok: boolean; undone: number } | { ok: false; reason: 'changed'; undone: 0 }
