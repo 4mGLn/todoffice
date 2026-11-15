@@ -14,6 +14,7 @@ import {
   agentPlugin,
   splitsWord,
   type AgentMapPage,
+  type AgentPageEnd,
   type AgentPluginHost,
 } from '../studio-plugin/agent-plugin.mjs'
 import { installFontPresence } from '../studio-plugin/pc-fonts.mjs'
@@ -2236,6 +2237,33 @@ describe('what a change leaves on the pages', () => {
       continues: true,
     })
     expect('text' in two!.first && long.includes(two!.first.text.replace(/…$/, ''))).toBe(true)
+  })
+
+  it('counts the start of a page in characters of the text, past an object before it', () => {
+    const long = Array.from(
+      { length: 30 },
+      (_, k) => `긴 문단의 ${k + 1}번째 마디가 이어집니다.`,
+    ).join(' ')
+    const { plugin } = open(blank([...lines(36), long, '마지막 줄']))
+    const startOf = () => (plugin.pageLayout().map.pages[1] as { first: AgentPageEnd }).first
+    const plain = startOf()
+    expect(plugin.insertNote('endnote', '긴 문단의 1번째', null, '미주 글')).toMatchObject({
+      ok: true,
+    })
+    expect(startOf()).toEqual(plain)
+  })
+
+  it('takes a paragraph that starts with spaces for one that starts on its page', () => {
+    const fixtureMap = (name: string) =>
+      open(new HwpDocument(readFileSync(join(__dirname, 'fixtures', name)))).plugin.pageLayout()
+        .map.pages as Extract<AgentMapPage, { first: unknown }>[]
+    expect(fixtureMap('page-number-cell-position.hwpx')[0]).toMatchObject({
+      first: { text: 'Cover' },
+      last: { text: 'Cover' },
+    })
+    const memo = fixtureMap('memo-source.hwp')
+    expect(memo[2]!.first).toEqual({ text: expect.stringMatching(/^○ 연령대별/) })
+    expect(memo[1]!.last).toEqual({ text: expect.stringMatching(/^○ 6월 말 기준/) })
   })
 
   it('tells a page with nothing on it', () => {

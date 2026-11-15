@@ -4124,6 +4124,8 @@ function pageMapOf(doc) {
   const slots = []
   const spans = new Map()
   const past = []
+  /** body paragraphs drawn on a page before the one being mapped */
+  const earlier = new Set()
   const total = doc.pageCount()
   for (let page = 0; page < total; page++) {
     const { top, foot, columns } = bodyAreaOf(doc, page)
@@ -4147,12 +4149,13 @@ function pageMapOf(doc) {
     let objects = 0
     const lowLines = new Set()
     for (const run of runs) {
-      if (run.cellPath || !isBody(run.secIdx, run.paraIdx) || !/\S/.test(run.text ?? '')) continue
-      items.push({ sec: run.secIdx, para: run.paraIdx, column: columnOf(run.x), table: null })
+      if (run.cellPath || !isBody(run.secIdx, run.paraIdx)) continue
       const key = `${run.secIdx}/${run.paraIdx}`
       if (Number.isInteger(run.charStart)) {
         starts.set(key, Math.min(starts.get(key) ?? Infinity, run.charStart))
       }
+      if (!/\S/.test(run.text ?? '')) continue
+      items.push({ sec: run.secIdx, para: run.paraIdx, column: columnOf(run.x), table: null })
       if (run.y + run.h - foot > run.h * LAYOUT_SLACK_LINE) lowLines.add(Math.round(run.y))
     }
     for (const control of controls) {
@@ -4196,10 +4199,12 @@ function pageMapOf(doc) {
     }
     const sorted = [...items].sort(order)
     const ends = (item) => {
-      const from = starts.get(`${item.sec}/${item.para}`) ?? 0
+      const key = `${item.sec}/${item.para}`
+      const continues = earlier.has(key) && starts.has(key)
+      const from = continues ? textOffsetOf(doc, item.sec, item.para, starts.get(key)) : 0
       const text = paragraphText(doc, item.sec, item.para, from)
       if (item.table !== null && !text) return { table: item.table }
-      return from > 0 ? { text, continues: true } : { text }
+      return continues ? { text, continues: true } : { text }
     }
     pages.push({
       page: page + 1,
@@ -4207,6 +4212,7 @@ function pageMapOf(doc) {
       last: ends(sorted.at(-1)),
       ...(lowLines.size > 0 ? { pastFoot: lowLines.size } : {}),
     })
+    for (const key of starts.keys()) earlier.add(key)
     for (let column = 0; column < Math.max(1, columns.length); column++) {
       const mine = items.filter((item) => item.column === column).sort(order)
       if (mine.length === 0) continue
@@ -4253,6 +4259,18 @@ function pageMapOf(doc) {
       .filter(([, on]) => on.length > 1)
       .map(([table, on]) => ({ table, from: on[0], to: on.at(-1) })),
     past,
+  }
+}
+
+/**
+ * Where the engine's laid-out position `logical` (a run's charStart, which counts the objects
+ * standing in the text) falls in the paragraph's text, which does not count them.
+ */
+function textOffsetOf(doc, sec, para, logical) {
+  try {
+    return doc.logicalToTextOffset(sec, para, logical)
+  } catch {
+    return logical
   }
 }
 
