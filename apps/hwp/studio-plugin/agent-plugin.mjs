@@ -3093,6 +3093,9 @@ function tableNumberOf(doc, sec, para, control = null) {
   return index < 0 ? {} : { table: index + 1, tables: tables.length }
 }
 
+/** The heads Hangul numbers or marks a paragraph with in front of its text. */
+const NUMBERED_HEADS = new Set(['Number', 'Bullet', 'Outline'])
+
 /** Where an object can be anchored so that it stands on the page, not in the text. */
 const PAGE_ANCHORS = new Set(['Page', 'Paper'])
 
@@ -5868,29 +5871,63 @@ function columnsChangeWithin(doc) {
 }
 
 /**
- * Whether a body paragraph lies under columns set part way through its section, as the
- * body of a test-paper form under its head: the engine reads only the columns a section
- * starts with, so how wide a column is there is not known.
+ * The columns the text runs in at body paragraph `para` of section `sec`: how many, how wide
+ * one is and the gap between them, in points; null where that cannot be read. A section
+ * starts in the columns getColumnDef reads. No engine call reads a column definition set
+ * part way through it (as a test-paper form sets two columns under a head in one), but a
+ * page that starts after it, before the next one, is laid out in its columns, and getPageInfo
+ * gives those: where no page starts so, its columns are not known.
  */
-function columnsUnknownAt(doc, sec, para) {
+function columnsAt(doc, sec, para) {
   let first = 0
   for (let s = 0; s < sec; s++) first += doc.getParagraphCount(s)
+  const paragraphs = doc.getParagraphCount(sec)
+  let controls = []
   try {
-    const controls = parse(doc.getControls())
-    const starts = new Set(
-      controls.filter((control) => control.ctrlId === 'secd').map((control) => control.para),
-    )
-    return controls.some(
+    controls = parse(doc.getControls())
+  } catch {
+    // an engine without the call: the section's own columns
+  }
+  const starts = new Set(
+    controls.filter((control) => control.ctrlId === 'secd').map((control) => control.para),
+  )
+  const marks = controls
+    .filter(
       (control) =>
         control.ctrlId === 'cold' &&
         control.list === 0 &&
         !starts.has(control.para) &&
         control.para > first &&
-        control.para <= first + para,
+        control.para < first + paragraphs,
     )
-  } catch {
-    return false
+    .map((control) => control.para - first)
+  const from = Math.max(-1, ...marks.filter((mark) => mark <= para))
+  if (from < 0) {
+    const { count, gapPt } = columnsOf(doc, sec)
+    return { count, gapPt, widthPt: columnWidthPt(doc, sec) }
   }
+  const to = Math.min(paragraphs, ...marks.filter((mark) => mark > from))
+  let page = 0
+  try {
+    page = parse(doc.getCursorRect(sec, from, 0)).pageIndex
+  } catch {
+    // a paragraph the caret cannot stand in (one that holds only a table): look from the start
+  }
+  for (const pages = doc.pageCount(); page < pages; page++) {
+    const at = parse(doc.getPositionOfPage(page))
+    if (!at.ok || at.sec !== sec || at.para >= to) break
+    // a page that starts with the paragraph holding the definition may still be laid out
+    // in the columns before it
+    if (at.para <= from) continue
+    const columns = parse(doc.getPageInfo(page)).columns
+    if (!Array.isArray(columns) || columns.length === 0) return null
+    const pt = (px) => (px * 72) / 96
+    const gapPt =
+      columns.length > 1 ? Math.max(0, pt(columns[1].x - columns[0].x - columns[0].width)) : 0
+    const widthPt = Math.floor(pt(Math.min(...columns.map((column) => column.width))))
+    return { count: columns.length, gapPt, widthPt }
+  }
+  return null
 }
 
 /**
@@ -8061,10 +8098,10 @@ export const agentPlugin = {
           // the first paragraph. Anywhere else the text before it would stand in the first
           // column only, beside the table's place.
           const { sec, para } = box.place(box.index, 0)
-          if (columnsUnknownAt(doc, sec, para))
-            return { ok: false, reason: 'columns_unknown', count: 1 }
+          const columns = columnsAt(doc, sec, para)
+          if (!columns) return { ok: false, reason: 'columns_unknown', count: 1 }
           const head = where === 'before' && sec === 0 && box.index === 0
-          return look.across && columnsOf(doc, sec).count > 1 && !head
+          return look.across && columns.count > 1 && !head
             ? { ok: false, reason: 'not_at_start', count: 1 }
             : null
         })
@@ -8094,6 +8131,8 @@ export const agentPlugin = {
               const aligns = look.aligns ?? Array(table[0].length).fill('left')
               // floated in one column too, so that columns set later start below it
               const head = where === 'before' && here === 0 && at === 0 && !box.inTable
+              // the columns where the anchor is, which the new paragraph lies in too
+              const zone = box.inTable ? null : columnsAt(doc, here, box.place(at, 0).para)
               if (where === 'before') box.split(at, 0)
               else {
                 openAfter(box, at, plain)
@@ -8103,15 +8142,14 @@ export const agentPlugin = {
               // where the text runs in columns a table is one column wide, or as wide as
               // the page when it is to lie across them; in one column the paste shares the
               // text width by itself
-              const inColumns = box.inTable ? 1 : columnsOf(doc, place.sec).count
+              const inColumns = zone?.count ?? 1
               const across = look.across && (inColumns > 1 || head)
               // a table narrower than the text (an approval box, a small list) takes its
               // share of the width; one across the columns is always as wide as the page
               const narrow = !across && look.widthShare < 1
               const room =
-                (across || inColumns === 1
-                  ? textWidthPt(doc, place.sec)
-                  : columnWidthPt(doc, place.sec)) * (across ? 1 : look.widthShare)
+                (across || inColumns === 1 ? textWidthPt(doc, place.sec) : zone.widthPt) *
+                (across ? 1 : look.widthShare)
               const shares =
                 look.shares ??
                 (inColumns > 1 || narrow || across
@@ -9414,7 +9452,14 @@ export const agentPlugin = {
           const length = box.length(box.index)
           const text = box.text(box.index, length)
           if (!text.trim()) return refuse('not_found')
-          return { box, text, length }
+          const { sec, para } = box.place(box.index, 0)
+          // the number Hangul puts in front of the paragraph would stay on an empty line
+          // above the box
+          if (NUMBERED_HEADS.has(parse(doc.getParaPropertiesAt(sec, para)).headType))
+            return refuse('numbered')
+          const columns = columnsAt(doc, sec, para)
+          if (!columns) return refuse('columns_unknown')
+          return { box, text, length, columns }
         }
         const refusal = host.read((doc) => plan(doc).refusal ?? null)
         if (refusal) return refusal
@@ -9422,7 +9467,7 @@ export const agentPlugin = {
           change(
             'insert-title-box',
             (doc) => {
-              const { box, text, length } = plan(doc)
+              const { box, text, length, columns } = plan(doc)
               if (!box) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
               const k = box.index
@@ -9452,7 +9497,7 @@ export const agentPlugin = {
               box.deleteText(k, length)
               const layout = titleBoxCells(wanted.look, wanted.color, wanted.color2)
               // where the text runs in columns the box is as wide as one of them
-              const inColumns = columnsOf(doc, sec).count > 1
+              const inColumns = columns.count > 1
               const made = parse(
                 doc.createTableEx(
                   JSON.stringify({
@@ -9462,9 +9507,7 @@ export const agentPlugin = {
                     rowCount: layout.rows,
                     colCount: 1,
                     treatAsChar: true,
-                    ...(inColumns
-                      ? { colWidths: [Math.round(columnWidthPt(doc, sec) * 100)] }
-                      : {}),
+                    ...(inColumns ? { colWidths: [Math.round(columns.widthPt * 100)] } : {}),
                   }),
                 ),
               )

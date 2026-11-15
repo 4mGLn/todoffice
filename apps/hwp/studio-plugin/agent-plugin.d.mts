@@ -258,6 +258,10 @@ export type AgentTitleBoxResult =
   | AgentPlaceRefusal
   /** the title is inside a table cell, where a box cannot be made: `table` is its number */
   | { ok: false; reason: 'in_table'; count: number; table?: number }
+  /** the title runs in columns set part way through its section, whose width is not known */
+  | { ok: false; reason: 'columns_unknown'; count: number }
+  /** the paragraph is numbered or bulleted: the number would stay on its own line */
+  | { ok: false; reason: 'numbered'; count: number }
 
 /** Which fonts Korean documents use this PC has and lacks; both are empty when that is not known. */
 export interface AgentDocumentFonts {
@@ -503,7 +507,10 @@ export type AgentTableResult =
   | { ok: false; reason: 'in_table'; count: number }
   /** a table across the columns goes before the first paragraph of the document only */
   | { ok: false; reason: 'not_at_start'; count: number }
-  /** the place runs in columns set part way through its section, whose width is not known */
+  /**
+   * the place runs in columns set part way through its section where no page starts, so
+   * their width is not known
+   */
   | { ok: false; reason: 'columns_unknown'; count: number }
 
 /** A picture put into the document: where it now sits. */

@@ -3677,6 +3677,94 @@ describe('a test paper in two columns', () => {
     expect(open(sections).plugin.pageLayout().columns).toEqual({ count: 1, gapMm: 0 })
   })
 
+  const LONG = Array.from({ length: 200 }, (_, i) => `문항 ${i + 1} 본문 한 줄`)
+
+  /** A blank document of `lines` whose columns change at the line starting `at` to `cols`. */
+  async function zoned(lines: string[], zones: { at: string; cols: number }[]) {
+    const zip = await JSZip.loadAsync(blank(lines).exportHwpx())
+    const name = Object.keys(zip.files).find((file) => /section0.xml$/.test(file))!
+    let xml = await zip.file(name)!.async('string')
+    for (const { at, cols } of zones) {
+      const run = xml.lastIndexOf('<hp:run ', xml.indexOf(`<hp:t>${at}`))
+      const opened = xml.indexOf('>', run) + 1
+      const zone = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="${cols}" sameSz="1" sameGap="2268"/></hp:ctrl>`
+      xml = xml.slice(0, opened) + zone + xml.slice(opened)
+    }
+    zip.file(name, xml)
+    return new HwpDocument(await zip.generateAsync({ type: 'uint8array' }))
+  }
+
+  /** The drawn width and left of the table a body paragraph holds, in pixels. */
+  function drawnTable(doc: HwpDocument, para: number) {
+    for (let page = 0; page < doc.pageCount(); page++) {
+      const found = (
+        JSON.parse(doc.getPageControlLayout(page)).controls as {
+          type: string
+          paraIdx: number
+          x: number
+          w: number
+        }[]
+      ).find((control) => control.type === 'table' && control.paraIdx === para)
+      if (found) {
+        const columns = (
+          JSON.parse(doc.getPageInfo(page)) as { columns: { x: number; width: number }[] }
+        ).columns
+        return { ...found, page, columns }
+      }
+    }
+    throw new Error(`no table in paragraph ${para}`)
+  }
+
+  it('makes a table and a title box one column wide in columns set part way, read from a page that starts in them', async () => {
+    const { plugin, doc } = open(await zoned(LONG, [{ at: '문항 3 ', cols: 2 }]))
+    expect(doc().pageCount()).toBeGreaterThan(1)
+    expect(plugin.pageLayout().columns).toMatchObject({ changesWithin: true })
+    expect(
+      plugin.insertTable(QUESTIONS[4]!, null, 'after', [['〈보기〉 ㄱ. ㄴ. ㄷ.']], false),
+    ).toMatchObject({
+      ok: true,
+    })
+    const table = drawnTable(doc(), 5)
+    expect(table.page).toBe(0)
+    const column = JSON.parse(doc().getPageInfo(1)).columns[0] as { x: number; width: number }
+    expect(Math.abs(table.w - column.width)).toBeLessThan(2)
+    expect(plugin.insertTitleBox(QUESTIONS[10]!, null, { look: 'box' })).toMatchObject({ ok: true })
+    const box = drawnTable(doc(), 11)
+    expect(Math.abs(box.w - column.width)).toBeLessThan(2)
+  })
+
+  it('makes a table as wide as the text where columns set part way go back to one', async () => {
+    const { plugin, doc } = open(
+      await zoned(LONG, [
+        { at: '문항 3 ', cols: 2 },
+        { at: '문항 100 ', cols: 1 },
+      ]),
+    )
+    expect(plugin.insertTable(LONG[194]!, null, 'after', [['가', '나']], false)).toMatchObject({
+      ok: true,
+    })
+    const table = drawnTable(doc(), 195)
+    expect(table.w).toBeGreaterThan(table.columns[0]!.width * 0.9)
+    expect(table.columns).toHaveLength(1)
+  })
+
+  it('refuses a title box where the width of the columns cannot be read, and on a numbered paragraph', async () => {
+    const { plugin, doc } = open(await zoned(QUESTIONS.slice(0, 6), [{ at: '문항 3 ', cols: 2 }]))
+    expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toEqual({
+      ok: false,
+      reason: 'columns_unknown',
+      count: 1,
+    })
+    expect(() => tableIn(doc(), 4)).toThrow()
+    plugin.formatParagraph(QUESTIONS[1]!, null, { list: 'number' })
+    expect(plugin.insertTitleBox(QUESTIONS[1]!, null, { look: 'box' })).toEqual({
+      ok: false,
+      reason: 'numbered',
+      count: 1,
+    })
+    expect(() => tableIn(doc(), 1)).toThrow()
+  })
+
   it('gives the test-paper page the column width the skill names', () => {
     const { plugin, doc } = open(blank(['']))
     const { page, columns } = EXAM_PAPER

@@ -3186,6 +3186,17 @@ describe('the look of a document', () => {
     }).call('insert_table', { where: 'after', anchor: '3. 문항', rows: [['〈보기〉']] })
     expect(unknown.isError).toBe(true)
     expect(unknown.output).toContain('the table would stand over the line between the columns')
+    expect(unknown.output).toContain('no page starts in those columns')
+    for (const [reason, says] of [
+      ['columns_unknown', 'the box would stand over the line between the columns'],
+      ['numbered', 'leave the number alone on a line above the box'],
+    ] as const) {
+      const box = await setup({
+        insertTitleBox: vi.fn(async () => ({ ok: false as const, reason, count: 1 })),
+      }).call('insert_title_box', { find: '다음 중 옳은 것은?', look: 'box' })
+      expect(box.isError).toBe(true)
+      expect(box.output).toContain(says)
+    }
     const bad = await call('set_columns', { count: 'two' })
     expect(bad.isError).toBe(true)
   })
@@ -3889,7 +3900,9 @@ describe('the skill as the model sees it', () => {
     expect(skill).toContain(
       'Typing `ㄱ.` into a 〈보기〉 line the form numbers itself prints it twice.',
     )
-    expect(skill).toContain('`insert_table` refuses a new table')
+    expect(skill).toContain(
+      "one column wide where it can read that column's width, and refuses where it cannot",
+    )
     const { page, columns, body, questionIndentPt } = EXAM_PAPER
     expect(skill).toContain(
       `paper "${page.paper}", margin_left ${page.marginLeft}, margin_right ${page.marginRight}, margin_top ${page.marginTop}, margin_bottom ${page.marginBottom}, margin_header ${page.marginHeader} and margin_footer ${page.marginFooter}`,

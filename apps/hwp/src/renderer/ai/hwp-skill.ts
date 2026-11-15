@@ -2814,6 +2814,14 @@ function describeFormat(
 }
 
 /** Why a paragraph edit did nothing, as the model reads it. */
+/** Why a table or box is not made where the width of a column cannot be read. */
+function columnsUnknownRefusal(what: 'table' | 'box'): string {
+  return `Nothing was changed: this part of the document runs in columns set part way through it, as the body of a test-paper form under its head, and no page starts in those columns, so this editor cannot read how wide one is there and the ${what} would stand over the line between the columns. Make a box there as paragraphs with a border (format_paragraph border, sides box) instead.`
+}
+
+const NUMBERED_TITLE_HELP =
+  'Nothing was changed: that paragraph is numbered or bulleted by its paragraph format, and a title box would leave the number alone on a line above the box. Give the paragraph a border with format_paragraph instead, or take the number away first (format_paragraph list "none") and write it into the title.'
+
 function placeRefusal(result: AgentPlaceRefusal): string {
   switch (result.reason) {
     case 'ambiguous':
@@ -3798,10 +3806,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             )
           }
           if (result.reason === 'columns_unknown') {
-            return bad(
-              call,
-              'Nothing was changed: this part of the document runs in columns set part way through it, as the body of a test-paper form under its head, and this editor cannot read how wide a column is there, so the table would stand over the line between the columns. Make a box there as paragraphs with a border (format_paragraph border, sides box) instead.',
-            )
+            return bad(call, columnsUnknownRefusal('table'))
           }
           return bad(call, placeRefusal(result))
         }
@@ -5536,7 +5541,13 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (!result.ok) {
           return bad(
             call,
-            result.reason === 'in_table' ? titleInTableRefusal(result.table) : placeRefusal(result),
+            result.reason === 'in_table'
+              ? titleInTableRefusal(result.table)
+              : result.reason === 'columns_unknown'
+                ? columnsUnknownRefusal('box')
+                : result.reason === 'numbered'
+                  ? NUMBERED_TITLE_HELP
+                  : placeRefusal(result),
           )
         }
         deps.onChange({
