@@ -3201,6 +3201,24 @@ describe('the look of a document', () => {
     expect(bad.isError).toBe(true)
   })
 
+  it('names the line one column keeps stored', async () => {
+    const { call } = setup({
+      setColumns: vi.fn(async () => ({
+        ok: true as const,
+        count: 1,
+        gapMm: 0,
+        was: 2,
+        sections: 1,
+        line: 'solid' as const,
+        lineKept: true as const,
+      })),
+    })
+    const result = await call('set_columns', { count: 1 })
+    expect(result.output).toBe(
+      'The text runs in one column again. The solid line between columns stays stored and comes back with the columns (line "none" takes it away).',
+    )
+  })
+
   it('draws a line between the columns when asked, and says so', async () => {
     const { call, bridge } = setup({
       setColumns: vi.fn(async (spec: { count: number; line?: string }) => ({

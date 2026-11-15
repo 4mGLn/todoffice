@@ -5827,10 +5827,19 @@ function columnsOf(doc, sec) {
   return { count, gapPt, line }
 }
 
-/** The line setColumns left between the columns when none was asked for. */
-function keptLine(doc, count) {
-  const { line } = columnsOf(doc, 0)
-  return count > 1 && line ? { line, lineKept: true } : {}
+/**
+ * The line setColumns left stored between the columns when none was asked for; in one
+ * column it is not drawn, and it comes back with the columns.
+ */
+function keptLine(doc) {
+  let def = null
+  try {
+    def = parse(doc.getColumnDef(0))
+  } catch {
+    // an engine without the call: no line
+  }
+  const line = COLUMN_LINE_TYPES[def?.separatorType] ?? null
+  return line ? { line, lineKept: true } : {}
 }
 
 /** The lines set_columns draws between columns. */
@@ -9739,7 +9748,7 @@ export const agentPlugin = {
               gapMm: count > 1 ? gapMm : 0,
               was,
               sections,
-              ...(lineName !== null ? { line: lineName } : keptLine(doc, count)),
+              ...(lineName !== null ? { line: lineName } : keptLine(doc)),
             }
           },
           options,

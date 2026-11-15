@@ -5598,7 +5598,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           output:
             result.count > 1
               ? `The text now runs in ${result.count} columns with ${result.gapMm} mm between them${columnLineNote(result.line, result.lineKept === true)}. A table added from now on is one column wide; pass across_columns for one as wide as the page. Tables that were already there kept their width.${wideTablesNote(result.wide)}`
-              : 'The text runs in one column again.',
+              : `The text runs in one column again.${result.lineKept ? ` The ${result.line} line between columns stays stored and comes back with the columns (line "none" takes it away).` : ''}`,
           mutated: true,
           summary: label('aiToolColumnsSet', { count: result.count }),
         }
