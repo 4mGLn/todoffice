@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type {
   DragEvent as ReactDragEvent,
   PointerEvent as ReactPointerEvent,
@@ -945,6 +945,7 @@ function AccountEntry({
     (summary.state === 'connected' ||
       summary.state === 'needs-connection' ||
       summary.state === 'off')
+  const aiLineId = useId()
   // the line under "Settings": the AI's state without its name
   const aiLine = !aiOn
     ? null
@@ -981,6 +982,8 @@ function AccountEntry({
               ? t('settings')
               : aiSubscriptionText(lang, 'connectTitle')
         }
+        aria-label={t('settings')}
+        aria-describedby={aiLine ? aiLineId : undefined}
       >
         <span
           className={`account-avatar${aiOn && summary.state === 'connected' ? ' logged-in' : ''}`}
@@ -992,7 +995,11 @@ function AccountEntry({
         </span>
         <span className="account-text">
           <span className="account-name">{t('settings')}</span>
-          {aiLine && <span className="account-sub">{aiLine}</span>}
+          {aiLine && (
+            <span className="account-sub" id={aiLineId}>
+              {aiLine}
+            </span>
+          )}
         </span>
         <svg
           className="account-chevron"

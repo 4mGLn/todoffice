@@ -171,6 +171,10 @@ describe('home settings entry', () => {
     expect(sub()).toBe('AI: Connected · max')
     expect(tip()).toBe('Claude · Connected · max')
     expect(entry().textContent).not.toContain('Claude')
+    // the button's name stays Settings; the state line describes it
+    expect(entry().getAttribute('aria-label')).toBe('Settings')
+    const described = entry().getAttribute('aria-describedby')
+    expect(described && document.getElementById(described)?.textContent).toBe('AI: Connected · max')
   })
 
   it('names both in the tooltip when both are connected', async () => {
