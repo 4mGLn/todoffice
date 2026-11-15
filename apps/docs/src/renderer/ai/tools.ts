@@ -537,6 +537,11 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           type: 'string',
           description: 'e.g. "1:1", "16:9", "4:3"; omit for the default',
         },
+        model: {
+          type: 'string',
+          description:
+            'image model name, only when the user named a model; the app uses it if the current image route offers it, otherwise it answers with the models it can use',
+        },
         maxWidthPx: { type: 'integer', description: 'maximum width (px), default 480' },
       },
       required: ['prompt'],
@@ -1064,16 +1069,18 @@ async function executeAsyncTool(
       const prompt = String(call.input.prompt ?? '').trim()
       if (!prompt) return fail(t('aiSumGenerateImage'), 'prompt must not be empty')
       const aspectRatio = String(call.input.aspectRatio ?? '').trim()
+      const model = String(call.input.model ?? '').trim()
       const generated = await window.desktop.aiGenerateImage({
         prompt,
         ...(aspectRatio ? { aspectRatio } : {}),
+        ...(model ? { model } : {}),
       })
       if (signal?.aborted)
         return fail(t('aiSumGenerateImage'), 'stopped by the user; the image was not inserted')
       if (!generated.url) {
         return fail(t('aiSumGenerateImage'), generated.error ?? 'image generation failed')
       }
-      return insertImageFromUrl(
+      const inserted = await insertImageFromUrl(
         editor,
         generated.url,
         Number(call.input.maxWidthPx) || 480,
@@ -1084,6 +1091,10 @@ async function executeAsyncTool(
           blockLabel: 'Image (AI)',
         },
       )
+      // the shared tool's remark (e.g. Codex picked the image model) reaches the model
+      return generated.note
+        ? { ...inserted, output: `${inserted.output}\nNote: ${generated.note}` }
+        : inserted
     }
     case 'create_document': {
       const typeRaw = call.input.type === undefined ? 'docx' : String(call.input.type)

@@ -60,7 +60,7 @@ export const HWP_CHANNELS = {
   aiRunStop: 'hwp:ai-run-stop',
   /** invoke(path, request?) → `AttachmentImportResult`: an attached Markdown file as a new Hangul tab */
   filesImportDocument: 'hwp:files-import-document',
-  /** invoke({prompt, aspectRatio}) �� `{url?, error?, errorCode?}`: one AI picture */
+  /** invoke({prompt, aspectRatio, model?}) → `{url?, error?, errorCode?}`: one AI picture */
   aiGenerateImage: 'hwp:ai-generate-image',
   /** invoke(url) �� `{base64, mime} | null`: a web image or a generated-store file */
   fetchImage: 'hwp:fetch-image',
@@ -93,6 +93,7 @@ export const AI_CHANNELS = {
   streamChunk: 'ai:stream-chunk',
   streamCancel: 'ai:stream-cancel',
   readUrl: 'ai:read-url',
+  webSearch: 'ai:web-search',
   imageSearch: 'ai:image-search',
   /** () �� `AiToolCapabilities | null`, registered by the docs main (shell mode only) */
   toolCapabilities: 'ai:tool-capabilities',
@@ -319,6 +320,16 @@ export interface MediaAnalysisResult {
   resetsAt?: number
 }
 
+/** Web search results (the shared ai:web-search handler) */
+export interface WebSearchResult {
+  /** a direct answer some services give before their results */
+  answer?: string
+  results: Array<{ title: string; url: string; snippet: string }>
+  method: string
+  /** failure reason when method === 'error' */
+  error?: string
+}
+
 /** Image search results (the shared ai:image-search handler) */
 export interface ImageSearchResult {
   images: Array<{ title?: string; imageUrl: string; width?: number; height?: number }>
@@ -481,13 +492,17 @@ export interface HwpApi {
   aiStreamCancel(requestId: string): Promise<void>
   /** Read one web page as text (the shared ai:read-url handler), paged by character offset */
   readUrl(url: string, offset?: number): Promise<ReadUrlResult>
+  /** Web search for text (the shared ai:web-search handler) */
+  webSearch(query: string, maxResults?: number): Promise<WebSearchResult>
   /** Image search (the shared ai:image-search handler) */
   imageSearch(query: string, maxResults?: number): Promise<ImageSearchResult>
   /** AI image generation (hwp-owned channel; the main process picks the backend) */
-  generateImage(op: { prompt: string; aspectRatio?: string }): Promise<{
+  generateImage(op: { prompt: string; aspectRatio?: string; model?: string }): Promise<{
     url?: string
     error?: string
     errorCode?: string
+    /** the shared tool's remark for the model (e.g. Codex picked the image model) */
+    note?: string
   }>
   /** Download an image URL (or a generated-store file) in the main process */
   fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
