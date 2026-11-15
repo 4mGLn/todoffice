@@ -182,6 +182,28 @@ export function tableLookBlocks(look, header) {
   return []
 }
 
+/**
+ * The horizontal lines of a table once `count` rows were added at row `first` (zero-based,
+ * the first new row). `edges` are the lines before: one list per edge from the top of the
+ * table (0) to its bottom (one more than the rows), each a line per column (null where a
+ * merged cell runs across the edge). The outline stays with the edge of the table and the
+ * line under a header row under it; every line the new rows bring is the line between two
+ * body rows, or a thin one in the colour of the bottom line when the table has no two body
+ * rows to read it from (none, when that line is none).
+ */
+export function rowEdgesAfterAdding(edges, header, first, count) {
+  const rows = edges.length - 1
+  const between = (header ? 1 : 0) + 1
+  const inner = edges[rows].map((outer, col) => {
+    const seen = between < rows ? edges[between][col] : null
+    if (seen) return seen
+    if (!outer || outer.type === 0) return outer
+    return { type: 1, width: borderWidthIndex(0.12), color: outer.color }
+  })
+  const at = Math.min(first, rows - 1)
+  return [...edges.slice(0, at + 1), ...Array(count).fill(inner), ...edges.slice(at + 1)]
+}
+
 /** The looks a title box can be given. */
 export const TITLE_BOX_LOOKS = ['bands', 'lines', 'box', 'shaded']
 

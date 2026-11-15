@@ -51,6 +51,7 @@ import {
   HEADER_FIELD_TOKENS,
   headerPieces,
   pageNumberOf as pageNumberSettingOf,
+  rowEdgesAfterAdding,
   paragraphBorderOf,
   standInFont,
   tabStopsOf,
@@ -3059,6 +3060,47 @@ function setCellBorders(doc, table, grid, rect, rules, more = null) {
     count += 1
   }
   return count
+}
+
+/**
+ * The horizontal lines of a body table, as rowEdgesAfterAdding takes them, and whether its
+ * first row is a header row.
+ */
+function rowEdgesOf(doc, table, grid) {
+  const control = table.path[0].controlIndex
+  const edges = Array.from({ length: table.rows + 1 }, () => Array(table.cols).fill(null))
+  let header = false
+  for (const cell of grid) {
+    const props = parse(doc.getCellProperties(table.sec, table.para, control, cell.cell))
+    if (cell.row === 0 && props.isHeader === true) header = true
+    for (let col = cell.col; col < cell.col + cell.colSpan; col++) {
+      if (cell.row === 0) edges[0][col] = props.borderTop
+      edges[cell.row + cell.rowSpan][col] = props.borderBottom
+    }
+  }
+  return { edges, header }
+}
+
+const sameLine = (one, other) =>
+  one.type === other.type && one.width === other.width && one.color === other.color
+
+/** Draw the horizontal lines `edges` (as rowEdgesOf reads them) on a body table. */
+function setRowEdges(doc, table, grid, edges) {
+  const control = table.path[0].controlIndex
+  for (const cell of grid) {
+    const props = parse(doc.getCellProperties(table.sec, table.para, control, cell.cell))
+    const top = edges[cell.row]?.[cell.col]
+    const bottom = edges[cell.row + cell.rowSpan]?.[cell.col]
+    const lines = {
+      ...(top && !sameLine(top, props.borderTop) ? { borderTop: top } : {}),
+      ...(bottom && !sameLine(bottom, props.borderBottom) ? { borderBottom: bottom } : {}),
+    }
+    if (Object.keys(lines).length === 0) continue
+    expectOk(
+      doc.setCellProperties(table.sec, table.para, control, cell.cell, JSON.stringify(lines)),
+      'draw the lines of the table',
+    )
+  }
 }
 
 /** How the body cells of a new table may be aligned. */
@@ -9931,6 +9973,9 @@ export const agentPlugin = {
               const { sec, para } = table
               const ctrl = table.path[0].controlIndex
               const after = where === 'after'
+              // the engine copies the row it adds next to, its lines too: the bottom line
+              // of the table would stay under the old last row
+              const lines = rows ? rowEdgesOf(doc, table, gridOf(doc, table)) : null
               for (let n = 0; n < count; n++) {
                 // "before" pushes the line it copies down by one each time
                 const beside = after ? at - 1 : at - 1 + n
@@ -9948,6 +9993,10 @@ export const agentPlugin = {
                 cells: parse(doc.getTableDimensions(sec, para, ctrl)).cellCount,
               }
               const grid = gridOf(doc, grown)
+              if (lines) {
+                const edges = rowEdgesAfterAdding(lines.edges, lines.header, first, count)
+                setRowEdges(doc, grown, grid, edges)
+              }
               const line = (cell) => (rows ? cell.row : cell.col)
               const across = (cell) => (rows ? cell.col : cell.row)
               const alignment = (cell) =>

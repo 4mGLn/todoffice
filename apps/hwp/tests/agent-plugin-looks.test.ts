@@ -300,6 +300,56 @@ describe('insertTable: looks', () => {
     expect(looks(centred.doc(), 5).slice(2)).toEqual(Array(4).fill('함초롬바탕 10 center'))
   })
 
+  it('keeps the outline at the edge of an open table and the header line under the header when rows are added', () => {
+    /** The line under each row of column 1, and the line over the table, as widths. */
+    const lines = (source: HwpDocument) => {
+      const table = tableIn(source, 5)
+      const under = Array.from({ length: table.rows }, (_, row) => {
+        for (let cell = 0; cell < table.cells; cell++) {
+          const info = JSON.parse(source.getCellInfo(0, 5, table.control, cell)) as {
+            row: number
+            col: number
+            rowSpan: number
+          }
+          if (info.col === 0 && info.row + info.rowSpan - 1 === row) {
+            return table.cell(cell).borderBottom.width
+          }
+        }
+        return null
+      })
+      return [table.cell(0).borderTop.width, ...under]
+    }
+    const heavy = 7
+    const header = 5
+    const look = { header: true, look: 'open' as const }
+    const appended = withTable(look)
+    const inner = lines(appended.doc())[2]
+    expect(lines(appended.doc())).toEqual([heavy, header, inner, heavy])
+    expect(appended.plugin.addTableLines(1, 'rows', 3, 'after', 1)).toMatchObject({ ok: true })
+    appended.plugin.addTableLines(1, 'rows', 4, 'after', 2)
+    expect(lines(appended.doc())).toEqual([heavy, header, inner, inner, inner, inner, heavy])
+    for (const bytes of [appended.doc().exportHwpx(), appended.doc().exportHwp()]) {
+      expect(lines(new HwpDocument(bytes))).toEqual([heavy, header, inner, inner, inner, inner, heavy])
+    }
+
+    const first = withTable(look)
+    first.plugin.addTableLines(1, 'rows', 1, 'before', 1)
+    expect(lines(first.doc())).toEqual([heavy, inner, header, inner, heavy])
+
+    const merged = withTable(look)
+    merged.plugin.mergeCells(1, { row: 3, col: 1 }, { row: 3, col: 3 })
+    merged.plugin.addTableLines(1, 'rows', 3, 'after', 1)
+    expect(lines(merged.doc())).toEqual([heavy, header, inner, inner, heavy])
+
+    // a header and one row: no line between two body rows to copy, so a thin one
+    const short = open()
+    short.plugin.insertTable('□ 세부 일정', null, 'after', ROWS.slice(0, 2), look)
+    short.plugin.addTableLines(1, 'rows', 2, 'after', 1)
+    const thin = lines(short.doc())
+    expect(thin).toEqual([heavy, header, thin[2], heavy])
+    expect(thin[2]).toBeLessThan(header)
+  })
+
   it('writes the words of a header row white on a dark fill, in the document and in both files', () => {
     const { doc, para } = withTable({ header: true, headerColor: '#1F3864' })
     const colours = (source: HwpDocument) => {
