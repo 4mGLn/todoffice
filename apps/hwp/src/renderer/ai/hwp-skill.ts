@@ -1332,7 +1332,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'delete_table',
     edits: true,
     description:
-      'Remove a whole table with what is in it, the tables inside its cells included. Use it only when the user asked for it. A table with a picture in a cell is not removed. The table numbers after it go down by one and more: call list_tables again before the next table call.',
+      'Remove a whole table with what is in it, the tables inside its cells included. Use it only when the user asked for it, or asked for another look of a title box or table of contents you made in this conversation, which you then make again. A table with a picture in a cell is not removed. The table numbers after it go down by one and more: call list_tables again before the next table call.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -2333,7 +2333,7 @@ const IN_TABLE_HELP =
 /** The refusal of a title box for text in a table, as the model reads it. */
 function titleInTableRefusal(table: number | undefined): string {
   const name = table === undefined ? 'that table' : `table ${table}`
-  return `Nothing was changed: that text is inside ${name}. A title box is made only from a paragraph of the body text, and no table is drawn again as one, not even a title box made before: the document does not tell which tables insert_title_box made. To change the lines or fill of ${name}, use format_cells. To give a title box made before another look: delete_table ${table ?? 'it'} (its words go with it), put the title back with insert_paragraphs before the line that follows, and call insert_title_box on it. The line that held the box stays, empty.`
+  return `Nothing was changed: that text is inside ${name}, which is kept as it is. A title box is made only from a paragraph of the body text, and no table is drawn again as one: the document does not tell which tables insert_title_box made. To change the lines or fill of ${name}, use format_cells. Only when you made this box with insert_title_box earlier in this conversation and the user asked for another look of it: delete_table ${table ?? 'it'} (its words go with it), put the title back as a new paragraph where the box was, and call insert_title_box on it. The new paragraph goes after the line above the box (insert_paragraphs where after, its anchor text of that line), or, when the box was the first paragraph of the document, before the line below it (where before). An anchor inside a table puts the paragraph into a cell of that table: when the line on that side is a table, tell the user instead. Where the box was the first paragraph, delete_table leaves an empty first line, which stays above the new box: no tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor. Anywhere else no line is left behind.`
 }
 
 /** The refusal of a script written in LaTeX, which the equation editor does not read. */

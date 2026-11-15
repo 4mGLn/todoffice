@@ -3180,7 +3180,15 @@ describe('the look of a document', () => {
     const result = await call('insert_title_box', { find: '운영 계획' })
     expect(result.isError).toBe(true)
     expect(result.output).toBe(
-      'Nothing was changed: that text is inside table 3. A title box is made only from a paragraph of the body text, and no table is drawn again as one, not even a title box made before: the document does not tell which tables insert_title_box made. To change the lines or fill of table 3, use format_cells. To give a title box made before another look: delete_table 3 (its words go with it), put the title back with insert_paragraphs before the line that follows, and call insert_title_box on it. The line that held the box stays, empty.',
+      'Nothing was changed: that text is inside table 3, which is kept as it is. A title box is made only from a paragraph of the body text, and no table is drawn again as one: the document does not tell which tables insert_title_box made. To change the lines or fill of table 3, use format_cells. Only when you made this box with insert_title_box earlier in this conversation and the user asked for another look of it: delete_table 3 (its words go with it), put the title back as a new paragraph where the box was, and call insert_title_box on it. The new paragraph goes after the line above the box (insert_paragraphs where after, its anchor text of that line), or, when the box was the first paragraph of the document, before the line below it (where before). An anchor inside a table puts the paragraph into a cell of that table: when the line on that side is a table, tell the user instead. Where the box was the first paragraph, delete_table leaves an empty first line, which stays above the new box: no tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor. Anywhere else no line is left behind.',
+    )
+  })
+
+  it('lets delete_table go only where the user asked, a new look of a box made here included', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'delete_table')
+    expect(tool?.description).toContain(
+      'Use it only when the user asked for it, or asked for another look of a title box or table of contents you made in this conversation, which you then make again.',
     )
   })
 
