@@ -513,7 +513,17 @@ const fail = (output: string, summary: string): ToolExecution => ({
 export function createUserSkillsSkill(deps: UserSkillsDeps): AgentSkill {
   const labels = deps.labels ?? DEFAULT_LABELS
   const toolDefs = tools()
-  const find = (id: string) => deps.list().find((s) => s.id === id)
+  /**
+   * the entry of an id; a bare name (an editor's instructions name a built-in skill so) is the
+   * skill of that name the list puts forward, so a person's own copy wins over the built-in
+   */
+  const find = (id: string) => {
+    const all = deps.list()
+    const exact = all.find((s) => s.id === id)
+    if (exact || id.includes(':')) return exact
+    const named = all.filter((s) => s.name === id && !skillStandsBack(s, all, deps.editor))
+    return named.length === 1 ? named[0] : undefined
+  }
   /** the entry, reading the list again once when the snapshot does not have it yet */
   const findFresh = async (id: string): Promise<UserSkillEntry | undefined> => {
     const known = find(id)
@@ -526,10 +536,11 @@ export function createUserSkillsSkill(deps: UserSkillsDeps): AgentSkill {
   const attached = () => attachedSkillIdsOf(lastUserText(deps.messages?.() ?? []))
 
   const useSkill = async (call: AgentToolCall): Promise<ToolExecution> => {
-    const id = str(call.input.id).trim()
-    const entry = await findFresh(id)
-    const refusal = entryRefusal(entry, id, deps.editor)
-    if (refusal || !entry) return fail(refusal ?? refusalText('not-found', id), USE_SKILL_TOOL)
+    const asked = str(call.input.id).trim()
+    const entry = await findFresh(asked)
+    const refusal = entryRefusal(entry, asked, deps.editor)
+    if (refusal || !entry) return fail(refusal ?? refusalText('not-found', asked), USE_SKILL_TOOL)
+    const id = entry.id
     const title = titleOf(entry)
     if (attached().includes(id)) {
       return {
@@ -560,12 +571,13 @@ export function createUserSkillsSkill(deps: UserSkillsDeps): AgentSkill {
   }
 
   const readSkillFile = async (call: AgentToolCall): Promise<ToolExecution> => {
-    const id = str(call.input.id).trim()
+    const asked = str(call.input.id).trim()
     const path = str(call.input.path).trim()
-    const entry = await findFresh(id)
-    const refusal = entryRefusal(entry, id, deps.editor)
+    const entry = await findFresh(asked)
+    const refusal = entryRefusal(entry, asked, deps.editor)
     if (refusal || !entry)
-      return fail(refusal ?? refusalText('not-found', id), READ_SKILL_FILE_TOOL)
+      return fail(refusal ?? refusalText('not-found', asked), READ_SKILL_FILE_TOOL)
+    const id = entry.id
     if (pathLeavesFolder(path)) return fail(fileRefusalText('outside', id, path), path)
     if (!SKILL_TEXT_FILE_EXTENSIONS.has(extensionOf(path))) {
       return fail(fileRefusalText('not-text', id, path), path)

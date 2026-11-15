@@ -532,6 +532,67 @@ describe('createUserSkillsSkill', () => {
   })
 })
 
+describe('a skill named by its bare name', () => {
+  // the views as the shell's main process lists them: the id is always source:name
+  const view = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    source: id.split(':')[0],
+    name: id.split(':')[1],
+    title: id,
+    description: 'd',
+    enabled: true,
+    invoke: 'auto',
+    editors: ['hwp'],
+    ...over,
+  })
+  const depsOf = (views: unknown[]) =>
+    makeDeps({ editor: 'hwp', list: () => userSkillEntriesOf(views) })
+
+  it('use_skill reads the built-in an editor’s instructions name without its source', async () => {
+    const { deps, reads } = depsOf([view('builtin:hwp-exam-paper')])
+    const result = await createUserSkillsSkill(deps).executeTool(
+      call(USE_SKILL_TOOL, { id: 'hwp-exam-paper' }),
+    )
+    expect(result.isError).toBeFalsy()
+    expect(result.output).toContain('<skill id="builtin:hwp-exam-paper"')
+    expect(reads).toEqual(['builtin:hwp-exam-paper'])
+  })
+
+  it('reads the person’s own copy where it pushes the built-in of that name back', async () => {
+    const { deps, reads, fileReads } = depsOf([
+      view('builtin:hwp-exam-paper', { shadowedBy: 'user:hwp-exam-paper' }),
+      view('user:hwp-exam-paper'),
+    ])
+    const skill = createUserSkillsSkill(deps)
+    await skill.executeTool(call(USE_SKILL_TOOL, { id: 'hwp-exam-paper' }))
+    await skill.executeTool(
+      call(READ_SKILL_FILE_TOOL, { id: 'hwp-exam-paper', path: 'reference/tone.md' }),
+    )
+    expect(reads).toEqual(['user:hwp-exam-paper'])
+    expect(fileReads).toEqual([['user:hwp-exam-paper', 'reference/tone.md']])
+  })
+
+  it('refuses a name two listed skills share, and an unknown source', async () => {
+    const { deps, reads } = depsOf([view('user:letter'), view('codex:letter')])
+    const skill = createUserSkillsSkill(deps)
+    for (const id of ['letter', 'builtin:letter']) {
+      const result = await skill.executeTool(call(USE_SKILL_TOOL, { id }))
+      expect(result.isError).toBe(true)
+      expect(result.output).toBe(`No skill with id ${id}. Use an id from the skills list.`)
+    }
+    expect(reads).toEqual([])
+  })
+
+  it('keeps the refusal of a turned-off skill named so', async () => {
+    const { deps, reads } = depsOf([view('builtin:hwp-exam-paper', { enabled: false })])
+    const result = await createUserSkillsSkill(deps).executeTool(
+      call(USE_SKILL_TOOL, { id: 'hwp-exam-paper' }),
+    )
+    expect(result.output).toMatch(/turned off/)
+    expect(reads).toEqual([])
+  })
+})
+
 describe('userSkillEntriesOf', () => {
   it('keeps well-formed views and reads their states', () => {
     const entries = userSkillEntriesOf([
