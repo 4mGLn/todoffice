@@ -151,3 +151,23 @@ describe('sheets:ai-generate-image, cancelling', () => {
     await Promise.all([stopped.result, other.result])
   })
 })
+
+describe('sheets:ai-generate-image, model', () => {
+  beforeEach(() => {
+    generateImageTool.mockReset()
+  })
+
+  it('hands a model the user named to the tool unchanged, and none when absent', async () => {
+    generateImageTool.mockResolvedValue({ url: 'file:///fake/out.png' })
+    createSheetsView({ includeAiHandlers: true })
+    const sender = lastContents
+    const handler = handlers.get(IPC_CHANNELS.aiGenerateImage)!
+    await handler({ sender }, { prompt: 'a red kite', model: 'gpt-image-2' })
+    expect(generateImageTool.mock.calls[0]![1]).toEqual({
+      prompt: 'a red kite',
+      model: 'gpt-image-2',
+    })
+    await handler({ sender }, { prompt: 'a red kite' })
+    expect(generateImageTool.mock.calls[1]![1]).toEqual({ prompt: 'a red kite' })
+  })
+})

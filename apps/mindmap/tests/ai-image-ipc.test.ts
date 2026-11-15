@@ -78,12 +78,27 @@ describe('mindmap image channels', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal)
   })
 
+  it('hands a model the user named to the tool unchanged', async () => {
+    register()
+    generateImageTool.mockResolvedValue({ url: 'file:///store/a.png' })
+    await handlers.get(MINDMAP_CHANNELS.aiGenerateImage)!(
+      { sender },
+      { prompt: 'a red kite', model: 'gpt-image-2' },
+    )
+    expect(generateImageTool.mock.calls[0]?.[1]).toEqual({
+      prompt: 'a red kite',
+      aspectRatio: undefined,
+      model: 'gpt-image-2',
+    })
+  })
+
   it('keeps an empty prompt away from the tool', async () => {
     register()
     await handlers.get(MINDMAP_CHANNELS.aiGenerateImage)!({ sender }, {})
     expect(generateImageTool.mock.calls[0]?.[1]).toEqual({
       prompt: '',
       aspectRatio: undefined,
+      model: undefined,
     })
   })
 

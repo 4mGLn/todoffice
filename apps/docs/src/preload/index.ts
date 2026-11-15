@@ -283,7 +283,7 @@ const api: DesktopApi = {
   analyzeMedia: (op: { mediaUrls: string[]; requirements: string }) =>
     ipcRenderer.invoke('docs:analyze-media', op),
   fetchImage: (url: string) => ipcRenderer.invoke('ai:fetch-image', url),
-  aiGenerateImage: (op: { prompt: string; aspectRatio?: string }) =>
+  aiGenerateImage: (op: { prompt: string; aspectRatio?: string; model?: string }) =>
     ipcRenderer.invoke('docs:ai-generate-image', op),
   pickAttachments: () => ipcRenderer.invoke('files:pick'),
   addAttachmentPaths: (paths: string[]) => ipcRenderer.invoke('files:add', paths),

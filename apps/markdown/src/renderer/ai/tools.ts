@@ -246,6 +246,11 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           type: 'string',
           description: 'Optional aspect ratio like "16:9", "1:1", "4:3"',
         },
+        model: {
+          type: 'string',
+          description:
+            'image model name, only when the user named a model; the app uses it if the current image route offers it, otherwise it answers with the models it can use',
+        },
         afterIndex: {
           type: 'integer',
           description:
@@ -553,8 +558,13 @@ export function executeTool(
       const prompt = String(call.input.prompt ?? '').trim()
       if (!prompt) return fail('prompt must not be empty', t('aiToolGenImage'))
       const aspectRatio = String(call.input.aspectRatio ?? '').trim()
+      const model = String(call.input.model ?? '').trim()
       return window.markdownApi
-        .aiGenerateImage({ prompt, ...(aspectRatio ? { aspectRatio } : {}) })
+        .aiGenerateImage({
+          prompt,
+          ...(aspectRatio ? { aspectRatio } : {}),
+          ...(model ? { model } : {}),
+        })
         .then((generated): ToolExecution | Promise<ToolExecution> => {
           if (signal?.aborted) {
             return fail('stopped by the user; the image was not inserted', t('aiToolGenImage'))
