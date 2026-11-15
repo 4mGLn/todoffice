@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import JSZip from 'jszip'
 import { describe, expect, it } from 'vitest'
 import { run, tempDir } from './helpers'
-import { sampleMap } from './map-fixture'
+import { sampleMap, summaryMap, twoSheetMap } from './map-fixture'
 
 /**
  * `map apply`: the six ops through `reconcileSheet`, without the app. The
@@ -283,5 +283,104 @@ describe('map apply', () => {
     expect(r.code).toBe(1)
     expect(r.json().detail.results[0]).toMatchObject({ op: 'add_topic', status: 'ok' })
     expect(r.json().detail.results[1]).toMatchObject({ op: 'rename_topic', status: 'failed' })
+  })
+})
+
+describe('summary topics', () => {
+  /** The summary of one topic as `map read --json` lists it, or undefined. */
+  const summaryOf = (topics: { id: string; summaries?: unknown[] }[], id: string) =>
+    topics.find((t) => t.id === id)?.summaries
+
+  it('rename_topic renames the summary and delete_topic takes it out with its topic', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'sums.xmind')
+    const ids = await summaryMap(file)
+    const renamed = await run(
+      [
+        'map',
+        'apply',
+        file,
+        '--ops',
+        ops([{ op: 'rename_topic', id: ids.summary, title: 'Summarised' }]),
+        '--json',
+      ],
+      { env: env() },
+    )
+    expect(renamed.code, JSON.stringify(renamed.json())).toBe(0)
+    let read = await run(['map', 'read', file, '--json'], { env: env() })
+    let topics = read.json().detail.sheets[0].topics
+    expect(summaryOf(topics, ids.a)).toMatchObject([{ topicId: ids.summary, title: 'Summarised' }])
+
+    const deleted = await run(
+      ['map', 'apply', file, '--ops', ops([{ op: 'delete_topic', id: ids.summary }]), '--json'],
+      { env: env() },
+    )
+    expect(deleted.code, JSON.stringify(deleted.json())).toBe(0)
+    read = await run(['map', 'read', file, '--json'], { env: env() })
+    topics = read.json().detail.sheets[0].topics
+    expect(summaryOf(topics, ids.a)).toBeUndefined()
+    const zip = await JSZip.loadAsync(readFileSync(file))
+    const content = await zip.file('content.json')!.async('string')
+    expect(content).not.toContain('sum-record-1')
+    expect(content).not.toContain('sum-topic-1')
+  })
+
+  it('delete_topic of a summary topic goes through the same preserved-elements guard', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'sums.xmind')
+    const ids = await summaryMap(file)
+    const before = readFileSync(file)
+    // the summary topic has a branch below it: deleting it would take that branch
+    const r = await run(
+      ['map', 'apply', file, '--ops', ops([{ op: 'delete_topic', id: ids.guarded }]), '--json'],
+      { env: env() },
+    )
+    expect(r.code).toBe(1)
+    expect(r.json()).toMatchObject({
+      error: 'op_rejected',
+      message: expect.stringContaining('1 element(s) the map preserves'),
+      detail: { preserved: 1 },
+    })
+    expect(readFileSync(file).equals(before)).toBe(true)
+  })
+
+  it('the ops that work on branch topics refuse a summary topic', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'sums.xmind')
+    const ids = await summaryMap(file)
+    const refused = [
+      { op: 'add_topic', parent: ids.summary, title: 'x' },
+      { op: 'move_topic', id: ids.summary, parent: ids.root },
+      { op: 'move_topic', id: ids.a1, parent: ids.summary },
+      { op: 'set_note', id: ids.summary, note: 'x' },
+      { op: 'set_link', id: ids.summary, url: 'https://example.com/x' },
+    ]
+    for (const op of refused) {
+      const r = await run(['map', 'apply', file, '--ops', ops([op]), '--json'], { env: env() })
+      expect(r.code, JSON.stringify(r.json())).toBe(1)
+      expect(r.json()).toMatchObject({
+        error: 'invalid_argument',
+        message: expect.stringContaining('is a summary topic'),
+      })
+    }
+  })
+})
+
+describe('an id on more than one sheet', () => {
+  it('is refused: an op cannot say which sheet it means', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'two.xmind')
+    const ids = await twoSheetMap(file)
+    for (const op of [
+      { op: 'rename_topic', id: ids.dup, title: 'x' },
+      { op: 'set_note', id: ids.dup, note: 'x' },
+    ]) {
+      const r = await run(['map', 'apply', file, '--ops', ops([op]), '--json'], { env: env() })
+      expect(r.code, JSON.stringify(r.json())).toBe(1)
+      expect(r.json()).toMatchObject({
+        error: 'invalid_argument',
+        message: expect.stringContaining('on more than one sheet'),
+      })
+    }
   })
 })
