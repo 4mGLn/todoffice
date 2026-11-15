@@ -583,6 +583,71 @@ describe('a skill named by its bare name', () => {
     expect(reads).toEqual([])
   })
 
+  it.each([
+    [
+      'the built-in turned off by saving the person’s own copy',
+      [view('app:hwp-exam-paper'), view('builtin:hwp-exam-paper', { enabled: false })],
+      'app:hwp-exam-paper',
+    ],
+    [
+      'the built-in hidden beside the person’s own copy',
+      [view('app:hwp-exam-paper'), view('builtin:hwp-exam-paper', { hidden: true })],
+      'app:hwp-exam-paper',
+    ],
+    [
+      'the person’s own copy set for the Word editor only',
+      [
+        view('app:hwp-exam-paper', { editors: ['docs'] }),
+        view('builtin:hwp-exam-paper', { shadowedBy: 'app:hwp-exam-paper' }),
+      ],
+      'builtin:hwp-exam-paper',
+    ],
+    [
+      'a Claude skill of the same name turned off',
+      [view('builtin:hwp-exam-paper'), view('user:hwp-exam-paper', { enabled: false })],
+      'builtin:hwp-exam-paper',
+    ],
+    [
+      'one for every editor beside one set for this one',
+      [view('user:letter', { editors: undefined }), view('codex:letter')],
+      'codex:letter',
+    ],
+  ])('reads the one skill of a bare name that may be used here: %s', async (_name, views, id) => {
+    const { deps, reads, fileReads } = depsOf(views)
+    const skill = createUserSkillsSkill(deps)
+    const name = id.split(':')[1]!
+    const used = await skill.executeTool(call(USE_SKILL_TOOL, { id: name }))
+    expect(used.isError).toBeFalsy()
+    expect(used.output).toContain(`<skill id="${id}"`)
+    await skill.executeTool(call(READ_SKILL_FILE_TOOL, { id: name, path: 'reference/tone.md' }))
+    expect(reads).toEqual([id])
+    expect(fileReads).toEqual([[id, 'reference/tone.md']])
+  })
+
+  it('says a skill is turned off when every one of its name is', async () => {
+    const { deps, reads } = depsOf([
+      view('app:hwp-exam-paper', { enabled: false }),
+      view('builtin:hwp-exam-paper', { enabled: false }),
+    ])
+    const result = await createUserSkillsSkill(deps).executeTool(
+      call(USE_SKILL_TOOL, { id: 'hwp-exam-paper' }),
+    )
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'The skill hwp-exam-paper is turned off. The person can turn it on in Settings → Skills.',
+    )
+    expect(reads).toEqual([])
+  })
+
+  it('says a skill is for other editors when the only one of its name is', async () => {
+    const { deps, reads } = depsOf([view('builtin:docx-report', { editors: ['docs'] })])
+    const result = await createUserSkillsSkill(deps).executeTool(
+      call(USE_SKILL_TOOL, { id: 'docx-report' }),
+    )
+    expect(result.output).toMatch(/only in other editors \(docs\)/)
+    expect(reads).toEqual([])
+  })
+
   it('keeps the refusal of a turned-off skill named so', async () => {
     const { deps, reads } = depsOf([view('builtin:hwp-exam-paper', { enabled: false })])
     const result = await createUserSkillsSkill(deps).executeTool(
