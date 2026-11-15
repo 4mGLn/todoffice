@@ -5834,8 +5834,13 @@ function contentsOf(doc, made) {
     for (let i = 0; i < tables.length; i++) {
       if (!isMadeContents(doc, made, tables[i])) continue
       // the line as it reads now: a title retyped since is still the line refresh_toc takes
-      const title = lineAbove(doc, tables, tables[i].sec, tables[i].para)
-      return { table: i + 1, ...(title ? { title } : {}) }
+      const { sec, para } = tables[i]
+      const title = lineAbove(doc, tables, sec, para)
+      return {
+        table: i + 1,
+        ...(title ? { title } : {}),
+        ...(sec === 0 && para === 0 ? { first: true } : {}),
+      }
     }
   }
   const sections = doc.getSectionCount()

@@ -2341,6 +2341,22 @@ describe('a table of contents', () => {
     )
   })
 
+  it('says that an empty first line stays when the contents are made anew at the start', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+        first: true,
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc again where it was. Table 1 is the first paragraph of the document: delete_table leaves an empty first line, which stays above the new contents. No tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor.',
+    )
+  })
+
   it('says that contents made before the document was opened are not known', () => {
     const { skill } = setup()
     const tool = skill.tools.find((offered) => offered.name === 'insert_toc')

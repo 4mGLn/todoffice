@@ -2819,14 +2819,17 @@ function matchLines(matches: AgentMatch[], count: number): string {
 
 /** The refusal of a second table of contents, as the model reads it. */
 function tocExistsRefusal(
-  result: { table: number; title?: string } | { lines: true; title: string },
+  result: { table: number; title?: string; first?: true } | { lines: true; title: string },
 ): string {
   if ('lines' in result) {
     return `Nothing was changed: the document has contents already, made in Hangul as lines ending in a tab and a page number, under the line "${result.title}". They cannot be written again here; tell the user, who updates them in Hangul.`
   }
-  const { table, title } = result
+  const { table, title, first } = result
   if (!title) {
-    return `Nothing was changed: the document has a table of contents already (table ${table}), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table ${table}, then call insert_toc again where it was.`
+    const start = first
+      ? ` Table ${table} is the first paragraph of the document: delete_table leaves an empty first line, which stays above the new contents. No tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor.`
+      : ''
+    return `Nothing was changed: the document has a table of contents already (table ${table}), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table ${table}, then call insert_toc again where it was.${start}`
   }
   return `Nothing was changed: the document has a table of contents already (table ${table}, under the line "${title}"), made by insert_toc. refresh_toc with that line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table ${table}, then call insert_toc with anchor "${title}", where after and no title, so that the line stays above it.`
 }

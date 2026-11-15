@@ -349,6 +349,33 @@ describe('a second table of contents', () => {
     expect(user.cells.map((cell) => cell.text)).toEqual(['학생 수', '328', '교사 수', '25'])
   })
 
+  it('says when the contents it refuses for are the first paragraph of the document', () => {
+    const doc = HwpDocument.createEmpty()
+    doc.createBlankDocument()
+    const lines = ['1. 추진 배경', '배경 본문이다.', '2. 추진 결과', '결과 본문이다.']
+    lines.forEach((text, k) => {
+      if (k > 0) doc.splitParagraph(0, k - 1, doc.getParagraphLength(0, k - 1))
+      doc.insertText(0, k, 0, text)
+    })
+    const { plugin } = open(doc)
+    const entries = [
+      { find: '1. 추진 배경', level: 1 },
+      { find: '2. 추진 결과', level: 1 },
+    ]
+    expect(plugin.insertToc('1. 추진 배경', null, 'before', null, entries)).toMatchObject({
+      ok: true,
+      table: 1,
+    })
+    const again = entries.map((entry) => ({ ...entry, occurrence: 2 }))
+    expect(plugin.insertToc('1. 추진 배경', 2, 'before', null, again)).toEqual({
+      ok: false,
+      reason: 'toc_exists',
+      count: 1,
+      table: 1,
+      first: true,
+    })
+  })
+
   it('refuses a second contents where Hangul wrote them as lines with a tab to the page', () => {
     const { plugin, doc, steps } = open()
     doc().splitParagraph(0, 0, doc().getParagraphLength(0, 0))
