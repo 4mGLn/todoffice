@@ -5043,13 +5043,30 @@ describe('what an edit did to the pages and tables, in its answer', () => {
             { page: 3, empty: true as const },
           ],
           alone: [
-            { page: 1, kind: 'caption' as const, text: '<표 1> 이용자 수', nextPage: 2 },
+            {
+              page: 1,
+              kind: 'caption' as const,
+              text: '<표 1> 이용자 수',
+              style: '바탕글',
+              nextPage: 2,
+            },
             {
               page: 2,
               kind: 'line' as const,
               text: '□ 소요 예산',
+              style: '소제목',
               nextPage: 3,
               kept: true as const,
+            },
+            {
+              page: 2,
+              column: 2,
+              kind: 'heading' as const,
+              text: '□ 추진 배경',
+              style: '소제목',
+              nextPage: 3,
+              kept: true as const,
+              apart: true as const,
             },
           ],
           spans: [{ table: 2, from: 2, to: 3 }],
@@ -5061,8 +5078,9 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     expect(JSON.parse(lines[0]!)).toMatchObject({ pages: 3 })
     expect(JSON.parse(lines[0]!)).not.toHaveProperty('map')
     expect(lines.slice(1)).toEqual([
-      'Page 1: the caption “<표 1> 이용자 수” is left alone at the foot, its table starts on page 2: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with its table.',
-      'Page 2: the line “□ 소요 예산” stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it.',
+      'Page 1: the caption “<표 1> 이용자 수” (style 바탕글) is left alone at the foot, its table starts on page 2: keep this line with its table by giving it a style of its own with style_paragraphs (a new name, based_on 바탕글, keep_with_next true, applied with find to this line only). Do not give 바탕글 itself keep_with_next: every paragraph of that style would keep with the next one.',
+      'Page 2: the line “□ 소요 예산” (style 소제목) stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it.',
+      'Page 2: the heading “□ 추진 배경” (style 소제목) is left alone at the foot of column 2, the text after it starts on page 3, and the empty line between keeps them apart in Hancom Hangul too, though it keeps with the next line: to print it with the text after it, start it in the next column with insert_break (kind column, find with its words).',
       'Page 2: 4 line(s) of text lie below the foot of the page and are cut off in print.',
       'Table 2 runs over pages 2 to 3.',
       'Page 3 is empty.',

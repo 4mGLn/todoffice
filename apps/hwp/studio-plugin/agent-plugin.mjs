@@ -4227,13 +4227,12 @@ function pageMapOf(doc) {
     const text = paragraphText(doc, last.sec, last.para)
     if (!text) continue
     let between = last.para + 1
-    while (between < first.para && doc.getParagraphLength(last.sec, between) === 0) between++
+    while (between < first.para && !paragraphText(doc, last.sec, between)) between++
     if (between < first.para) continue
     const props = parse(doc.getParaPropertiesAt(last.sec, last.para))
     const kept = props.keepWithNext === true
-    const caption =
-      first.table !== null &&
-      (CAPTION_START.test(text) || CAPTION_STYLES.has(styleNameAt(doc, last.sec, last.para)))
+    const style = styleNameAt(doc, last.sec, last.para)
+    const caption = first.table !== null && (CAPTION_START.test(text) || CAPTION_STYLES.has(style))
     const heading = props.headType === 'Outline'
     if (!kept && !caption && !heading) continue
     alone.push({
@@ -4241,8 +4240,10 @@ function pageMapOf(doc) {
       ...(slots[k].columns > 1 ? { column: slots[k].column } : {}),
       kind: caption ? 'caption' : heading ? 'heading' : 'line',
       text,
+      style,
       nextPage: slots[k + 1].page,
       ...(kept ? { kept: true } : {}),
+      ...(first.para > last.para + 1 ? { apart: true } : {}),
     })
   }
   return {

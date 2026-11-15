@@ -2147,7 +2147,9 @@ describe('what a change leaves on the pages', () => {
       { page: 1, first: { text: '본문 줄 1' }, last: { text: '<표 1> 일정' } },
       { page: 2, first: { table: 1 }, last: { table: 1 } },
     ])
-    expect(map.alone).toEqual([{ page: 1, kind: 'caption', text: '<표 1> 일정', nextPage: 2 }])
+    expect(map.alone).toEqual([
+      { page: 1, kind: 'caption', text: '<표 1> 일정', style: '바탕글', nextPage: 2 },
+    ])
     expect([map.spans, map.past]).toEqual([[], []])
   })
 
@@ -2161,7 +2163,7 @@ describe('what a change leaves on the pages', () => {
       apply: [{ style: '머리', find: foot.last.text }],
     })
     expect(plugin.pageLayout().map.alone).toEqual([
-      { page: 1, kind: 'line', text: foot.last.text, nextPage: 2, kept: true },
+      { page: 1, kind: 'line', text: foot.last.text, style: '머리', nextPage: 2, kept: true },
     ])
   })
 
@@ -2174,7 +2176,15 @@ describe('what a change leaves on the pages', () => {
     const { map } = plugin.pageLayout()
     expect(map.pages[1]).toMatchObject({ first: { text: '다음 줄 1' } })
     expect(map.alone).toEqual([
-      { page: 1, kind: 'line', text: '□ 머리 제목', nextPage: 2, kept: true },
+      {
+        page: 1,
+        kind: 'line',
+        text: '□ 머리 제목',
+        style: '머리',
+        nextPage: 2,
+        kept: true,
+        apart: true,
+      },
     ])
     const before = open(blank([...lines(36), '이용자 수는 아래와 같다']))
     before.plugin.insertTable('이용자 수는 아래와 같다', null, 'after', rows(10), false)
@@ -2183,7 +2193,31 @@ describe('what a change leaves on the pages', () => {
       apply: [{ style: '앞줄', find: '이용자 수는 아래와 같다' }],
     })
     expect(before.plugin.pageLayout().map.alone).toEqual([
-      { page: 1, kind: 'line', text: '이용자 수는 아래와 같다', nextPage: 2, kept: true },
+      {
+        page: 1,
+        kind: 'line',
+        text: '이용자 수는 아래와 같다',
+        style: '앞줄',
+        nextPage: 2,
+        kept: true,
+      },
+    ])
+  })
+
+  it('takes a line of only spaces between a caption and its table for an empty line', () => {
+    const { plugin } = open(blank([...lines(36), '<표 1> 일정', ' ', '표 뒤']))
+    plugin.insertTable('표 뒤', null, 'before', rows(10), false)
+    const { map } = plugin.pageLayout()
+    expect(map.pages[1]).toMatchObject({ first: { table: 1 } })
+    expect(map.alone).toEqual([
+      {
+        page: 1,
+        kind: 'caption',
+        text: '<표 1> 일정',
+        style: '바탕글',
+        nextPage: 2,
+        apart: true,
+      },
     ])
   })
 

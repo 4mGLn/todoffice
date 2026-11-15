@@ -341,17 +341,22 @@ export interface AgentPageMap {
   /**
    * A caption (a `<표 n>` start or the caption style) before a table, an outline heading, or
    * a line kept with the next one, that ends a page (or a column) apart from what follows it,
-   * empty paragraphs between them aside. `kept`: it keeps with the next line, which Hangul
-   * honours in print and the engine's layout does not.
+   * empty paragraphs (or ones of spaces only) between them aside. `kept`: it keeps with the
+   * next line, which Hangul honours in print and the engine's layout does not. `apart`: an
+   * empty paragraph stands between it and what follows it, so it keeps with that empty line
+   * at most and stays alone in Hangul too.
    */
   alone: {
     page: number
     column?: number
     kind: 'heading' | 'caption' | 'line'
     text: string
+    /** the name of its paragraph style, '' when it cannot be read */
+    style: string
     /** the page the paragraph after it starts on */
     nextPage: number
     kept?: true
+    apart?: true
   }[]
   /** tables drawn over more than one page, from page to page */
   spans: { table: number; from: number; to: number }[]

@@ -2228,9 +2228,19 @@ function pageMapLines(map: AgentPageMap): string[] {
   const alone = map.alone.map((line) => {
     const where = line.column === undefined ? '' : ` of column ${line.column}`
     const after = line.kind === 'caption' ? 'its table' : 'the text after it'
-    return line.kept
-      ? `Page ${line.page}: the ${line.kind} “${line.text}” stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it.`
-      : `Page ${line.page}: the ${line.kind} “${line.text}” is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: give its style keep_with_next with style_paragraphs (a style of that name is changed) so that it stays with ${after}.`
+    const it = `Page ${line.page}: the ${line.kind} “${line.text}”${line.style ? ` (style ${line.style})` : ''}`
+    if (line.apart) {
+      const anew =
+        line.column === undefined
+          ? 'on a new page with insert_break (kind page'
+          : 'in the next column with insert_break (kind column'
+      return `${it} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}, and the empty line between keeps them apart in Hancom Hangul too${line.kept ? ', though it keeps with the next line' : ''}: to print it with ${after}, start it ${anew}, find with its words).`
+    }
+    if (line.kept) {
+      return `${it} stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it.`
+    }
+    const style = line.style || 'its style'
+    return `${it} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: keep this line with ${after} by giving it a style of its own with style_paragraphs (a new name, ${line.style ? `based_on ${line.style}, ` : ''}keep_with_next true, applied with find to this line only). Do not give ${style} itself keep_with_next: every paragraph of that style would keep with the next one.`
   })
   const below = map.pages.flatMap((page) =>
     'pastFoot' in page && page.pastFoot
