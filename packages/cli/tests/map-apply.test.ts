@@ -108,7 +108,7 @@ describe('map apply', () => {
     const created = add.json().detail.results[0].created as string
     expect(created).toBeTruthy()
     let read = await run(['map', 'read', file, '--json'], { env: env() })
-    let sheet = read.json().detail.sheets[0]
+    const sheet = read.json().detail.sheets[0]
     let byId = new Map(sheet.topics.map((t: { id: string }) => [t.id, t]))
     expect(sheet.topics[0].children).toEqual([ids.a, created, ids.b])
     expect(byId.get(created)).toMatchObject({
