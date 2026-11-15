@@ -1446,15 +1446,19 @@ export type AgentInsertTocResult =
   | { ok: true; count: number; pages: number[]; table: number; tables: number; place: AgentPlace }
   | AgentPlaceRefusal
   | { ok: false; reason: 'in_table'; count: number }
-  /** a heading could not be decided: `why` is not_found, ambiguous, no_such_occurrence or unsupported_place */
-  | {
-      ok: false
-      reason: 'no_heading'
-      heading: string
-      why: string
-      count: number
-      matches?: AgentMatch[]
-    }
+  | AgentTocHeadingRefusal
+  /** the document has a table of contents already: table `table`, under the line `title` */
+  | { ok: false; reason: 'toc_exists'; count: number; table: number; title: string }
+
+/** a heading could not be decided: `why` is not_found, ambiguous, no_such_occurrence or unsupported_place */
+export interface AgentTocHeadingRefusal {
+  ok: false
+  reason: 'no_heading'
+  heading: string
+  why: string
+  count: number
+  matches?: AgentMatch[]
+}
 
 export type AgentRefreshTocResult =
   | {
@@ -1466,9 +1470,12 @@ export type AgentRefreshTocResult =
       missing?: string[]
       place: AgentPlace
     }
+  /** written anew from entries: `table` is its number, as listTables numbers tables */
+  | { ok: true; rebuilt: true; count: number; pages: number[]; table: number; place: AgentPlace }
   | AgentPlaceRefusal
   | { ok: false; reason: 'in_table'; count: number }
   | { ok: false; reason: 'no_toc'; count: number }
+  | AgentTocHeadingRefusal
 
 export type AgentUndoResult =
   { ok: boolean; undone: number } | { ok: false; reason: 'changed'; undone: 0 }
@@ -1642,6 +1649,7 @@ export interface AgentPluginSurface {
   refreshToc(
     title: string,
     occurrence: number | null,
+    entries?: AgentTocEntry[] | null,
     options?: AgentChangeOptions,
   ): AgentRefreshTocResult
   listNotes(): AgentNoteList

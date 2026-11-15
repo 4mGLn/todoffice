@@ -47,6 +47,7 @@ import type {
   AgentTableSummary,
   AgentTitleBox,
   AgentTocEntry,
+  AgentTocHeadingRefusal,
   AgentWhere,
 } from '../../../studio-plugin/agent-plugin.mjs'
 import type { AgentBridge } from './agent-bridge'
@@ -251,7 +252,7 @@ const SYSTEM_PROMPT = [
   '- Make one only when the user asks. Pick the headings from the text: the lines that open the parts of the document, in order (for example Ⅰ./1./가. or □ at the start, or short title lines). Level 1 for the top parts, 2 and 3 for the parts inside them; leave out body lines.',
   '- Name each heading by text it contains, as short as is unambiguous (pass occurrence when it occurs more than once). The table shows the whole heading line and finds its page itself: never type page numbers.',
   '- Put it where the user says; otherwise after the title or cover of the document. Give it the title the user uses, or 차 례 for a Korean document.',
-  '- After changes that move text between pages, or when the user asks, call refresh_toc with the title of the table of contents.',
+  '- After changes that move text between pages, or when the user asks, call refresh_toc with the title of the table of contents; when headings were added, renamed or removed, pass all of them as entries too.',
   '',
   '## Footnotes and endnotes',
   '- A footnote explains or gives the source of the words it follows and shows at the foot of the page; an endnote does the same at the end of the document. Use the kind the user asks for; when they do not say, use a footnote, and use endnotes where the document already has them.',
@@ -1351,7 +1352,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_toc',
     edits: true,
     description:
-      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document.',
+      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document. A document that has one already is refused: change that one with refresh_toc.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1368,12 +1369,13 @@ const TOOLS: HwpToolDef[] = [
     name: 'refresh_toc',
     edits: true,
     description:
-      'Write the page numbers of a table of contents again, after the document changed. Pass the text of its title line.',
+      'Write the page numbers of a table of contents again, after the document changed. Pass the text of its title line. With entries, as insert_toc takes them, its rows are written anew in the same place: for a heading added, renamed or removed.',
     inputSchema: {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'the title line of the table of contents' },
         occurrence: { type: 'integer' },
+        entries: { type: 'array', items: TOC_ENTRY_SCHEMA, minItems: 1, maxItems: 100 },
       },
       required: ['title'],
     },
@@ -2763,6 +2765,41 @@ function matchLines(matches: AgentMatch[], count: number): string {
   const lines = matches.map(matchLine)
   if (count > matches.length) lines.push(`(only the first ${matches.length} are listed)`)
   return lines.join('\n')
+}
+
+/** The entries of a table of contents as the plugin takes them, or what is wrong with them. */
+function tocEntriesOf(entries: unknown): AgentTocEntry[] | string {
+  const valid =
+    Array.isArray(entries) &&
+    entries.length > 0 &&
+    entries.every(
+      (entry) =>
+        entry !== null &&
+        typeof entry === 'object' &&
+        typeof (entry as { find?: unknown }).find === 'string' &&
+        typeof (entry as { level?: unknown }).level === 'number',
+    )
+  if (!valid) return 'entries must be a list of { find, level } for the headings'
+  const list = entries as AgentTocEntry[]
+  if (list.some((entry) => hasLineBreak(entry.find))) return ONE_LINE_HELP
+  return list.map((entry) => ({
+    find: entry.find,
+    level: entry.level,
+    ...(typeof entry.occurrence === 'number' ? { occurrence: entry.occurrence } : {}),
+  }))
+}
+
+/** Why a heading named for a table of contents could not be used, as the model reads it. */
+function tocHeadingRefusal(result: AgentTocHeadingRefusal): string {
+  const why =
+    result.why === 'ambiguous'
+      ? `it occurs ${result.count} times; pass occurrence for that entry.\n${matchLines(result.matches ?? [], result.count)}`
+      : result.why === 'unsupported_place'
+        ? 'it is inside a table cell or an equation, which is not a heading of the body.'
+        : result.why === 'no_such_occurrence'
+          ? `occurrence must be between 1 and ${result.count}.`
+          : 'it is not in the document. Copy the heading text exactly from what you read.'
+  return `Nothing was changed: the heading "${result.heading}" could not be used: ${why}`
 }
 
 /** Why rows or columns were not added or removed, as the model reads it. */
@@ -4730,30 +4767,11 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
       }
       case 'insert_toc': {
         const place = placeArgs(call)
-        const entries = call.input.entries
         const title = textArg(call, 'title')
         if (!place) return bad(call, WHERE_HELP)
-        if (
-          !Array.isArray(entries) ||
-          entries.length === 0 ||
-          !entries.every(
-            (entry) =>
-              entry !== null &&
-              typeof entry === 'object' &&
-              typeof (entry as { find?: unknown }).find === 'string' &&
-              typeof (entry as { level?: unknown }).level === 'number',
-          )
-        ) {
-          return bad(call, 'entries must be a list of { find, level } for the headings')
-        }
+        const tocEntries = tocEntriesOf(call.input.entries)
+        if (typeof tocEntries === 'string') return bad(call, tocEntries)
         if (title !== null && hasLineBreak(title)) return bad(call, ONE_LINE_HELP)
-        const list = entries as AgentTocEntry[]
-        if (list.some((entry) => hasLineBreak(entry.find))) return bad(call, ONE_LINE_HELP)
-        const tocEntries = list.map((entry) => ({
-          find: entry.find,
-          level: entry.level,
-          ...(typeof entry.occurrence === 'number' ? { occurrence: entry.occurrence } : {}),
-        }))
         const outcome = await changeWithMemoApproval(
           () => bridge.insertToc(place.anchor, place.occurrence, place.where, title, tocEntries),
           (options) =>
@@ -4771,18 +4789,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const result = outcome.result
         if (!result.ok) {
           if (result.reason === 'in_table') return bad(call, IN_TABLE_HELP)
-          if (result.reason === 'no_heading') {
-            const why =
-              result.why === 'ambiguous'
-                ? `it occurs ${result.count} times; pass occurrence for that entry.\n${matchLines(result.matches ?? [], result.count)}`
-                : result.why === 'unsupported_place'
-                  ? 'it is inside a table cell or an equation, which is not a heading of the body.'
-                  : result.why === 'no_such_occurrence'
-                    ? `occurrence must be between 1 and ${result.count}.`
-                    : 'it is not in the document. Copy the heading text exactly from what you read.'
+          if (result.reason === 'no_heading') return bad(call, tocHeadingRefusal(result))
+          if (result.reason === 'toc_exists') {
+            const under = result.title ? `, under the line "${result.title}"` : ''
             return bad(
               call,
-              `Nothing was changed: the heading "${result.heading}" could not be used: ${why}`,
+              `Nothing was changed: the document has a table of contents already (table ${result.table}${under}). To change its headings, call refresh_toc with its title line and the entries; it writes the rows anew in the same place.`,
             )
           }
           return bad(call, placeRefusal(result))
@@ -4808,9 +4820,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (hasLineBreak(title)) return bad(call, ONE_LINE_HELP)
         const occurrence = call.input.occurrence
         const occurrenceNumber = typeof occurrence === 'number' ? occurrence : null
+        const given = call.input.entries
+        const tocEntries = given === undefined || given === null ? null : tocEntriesOf(given)
+        if (typeof tocEntries === 'string') return bad(call, tocEntries)
         const outcome = await changeWithMemoApproval(
-          () => bridge.refreshToc(title, occurrenceNumber),
-          (options) => bridge.refreshToc(title, occurrenceNumber, options),
+          () => bridge.refreshToc(title, occurrenceNumber, tocEntries),
+          (options) => bridge.refreshToc(title, occurrenceNumber, tocEntries, options),
         )
         if (outcome.kind !== 'done')
           return bad(call, memoRemovalDeclined(outcome.refusal, outcome.kind))
@@ -4823,7 +4838,22 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             )
           }
           if (result.reason === 'in_table') return bad(call, IN_TABLE_HELP)
+          if (result.reason === 'no_heading') return bad(call, tocHeadingRefusal(result))
           return bad(call, placeRefusal(result))
+        }
+        if ('rebuilt' in result) {
+          deps.onChange({
+            kind: 'table',
+            from: title,
+            to: changeText(`${title} (${result.count})`),
+            count: 1,
+            place: result.place,
+          })
+          return {
+            output: `Wrote the table of contents again with ${result.count} heading(s), on pages ${result.pages.join(', ')}. It is still table ${result.table}.`,
+            mutated: true,
+            summary: label('aiToolToc', { count: result.count }),
+          }
         }
         if (result.changed > 0) {
           deps.onChange({

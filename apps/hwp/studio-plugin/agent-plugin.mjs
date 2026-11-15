@@ -5447,23 +5447,194 @@ function checkTocEntries(entries) {
  * it reads as a list. Not lines with a right tab, as Hangul makes them: rhwp writes a new
  * tab without the width Hangul keeps in it, and Hangul then shows the tab as nothing.
  */
-function tocHtml(rows, font, widthPt) {
-  const text = [
-    font.family ? `font-family:${font.family};mso-fareast-font-family:${font.family}` : '',
-    `font-size:${font.points}pt`,
-  ]
-    .filter(Boolean)
-    .join(';')
+function tocHtml(rows, widthPt) {
+  const textOf = ({ font }) =>
+    [
+      font.family ? `font-family:${font.family};mso-fareast-font-family:${font.family}` : '',
+      `font-size:${font.points}pt`,
+    ]
+      .filter(Boolean)
+      .join(';')
   const headingWidth = Math.max(50, widthPt - TOC_PAGE_COLUMN_PT)
   const cellStyle = TOC_CELL_STYLE
-  const row = ({ text: heading, level, page }) =>
+  const row = ({ text: heading, look, page }) =>
     '<tr>' +
     `<td style="${cellStyle};width:${headingWidth}pt">` +
-    `<p style="margin-left:${(level - 1) * TOC_INDENT_PT}pt"><span style="${text}">${escapeHtml(heading)}</span></p></td>` +
+    `<p style="margin-left:${look.indentPt}pt"><span style="${textOf(look)}">${escapeHtml(heading)}</span></p></td>` +
     `<td style="${cellStyle};width:${TOC_PAGE_COLUMN_PT}pt">` +
-    `<p style="text-align:right"><span style="${text}">${page}</span></p></td>` +
+    `<p style="text-align:right"><span style="${textOf(look)}">${page}</span></p></td>` +
     '</tr>'
   return `<table>${rows.map(row).join('')}</table>`
+}
+
+/** Hangul's paragraph styles of a table of contents: its title, and a style for each level. */
+const TOC_TITLE_STYLE = '차례 제목'
+const tocLevelStyle = (level) => `차례 ${level}`
+
+/**
+ * How a table of contents looks. In the document's own 차례 styles when it has one for
+ * every level used: each level in its style's font and indent, the title in 차례 제목.
+ * Else in the body font (bodyFontOf), indented per level, the title in bold body text.
+ * `levels` maps a level to its style id (null without), font and indent.
+ */
+function tocLookOf(doc, entries) {
+  const used = [...new Set(entries.map((entry) => entry.level))]
+  const ids = used.map((level) => styleIdOf(doc, tocLevelStyle(level)))
+  const styled = ids.every((id) => id !== null)
+  const charsOf = (id) => parse(doc.getStyleDetail(id))
+  if (styled) {
+    const levels = new Map(
+      used.map((level, index) => {
+        const { charProps, paraProps } = charsOf(ids[index])
+        const font = fontOf(() => JSON.stringify(charProps))
+        return [level, { style: ids[index], font, indentPt: ptOfPx(paraProps.marginLeft) }]
+      }),
+    )
+    const titleId = styleIdOf(doc, TOC_TITLE_STYLE)
+    if (titleId !== null) {
+      const { charProps } = charsOf(titleId)
+      const font = fontOf(() => JSON.stringify(charProps))
+      return {
+        levels,
+        title: { style: titleId, font, bold: charProps.bold === true, color: charProps.textColor },
+      }
+    }
+    return { levels, title: bodyTitleOf(doc, bodyFontOf(doc)) }
+  }
+  const font = bodyFontOf(doc)
+  const levels = new Map(
+    used.map((level) => [level, { style: null, font, indentPt: (level - 1) * TOC_INDENT_PT }]),
+  )
+  return { levels, title: bodyTitleOf(doc, font) }
+}
+
+/** The title of a table of contents in bold body text, in the body style. */
+function bodyTitleOf(doc, font) {
+  const style = styleIdOf(doc, BODY_STYLE) ?? 0
+  return { style, font, bold: true, color: parse(doc.getStyleDetail(style)).charProps.textColor }
+}
+
+/**
+ * The tables of contents insertToc made in the document, with their numbers in listTables:
+ * top-level two-column tables with no lines whose every row ends in a page number.
+ * Hangul's own (lines with a tab to the page number) are not among them.
+ */
+function tocsOf(doc) {
+  const isToc = (table) => {
+    if (table.path.length !== 1 || table.cols !== 2) return false
+    const grid = gridOf(doc, table)
+    const control = table.path[0].controlIndex
+    const lineless = grid.every((cell) => {
+      const props = parse(doc.getCellProperties(table.sec, table.para, control, cell.cell))
+      return [props.borderLeft, props.borderRight, props.borderTop, props.borderBottom].every(
+        (line) => !line || line.type === 0,
+      )
+    })
+    if (!lineless) return false
+    for (let row = 0; row < table.rows; row++) {
+      const page = cellOf(grid, row, 1)
+      if (!page || !PAGE_NUMBER.test(paragraphsOf(cellBox(doc, table, page.cell)).join(''))) {
+        return false
+      }
+    }
+    return true
+  }
+  return tablesOf(doc)
+    .tables.map((table, index) => ({ table, number: index + 1 }))
+    .filter(({ table }) => isToc(table))
+}
+
+/**
+ * The heading each entry of a table of contents names: a body paragraph found by its text,
+ * with `occurrence` when it occurs more than once. Hits inside `skip` (the table of
+ * contents being written again) do not count.
+ */
+function tocHeadingsOf(doc, entries, skip = null) {
+  return entries.map((entry) => {
+    const hits = searchAll(doc, entry.find).filter(
+      (hit) =>
+        !skip ||
+        !cellPathOf(hit) ||
+        hit.sec !== skip.sec ||
+        hit.para !== skip.para ||
+        cellPathOf(hit)[0].controlIndex !== skip.path[0].controlIndex,
+    )
+    const picked = pickHit(hits, entry.occurrence ?? null)
+    const reason = !picked.hit
+      ? picked.reason
+      : !isReplaceable(picked.hit) || cellPathOf(picked.hit)
+        ? 'unsupported_place'
+        : null
+    return { entry, hits, hit: reason ? null : picked.hit, reason }
+  })
+}
+
+/**
+ * The refusal for an entry of a table of contents whose heading is not found, or null;
+ * `matchesOf` lists the hits of an ambiguous one.
+ */
+function missingHeading(headings, matchesOf) {
+  const missing = headings.find((heading) => heading.reason)
+  if (!missing) return null
+  return {
+    ok: false,
+    reason: 'no_heading',
+    heading: missing.entry.find,
+    why: missing.reason,
+    count: missing.hits.length,
+    ...(missing.reason === 'ambiguous' ? { matches: matchesOf(missing.hits) } : {}),
+  }
+}
+
+/**
+ * Write a table of contents into the empty body paragraph `holder` of section `sec`: a row
+ * per heading in its look (tocLookOf), then its page number as the document is laid out
+ * now. `paraOf` gives where a heading's paragraph is now (paragraphs may have been added
+ * since its hit was found). Returns the table's number and the pages.
+ */
+function writeToc(doc, box, sec, holder, headings, look, paraOf) {
+  const width = textWidthPt(doc, sec)
+  const rows = headings.map(({ entry, hit }) => {
+    const level = look.levels.get(entry.level)
+    return {
+      text: oneLine(
+        clip(bodyText(doc, hit.sec, paraOf(hit)).replace(/\s+/g, ' ').trim(), MAX_TOC_TEXT),
+        level,
+        width,
+      ),
+      look: level,
+      page: 0,
+    }
+  })
+  box.pasteHtml(holder, tocHtml(rows, width))
+  const { tables } = tablesOf(doc)
+  const number =
+    tables.findIndex(
+      (candidate) =>
+        candidate.sec === sec && candidate.para === holder && candidate.path.length === 1,
+    ) + 1
+  const table = tables[number - 1]
+  if (!table) throw fail('ENGINE', 'the table of contents could not be made')
+  const grid = gridOf(doc, table)
+  const control = table.path[0].controlIndex
+  const pages = headings.map(({ entry, hit }, index) => {
+    const page = pageNumberOf(doc, hit.sec, paraOf(hit))
+    const cell = cellOf(grid, index, 1)
+    if (!cell) throw fail('ENGINE', 'the table of contents came out in another shape')
+    setCellText(doc, table, cell.cell, String(page))
+    const { style } = look.levels.get(entry.level)
+    if (style !== null) {
+      // the rows are in the 차례 style of their level, as Hangul's own contents are
+      for (const col of [0, 1]) {
+        expectOk(
+          doc.applyCellStyle(sec, holder, control, cellOf(grid, index, col).cell, 0, style),
+          'style the table of contents',
+        )
+      }
+    }
+    return page
+  })
+  return { number, tables: tables.length, pages }
 }
 
 /** Width of a character in ems, roughly: full width for Hangul and CJK, about half for the rest. */
@@ -5475,9 +5646,9 @@ const emsOf = (ch) => (ch.codePointAt(0) > 0x2e7f ? 1 : 0.55)
  * another, and the two then also count different pages. Headings are short; a whole
  * paragraph taken for one is not, and is cut.
  */
-function oneLine(text, level, font, widthPt) {
+function oneLine(text, look, widthPt) {
   const room =
-    (widthPt - TOC_PAGE_COLUMN_PT - (level - 1) * TOC_INDENT_PT - TOC_CELL_SLACK_PT) / font.points
+    (widthPt - TOC_PAGE_COLUMN_PT - look.indentPt - TOC_CELL_SLACK_PT) / look.font.points
   let used = 0
   let out = ''
   for (const ch of text) {
@@ -10317,31 +10488,23 @@ export const agentPlugin = {
         checkTocEntries(entries)
         if (title !== null && title !== undefined) checkReplacement(title)
         const titled = typeof title === 'string' && title.trim() !== ''
-        const headingsOf = (doc) =>
-          entries.map((entry) => {
-            const hits = searchAll(doc, entry.find)
-            const picked = pickHit(hits, entry.occurrence ?? null)
-            const reason = !picked.hit
-              ? picked.reason
-              : !isReplaceable(picked.hit) || cellPathOf(picked.hit)
-                ? 'unsupported_place'
-                : null
-            return { entry, hits, hit: reason ? null : picked.hit, reason }
-          })
         const refusal = host.read((doc) => {
           const located = locate(doc, anchor, occurrence, where)
           if (located.refusal) return located.refusal
           if (located.box.inTable) return { ok: false, reason: 'in_table', count: 1 }
-          const missing = headingsOf(doc).find((heading) => heading.reason)
-          if (!missing) return null
-          return {
-            ok: false,
-            reason: 'no_heading',
-            heading: missing.entry.find,
-            why: missing.reason,
-            count: missing.hits.length,
-            ...(missing.reason === 'ambiguous' ? { matches: listMatches(doc, missing.hits) } : {}),
+          // a second one would be a second list to keep in step: the one there is written again
+          const [made] = tocsOf(doc)
+          if (made) {
+            const above = made.table.para > 0 ? bodyText(doc, made.table.sec, made.table.para - 1) : ''
+            return {
+              ok: false,
+              reason: 'toc_exists',
+              count: 1,
+              table: made.number,
+              title: foldText(above),
+            }
           }
+          return missingHeading(tocHeadingsOf(doc, entries), (hits) => listMatches(doc, hits))
         })
         if (refusal) return refusal
         return keepingObjects((mustKeep) =>
@@ -10352,23 +10515,11 @@ export const agentPlugin = {
               if (!box || box.inTable) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
               const { sec } = box.place(box.index, 0)
-              const headings = headingsOf(doc)
+              const headings = tocHeadingsOf(doc, entries)
               if (headings.some((heading) => !heading.hit)) {
                 throw fail('CHANGED', 'the document changed mid-call')
               }
-              // read before a paragraph is split: the contents are to look like the text there
-              const font = box.font(box.index)
-              const width = textWidthPt(doc, sec)
-              const rows = headings.map(({ entry, hit }) => ({
-                text: oneLine(
-                  clip(bodyText(doc, hit.sec, hit.para).replace(/\s+/g, ' ').trim(), MAX_TOC_TEXT),
-                  entry.level,
-                  font,
-                  width,
-                ),
-                level: entry.level,
-                page: 0,
-              }))
+              const look = tocLookOf(doc, entries)
               let first = box.index
               if (where === 'before') box.split(first, 0)
               else {
@@ -10377,32 +10528,33 @@ export const agentPlugin = {
               }
               let holder = first
               if (titled) {
-                box.insert(first, title.trim())
+                const text = title.trim()
+                box.insert(first, text)
+                // the title is split off the anchor, often a heading: it takes its own look
+                box.applyStyle(first, look.title.style)
+                const { font, bold, color } = look.title
+                const { chars } = resolveFormat(
+                  doc,
+                  formatOf(
+                    {
+                      ...(font.family ? { font: font.family } : {}),
+                      size: font.points,
+                      bold,
+                      ...(HEX_COLOR.test(color ?? '') ? { color } : {}),
+                    },
+                    false,
+                  ),
+                )
+                box.formatChars(first, 0, box.length(first), chars)
                 openAfter(box, first, false)
                 holder = first + 1
               }
-              box.pasteHtml(holder, tocHtml(rows, font, width))
-              const { tables } = tablesOf(doc)
-              const number =
-                tables.findIndex(
-                  (candidate) =>
-                    candidate.sec === sec &&
-                    candidate.para === holder &&
-                    candidate.path.length === 1,
-                ) + 1
-              const table = tables[number - 1]
-              if (!table) throw fail('ENGINE', 'the table of contents could not be made')
+              box.applyStyle(holder, styleIdOf(doc, BODY_STYLE) ?? 0)
               // the pages as they are now: every paragraph from the first new one moved down
               const added = holder - first + 1
-              const grid = gridOf(doc, table)
-              const pages = headings.map(({ hit }, index) => {
-                const para = hit.sec === sec && hit.para >= first ? hit.para + added : hit.para
-                const page = pageNumberOf(doc, hit.sec, para)
-                const cell = cellOf(grid, index, 1)
-                if (!cell) throw fail('ENGINE', 'the table of contents came out in another shape')
-                setCellText(doc, table, cell.cell, String(page))
-                return page
-              })
+              const written = writeToc(doc, box, sec, holder, headings, look, (hit) =>
+                hit.sec === sec && hit.para >= first ? hit.para + added : hit.para,
+              )
               if (titled) {
                 expectOk(
                   doc.applyParaFormat(sec, first, JSON.stringify({ alignment: 'center' })),
@@ -10415,9 +10567,9 @@ export const agentPlugin = {
               return {
                 ok: true,
                 count: entries.length,
-                pages,
-                table: number,
-                tables: tables.length,
+                pages: written.pages,
+                table: written.number,
+                tables: written.tables,
                 place: { sec, para: first, offset: 0, length: titled ? title.trim().length : 0 },
               }
             },
@@ -10430,9 +10582,12 @@ export const agentPlugin = {
        * Write the page numbers of a table of contents again: the two-column table in the
        * paragraph after the one `title` occurs in. Each row's heading is looked up by its
        * text in the body; a row whose heading is gone, or whose second cell is not a page
-       * number, is left alone.
+       * number, is left alone. With `entries` (as insertToc takes them) the rows are
+       * written anew in their place instead, for headings added, renamed or removed.
        */
-      refreshToc: guarded((title, occurrence, options) => {
+      refreshToc: guarded((title, occurrence, entries, options) => {
+        const anew = entries !== null && entries !== undefined
+        if (anew) checkTocEntries(entries)
         const find = (doc) => {
           const located = locate(doc, title, occurrence, 'after')
           if (located.refusal) return { refusal: located.refusal }
@@ -10445,10 +10600,50 @@ export const agentPlugin = {
               candidate.path.length === 1 &&
               candidate.cols === 2,
           )
-          return table ? { table } : { refusal: { ok: false, reason: 'no_toc', count: 0 } }
+          if (!table) return { refusal: { ok: false, reason: 'no_toc', count: 0 } }
+          if (!anew) return { table }
+          const headings = tocHeadingsOf(doc, entries, table)
+          const missing = missingHeading(headings, (hits) => listMatches(doc, hits))
+          return missing ? { refusal: missing } : { table, headings, box: located.box }
         }
         const refusal = host.read((doc) => find(doc).refusal ?? null)
         if (refusal) return refusal
+        if (anew) {
+          return keepingObjects((mustKeep) =>
+            change(
+              'refresh-toc',
+              (doc) => {
+                const { table, headings, box } = find(doc)
+                if (!table) throw fail('CHANGED', 'the document changed mid-call')
+                const before = objectsOf(doc)
+                expectOk(
+                  doc.deleteTableControl(table.sec, table.para, table.path[0].controlIndex),
+                  'take the old table of contents away',
+                )
+                const look = tocLookOf(doc, entries)
+                const written = writeToc(
+                  doc,
+                  box,
+                  table.sec,
+                  table.para,
+                  headings,
+                  look,
+                  (hit) => hit.para,
+                )
+                mustKeep(before, objectsOf(doc))
+                return {
+                  ok: true,
+                  rebuilt: true,
+                  count: entries.length,
+                  pages: written.pages,
+                  table: written.number,
+                  place: { sec: table.sec, para: table.para, offset: 0, length: 0 },
+                }
+              },
+              options,
+            ),
+          )
+        }
         return keepingObjects((mustKeep) =>
           change(
             'refresh-toc',

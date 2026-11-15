@@ -2269,9 +2269,50 @@ describe('a table of contents', () => {
   it('writes the page numbers again and lists the rows that changed', async () => {
     const { bridge, call, changes } = setup()
     const result = await call('refresh_toc', { title: '차 례' })
-    expect(bridge.refreshToc).toHaveBeenCalledWith('차 례', null)
+    expect(bridge.refreshToc).toHaveBeenCalledWith('차 례', null, null)
     expect(result.output).toBe('1 of 2 page number(s) changed.')
     expect(changes[0]).toMatchObject({ kind: 'cells', from: '차 례', count: 1 })
+  })
+
+  it('writes the rows anew from entries and says it is the same table', async () => {
+    const { bridge, call } = setup({
+      refreshToc: vi.fn(async () => ({
+        ok: true as const,
+        rebuilt: true as const,
+        count: 3,
+        pages: [1, 2, 4],
+        table: 2,
+        place: PLACE,
+      })),
+    })
+    const entries = [
+      { find: 'Ⅰ. 개요', level: 1 },
+      { find: 'Ⅱ. 결과', level: 1 },
+      { find: 'Ⅲ. 향후 계획', level: 1, occurrence: 2 },
+    ]
+    const result = await call('refresh_toc', { title: '차 례', entries })
+    expect(bridge.refreshToc).toHaveBeenCalledWith('차 례', null, entries)
+    expect(result.output).toBe(
+      'Wrote the table of contents again with 3 heading(s), on pages 1, 2, 4. It is still table 2.',
+    )
+    expect(result.mutated).toBe(true)
+  })
+
+  it('refuses a second table of contents and points to refresh_toc', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+        title: '차 례',
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1, under the line "차 례"). To change its headings, call refresh_toc with its title line and the entries; it writes the rows anew in the same place.',
+    )
   })
 
   it('says when no table of contents follows the line', async () => {
