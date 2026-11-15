@@ -5932,12 +5932,10 @@ function acrossRowHeights(doc) {
 }
 
 /**
- * Give the rows of a table across the columns that a change made taller (`before` is
- * acrossRowHeights from before it) the height they are drawn at. The engine keeps the text
- * of the other columns below the table's stored height, the sum of its rows' stored
- * heights, which grows only when a row height is set: text or a format that made a cell
- * taller left those columns starting inside the table. A row the change did not make
- * taller keeps its height.
+ * Store the drawn height of the rows of a table across the columns that a change made
+ * taller (`before` is acrossRowHeights from before it); other rows keep theirs. The engine
+ * starts the other columns below the sum of the stored row heights, which text growing in
+ * a cell does not change.
  */
 function fitAcrossRows(doc, before) {
   if (before.length === 0) return
@@ -7948,8 +7946,7 @@ export const agentPlugin = {
               // body cells are left-aligned unless told: a justified cell that wraps
               // stretches the spaces between its words
               const aligns = look.aligns ?? Array(table[0].length).fill('left')
-              // the head of the document lies across the page in one column too, so that
-              // columns set after it run below it
+              // floated in one column too, so that columns set later start below it
               const head = where === 'before' && here === 0 && at === 0 && !box.inTable
               if (where === 'before') box.split(at, 0)
               else {

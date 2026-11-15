@@ -3277,7 +3277,6 @@ describe('a test paper in two columns', () => {
     expect(grown.starts).toHaveLength(2)
     for (const start of grown.starts) expect(start).toBeGreaterThanOrEqual(grown.foot)
     expect(Math.abs(grown.starts[0]! - grown.starts[1]!)).toBeLessThan(1)
-    // a row the text did not grow keeps its height
     expect(head.cell(8).height).toBe(tableIn(doc(), 0).cell(8).height)
     for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
       const again = columnStarts(new HwpDocument(bytes))
@@ -3313,7 +3312,6 @@ describe('a test paper in two columns', () => {
     }
     expect(props).toMatchObject({ treatAsChar: false, horzRelTo: 'Page' })
     plugin.setColumns({ count: 2 })
-    // as wide as the text of the page, within a millimetre
     const page = JSON.parse(doc().getPageDef(0)) as {
       width: number
       marginLeft: number
