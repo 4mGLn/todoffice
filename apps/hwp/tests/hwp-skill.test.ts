@@ -3263,6 +3263,24 @@ describe('pictures', () => {
     expect(failed.output).toContain('signed out')
   })
 
+  it("passes the image tool's note on to the model with the inserted picture", async () => {
+    api({
+      generateImage: vi.fn(async () => ({
+        url: 'file:///store/a.png',
+        note: 'Codex picks the image model on this route',
+      })),
+    })
+    const { bridge, call } = setup()
+    const result = await call('generate_image', {
+      where: 'end',
+      prompt: 'a red kite',
+      model: 'gpt-image-2',
+    })
+    expect(result.isError).toBeUndefined()
+    expect(bridge.insertPicture).toHaveBeenCalled()
+    expect(result.output).toContain('\nNote: Codex picks the image model on this route')
+  })
+
   it('refuses bytes that are not the picture the extension names', async () => {
     api({ fetchImage: async () => ({ base64: btoa('not a png'), mime: 'image/png' }) })
     const { bridge, call } = setup()

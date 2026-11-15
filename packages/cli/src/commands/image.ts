@@ -27,7 +27,8 @@ export const imageCommand: CommandDef = {
   name: 'image',
   summary:
     'Generate an image from a prompt with the configured image provider and save it as a file.',
-  usage: 'image <prompt> [--out <file>] [--aspect 16:9] [--size 1k] [--ref <image>]... [--force]',
+  usage:
+    'image <prompt> [--out <file>] [--aspect 16:9] [--size 1k] [--ref <image>]... [--model <name>] [--force]',
   options: [
     {
       name: 'out',

@@ -1868,7 +1868,12 @@ export interface SlidesApi {
     aspectRatio?: string
     imageSize?: string
     transparentBackground?: boolean
-  }) => Promise<{ url?: string; error?: string }>
+  }) => Promise<{
+    url?: string
+    error?: string
+    /** the shared tool's remark for the model (e.g. Codex picked the image model) */
+    note?: string
+  }>
   /** Media analysis: image/audio/video content understanding, returns analysis text */
   analyzeMedia: (op: {
     mediaUrls: string[]

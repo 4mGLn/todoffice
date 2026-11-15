@@ -125,5 +125,9 @@ export async function generateImage(
   })
   if (signal?.aborted) return fail('stopped by the user; the picture was not inserted')
   if (!generated.url) return fail(generated.error ?? 'image generation failed')
-  return attachPicture(host, input, generated.url, turn, signal)
+  const attached = await attachPicture(host, input, generated.url, turn, signal)
+  // the shared tool's remark (e.g. Codex picked the image model) reaches the model
+  return generated.note
+    ? { ...attached, output: `${attached.output}\nNote: ${generated.note}` }
+    : attached
 }

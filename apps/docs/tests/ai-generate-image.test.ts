@@ -31,6 +31,10 @@ function createEditor(): Editor {
 
 const NUM_IDS = { bullet: null, ordered: null }
 
+// a 1x1 PNG, so the picture passes the format sniff
+const PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
 type DesktopStub = { desktop?: unknown }
 
 /** run one generate_image call with a stubbed desktop bridge */
@@ -129,6 +133,38 @@ describe('generate_image', () => {
       { prompt: 'a watercolor fox', model: 'gpt-image-2' },
     )
     expect(received).toEqual({ prompt: 'a watercolor fox', model: 'gpt-image-2' })
+  })
+
+  it("passes the image tool's note on to the model with the inserted picture", async () => {
+    // jsdom never decodes images: stand in for <img> with a fixed size
+    const RealImage = globalThis.Image
+    class FakeImage {
+      naturalWidth = 4
+      naturalHeight = 2
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(_v: string) {
+        queueMicrotask(() => this.onload?.())
+      }
+    }
+    globalThis.Image = FakeImage as unknown as typeof Image
+    try {
+      const { exec } = await runWithDesktop(
+        {
+          aiGenerateImage: () =>
+            Promise.resolve({
+              url: 'file:///generated/a.png',
+              note: 'Codex picks the image model on this route',
+            }),
+          fetchImage: () => Promise.resolve({ base64: PNG, mime: 'image/png' }),
+        },
+        { prompt: 'a watercolor fox', model: 'gpt-image-2' },
+      )
+      expect(exec.isError).toBeFalsy()
+      expect(exec.output).toContain('\nNote: Codex picks the image model on this route')
+    } finally {
+      globalThis.Image = RealImage
+    }
   })
 
   it('offers model as an optional input', () => {

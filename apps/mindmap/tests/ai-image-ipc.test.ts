@@ -78,18 +78,24 @@ describe('mindmap image channels', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal)
   })
 
-  it('hands a model the user named to the tool unchanged', async () => {
+  it("hands a model the user named to the tool trimmed, and answers with the tool's note", async () => {
     register()
-    generateImageTool.mockResolvedValue({ url: 'file:///store/a.png' })
-    await handlers.get(MINDMAP_CHANNELS.aiGenerateImage)!(
+    generateImageTool.mockResolvedValue({ url: 'file:///store/a.png', note: 'Codex picks' })
+    const result = await handlers.get(MINDMAP_CHANNELS.aiGenerateImage)!(
       { sender },
-      { prompt: 'a red kite', model: 'gpt-image-2' },
+      { prompt: 'a red kite', model: ' gpt-image-2 ' },
     )
     expect(generateImageTool.mock.calls[0]?.[1]).toEqual({
       prompt: 'a red kite',
       aspectRatio: undefined,
       model: 'gpt-image-2',
     })
+    expect(result).toEqual({ url: 'file:///store/a.png', note: 'Codex picks' })
+    // a non-string or blank model from the renderer is not a model name
+    await handlers.get(MINDMAP_CHANNELS.aiGenerateImage)!({ sender }, { prompt: 'a', model: 42 })
+    await handlers.get(MINDMAP_CHANNELS.aiGenerateImage)!({ sender }, { prompt: 'a', model: '  ' })
+    expect(generateImageTool.mock.calls[1]?.[1]).not.toHaveProperty('model')
+    expect(generateImageTool.mock.calls[2]?.[1]).not.toHaveProperty('model')
   })
 
   it('keeps an empty prompt away from the tool', async () => {

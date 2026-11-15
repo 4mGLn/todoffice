@@ -198,6 +198,7 @@ import type {
   SpellLanguages,
 } from '../shared/ipc'
 import { MARKDOWN_MEDIA_DIR_TOKEN } from '../shared/ipc'
+import { SUBSCRIPTION_USAGE_CHANNEL } from '../shared/subscription-api'
 import { MERGE_DATA_SOURCE_EXTENSIONS, readMergeDataSource } from './merge-data-source'
 import { mergeOutputFileName, mergeOutputPath } from './merge-output'
 import { ClickClaims } from '../shared/context-menu-claims'
@@ -4454,7 +4455,7 @@ let codexImageRegistered = false
  */
 function broadcastSubscriptionUsage(usage: AiSubscriptionUsage[]): void {
   for (const wc of webContents.getAllWebContents())
-    if (!wc.isDestroyed()) wc.send('ai:subscription-usage-update', usage)
+    if (!wc.isDestroyed()) wc.send(SUBSCRIPTION_USAGE_CHANNEL, usage)
 }
 
 /**

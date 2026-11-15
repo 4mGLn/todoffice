@@ -237,6 +237,22 @@ describe('generate_image', () => {
     )
   })
 
+  it("passes the image tool's note on to the model with the URL", async () => {
+    ;(window as unknown as { slidesApi: Record<string, unknown> }).slidesApi.generateImage = vi.fn(
+      async () => ({
+        url: 'file:///generated/kite.png',
+        note: 'Codex picks the image model on this route',
+      }),
+    )
+    const r = await createSlidesSkill(mkAccess()).executeTool!({
+      id: 't',
+      name: 'generate_image',
+      input: { prompt: 'a kite', model: 'gpt-image-2' },
+    })
+    expect(r.isError).toBeFalsy()
+    expect(r.output).toContain('\nNote: Codex picks the image model on this route')
+  })
+
   it('does not tie reference-image edits to a key provider', () => {
     const tools = createSlidesSkill(mkAccess()).tools
     const text = JSON.stringify(

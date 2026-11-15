@@ -118,7 +118,7 @@ describe('html:ai-generate-image, model', () => {
     generateImageTool.mockReset()
   })
 
-  it('hands the model the user named to the tool unchanged, and none when absent', async () => {
+  it('hands the model the user named to the tool trimmed, and none when absent', async () => {
     generateImageTool.mockResolvedValue({ url: 'file:///fake/out.png' })
     createHtmlView(null)
     const sender = lastContents
@@ -127,7 +127,7 @@ describe('html:ai-generate-image, model', () => {
     expect(generateImageTool.mock.calls[0]![1]).toEqual({
       prompt: 'a red kite',
       aspectRatio: undefined,
-      model: ' gpt-image-2 ',
+      model: 'gpt-image-2',
     })
     await handler({ sender }, { prompt: 'a red kite' })
     expect(generateImageTool.mock.calls[1]![1].model).toBeUndefined()

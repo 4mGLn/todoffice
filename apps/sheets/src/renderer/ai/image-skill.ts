@@ -150,7 +150,9 @@ export function createImageSkill(
           }
         }
         return {
-          output: `Image generated: ${result.url}\nInsert it with propose_operations {op:"add_image", path:"${result.url}", ...}.`,
+          output:
+            `Image generated: ${result.url}\nInsert it with propose_operations {op:"add_image", path:"${result.url}", ...}.` +
+            (result.note ? `\nNote: ${result.note}` : ''),
           mutated: false,
           summary: t('aiToolGenImageDone'),
         }

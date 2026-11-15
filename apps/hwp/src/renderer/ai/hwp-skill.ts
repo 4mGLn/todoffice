@@ -3050,7 +3050,11 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         })
         if (signal?.aborted) return bad(call, 'stopped by the user; the picture was not inserted')
         if (!generated.url) return bad(call, generated.error ?? 'image generation failed')
-        return insertPictureFromUrl(call, generated.url, prompt, signal)
+        const inserted = await insertPictureFromUrl(call, generated.url, prompt, signal)
+        // the shared tool's remark (e.g. Codex picked the image model) reaches the model
+        return generated.note
+          ? { ...inserted, output: `${inserted.output}\nNote: ${generated.note}` }
+          : inserted
       }
       case 'format_text': {
         const find = textArg(call, 'find')
