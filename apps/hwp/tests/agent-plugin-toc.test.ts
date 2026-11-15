@@ -190,9 +190,9 @@ describe('the look of a table of contents', () => {
     const { plugin, doc } = open()
     // the anchor is a heading in 16pt bold
     doc().applyCharFormat(0, 0, 0, doc().getParagraphLength(0, 0), '{"fontSize":1600,"bold":true}')
-    expect(plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 2))).toMatchObject(
-      { ok: true },
-    )
+    expect(
+      plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 2)),
+    ).toMatchObject({ ok: true })
     expect(paragraphLook(doc(), 1)).toMatchObject({ size: 16, align: 'center', style: '차례 제목' })
     expect(paragraphLook(doc(), 2).style).toBe('바탕글')
     const first = cellLook(doc(), 2, 0)
@@ -206,7 +206,8 @@ describe('the look of a table of contents', () => {
     const start = new HwpDocument(
       new Uint8Array(readFileSync(join(__dirname, 'fixtures', 'generated-form-tables.hwpx'))),
     )
-    const heading = (para: number) => start.getTextRange(0, para, 0, start.getParagraphLength(0, para))
+    const heading = (para: number) =>
+      start.getTextRange(0, para, 0, start.getParagraphLength(0, para))
     const entries = [
       { find: heading(2), level: 1 },
       { find: heading(14), level: 2 },
@@ -235,9 +236,13 @@ describe('a second table of contents and new headings', () => {
   it('refuses a second table of contents and names the one there', () => {
     const { plugin, steps } = open()
     plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 2))
-    expect(
-      plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 4)),
-    ).toEqual({ ok: false, reason: 'toc_exists', count: 1, table: 1, title: '차 례' })
+    expect(plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 4))).toEqual({
+      ok: false,
+      reason: 'toc_exists',
+      count: 1,
+      table: 1,
+      title: '차 례',
+    })
     expect(steps()).toBe(1)
   })
 

@@ -1268,6 +1268,13 @@ function checkReplacement(replacement) {
   }
 }
 
+/** A replacement of text in a line: one line, where a tab is text as in a new paragraph. */
+function checkLineText(replacement) {
+  if (typeof replacement !== 'string' || PARAGRAPH_CONTROL_CHARS.test(replacement)) {
+    throw fail('BAD_ARGUMENT', 'replacement must be one line of plain text')
+  }
+}
+
 function expectOk(json, what) {
   const result = parse(json)
   if (result && result.ok === false) throw fail('ENGINE_REFUSED', `the editor refused to ${what}`)
@@ -1278,7 +1285,8 @@ const MAX_CELL_REPLACE_CHARS = 8
 
 /** The first part of a cell replacement the engine takes at once, whole code points only. */
 function cellReplaceHead(text) {
-  return Array.from(text).slice(0, MAX_CELL_REPLACE_CHARS).join('')
+  // the one call takes no tab: the head stops in front of the first one
+  return Array.from(text.split('\t')[0]).slice(0, MAX_CELL_REPLACE_CHARS).join('')
 }
 
 /**
@@ -1326,7 +1334,11 @@ function replaceHit(doc, hit, replacement) {
     return
   }
   const last = path[path.length - 1]
-  if (path.length === 1 && typeof doc.replaceTextInCellDeferredPagination === 'function') {
+  if (
+    path.length === 1 &&
+    typeof doc.replaceTextInCellDeferredPagination === 'function' &&
+    !replacement.startsWith('\t')
+  ) {
     // one engine call keeps a memo on the replaced text. It removes and puts in up to eight
     // characters (code points) each, so a longer match is first worn down from its end,
     // eight characters to one per call (a plain delete would take a memo that lies wholly
@@ -5756,8 +5768,7 @@ const emsOf = (ch) => (ch.codePointAt(0) > 0x2e7f ? 1 : 0.55)
  * paragraph taken for one is not, and is cut.
  */
 function oneLine(text, look, widthPt) {
-  const room =
-    (widthPt - TOC_PAGE_COLUMN_PT - look.indentPt - TOC_CELL_SLACK_PT) / look.font.points
+  const room = (widthPt - TOC_PAGE_COLUMN_PT - look.indentPt - TOC_CELL_SLACK_PT) / look.font.points
   let used = 0
   let out = ''
   for (const ch of text) {
@@ -7279,7 +7290,7 @@ export const agentPlugin = {
        * span stays as it was.
        */
       replaceText: guarded((find, replacement, occurrence, options) => {
-        checkReplacement(replacement)
+        checkLineText(replacement)
         // decided on a read first: a transaction is only opened for a change that will happen
         const refusal = host.read((doc) => {
           const hits = searchAll(doc, find)
@@ -7325,7 +7336,7 @@ export const agentPlugin = {
        * that lies across an object of its line is left as it is and counted in `skipped`.
        */
       replaceAllText: guarded((find, replacement, options) => {
-        checkReplacement(replacement)
+        checkLineText(replacement)
         const sorted = (doc) => {
           const hits = []
           let skipped = 0
@@ -8845,10 +8856,7 @@ export const agentPlugin = {
               if (whitened) look.chars = { ...look.chars, textColor: whitened }
               const titlePoints = look.chars?.fontSize ? look.chars.fontSize / 100 : points
               if (around) {
-                expectOk(
-                  doc.deleteTableControl(sec, k, around.control),
-                  'take the old box away',
-                )
+                expectOk(doc.deleteTableControl(sec, k, around.control), 'take the old box away')
               } else box.deleteText(k, length)
               const layout = titleBoxCells(wanted.look, wanted.color, wanted.color2)
               // where the text runs in columns the box is as wide as one of them
@@ -10629,7 +10637,8 @@ export const agentPlugin = {
           // a second one would be a second list to keep in step: the one there is written again
           const [made] = tocsOf(doc)
           if (made) {
-            const above = made.table.para > 0 ? bodyText(doc, made.table.sec, made.table.para - 1) : ''
+            const above =
+              made.table.para > 0 ? bodyText(doc, made.table.sec, made.table.para - 1) : ''
             return {
               ok: false,
               reason: 'toc_exists',

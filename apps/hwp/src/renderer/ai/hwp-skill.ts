@@ -619,7 +619,10 @@ const TOOLS: HwpToolDef[] = [
       type: 'object',
       properties: {
         find: { type: 'string', description: 'the exact text to replace, within one paragraph' },
-        replace: { type: 'string', description: 'the new text, one line' },
+        replace: {
+          type: 'string',
+          description: 'the new text, one line (a tab in it stays a tab)',
+        },
         occurrence: { type: 'integer' },
       },
       required: ['find', 'replace'],
@@ -633,7 +636,10 @@ const TOOLS: HwpToolDef[] = [
       type: 'object',
       properties: {
         find: { type: 'string', description: 'the exact text to replace, within one paragraph' },
-        replace: { type: 'string', description: 'the new text, one line' },
+        replace: {
+          type: 'string',
+          description: 'the new text, one line (a tab in it stays a tab)',
+        },
       },
       required: ['find', 'replace'],
     },
@@ -718,14 +724,17 @@ const TOOLS: HwpToolDef[] = [
         align: {
           type: 'string',
           enum: ['left', 'center', 'right'],
-          description: 'alignment of the body cells, default left; the header row is centred anyway',
+          description:
+            'alignment of the body cells, default left; the header row is centred anyway',
         },
         size: {
           type: 'number',
-          description:
-            'font size of the table text in points; default that of the body text',
+          description: 'font size of the table text in points; default that of the body text',
         },
-        font: { type: 'string', description: 'font of the table text; default that of the body text' },
+        font: {
+          type: 'string',
+          description: 'font of the table text; default that of the body text',
+        },
         width_percent: {
           type: 'number',
           description:

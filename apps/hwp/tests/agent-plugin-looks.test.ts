@@ -292,7 +292,11 @@ describe('insertTable: looks', () => {
       '함초롬돋움 9 left',
     ])
     plugin.fillCells(1, [{ row: 2, col: 2, text: '공통 과정' }], false)
-    for (const source of [doc(), new HwpDocument(doc().exportHwpx()), new HwpDocument(doc().exportHwp())]) {
+    for (const source of [
+      doc(),
+      new HwpDocument(doc().exportHwpx()),
+      new HwpDocument(doc().exportHwp()),
+    ]) {
       expect(looks(source, 5)[3]).toBe('함초롬돋움 9 left')
     }
     const centred = open()
@@ -329,7 +333,15 @@ describe('insertTable: looks', () => {
     appended.plugin.addTableLines(1, 'rows', 4, 'after', 2)
     expect(lines(appended.doc())).toEqual([heavy, header, inner, inner, inner, inner, heavy])
     for (const bytes of [appended.doc().exportHwpx(), appended.doc().exportHwp()]) {
-      expect(lines(new HwpDocument(bytes))).toEqual([heavy, header, inner, inner, inner, inner, heavy])
+      expect(lines(new HwpDocument(bytes))).toEqual([
+        heavy,
+        header,
+        inner,
+        inner,
+        inner,
+        inner,
+        heavy,
+      ])
     }
 
     const first = withTable(look)
@@ -682,9 +694,10 @@ describe('insertTitleBox', () => {
 
   it('gives the words of a dark shaded box back their black on a box without the fill', () => {
     const { plugin, doc } = open()
-    expect(plugin.insertTitleBox(TITLE, null, { look: 'shaded', color: '#1F3864' })).toMatchObject(
-      { ok: true, textColor: '#ffffff' },
-    )
+    expect(plugin.insertTitleBox(TITLE, null, { look: 'shaded', color: '#1F3864' })).toMatchObject({
+      ok: true,
+      textColor: '#ffffff',
+    })
     plugin.insertTitleBox(TITLE, null, { look: 'box' })
     const table = tableIn(doc(), 0)
     const chars = JSON.parse(doc().getCellCharPropertiesAt(0, 0, table.control, 0, 0, 0)) as {
@@ -1889,6 +1902,42 @@ describe('equations, a diagonal, the page border, tab stops, the size of a pictu
     }
     // tab stops belong to a paragraph, not to a piece of its text
     expect(() => plugin.formatText('끝', null, false, { tabs: [{}] })).toThrow(/whole paragraph/)
+  })
+
+  it('replaces text on a line that holds a tab, with a tab in find and in the new text', () => {
+    const lines = ['식순', '개회 및 국민의례\t10:00', '연혁 보고\t10:10', '끝']
+    const { plugin, doc } = open(blank(lines))
+    plugin.formatParagraph('연혁 보고', null, { tabs: [{ leader: 'dots' }] })
+    const line = (source: HwpDocument) =>
+      source.getTextRange(0, 2, 0, source.getParagraphLength(0, 2))
+    expect(plugin.replaceText('연혁 보고', '연혁 및 경과 보고', null)).toMatchObject({ ok: true })
+    expect(
+      plugin.replaceText('연혁 및 경과 보고\t10:10', '연혁 및 경과 보고\t10:15', null),
+    ).toMatchObject({ ok: true })
+    expect(line(doc())).toBe('연혁 및 경과 보고\t10:15')
+    for (const saved of [doc().exportHwpx(), doc().exportHwp()]) {
+      expect(line(new HwpDocument(saved))).toBe('연혁 및 경과 보고\t10:15')
+    }
+    expect(plugin.replaceAllText('10:00', '10:00\t(예정)')).toMatchObject({ ok: true })
+    expect(doc().getTextRange(0, 1, 0, doc().getParagraphLength(0, 1))).toBe(
+      '개회 및 국민의례\t10:00\t(예정)',
+    )
+    expect(() => plugin.replaceText('끝', '끝\n다음', null)).toThrow(/one line/)
+  })
+
+  it('writes a tab into a table cell in front of the head the engine replaces at once', () => {
+    const { plugin, doc } = open()
+    plugin.insertTable('□ 세부 일정', null, 'after', [['개회 10:00', '연혁 보고 10:10']])
+    const cell = (index: number) => {
+      const table = tableIn(doc(), 5)
+      const length = doc().getCellParagraphLength(0, 5, table.control, index, 0)
+      return doc().getTextInCell(0, 5, table.control, index, 0, 0, length)
+    }
+    expect(plugin.replaceText('개회 10:00', '개회\t10:05', null)).toMatchObject({ ok: true })
+    expect(cell(0)).toBe('개회\t10:05')
+    // a new text that starts with the tab
+    expect(plugin.replaceText(' 10:10', '\t10:15', null)).toMatchObject({ ok: true })
+    expect(cell(1)).toBe('연혁 보고\t10:15')
   })
 
   it('takes a tab in the text of a new paragraph, and no other control character', () => {
