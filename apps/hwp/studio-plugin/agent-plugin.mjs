@@ -5860,6 +5860,32 @@ function columnsChangeWithin(doc) {
 }
 
 /**
+ * Whether a body paragraph lies under columns set part way through its section, as the
+ * body of a test-paper form under its head: the engine reads only the columns a section
+ * starts with, so how wide a column is there is not known.
+ */
+function columnsUnknownAt(doc, sec, para) {
+  let first = 0
+  for (let s = 0; s < sec; s++) first += doc.getParagraphCount(s)
+  try {
+    const controls = parse(doc.getControls())
+    const starts = new Set(
+      controls.filter((control) => control.ctrlId === 'secd').map((control) => control.para),
+    )
+    return controls.some(
+      (control) =>
+        control.ctrlId === 'cold' &&
+        control.list === 0 &&
+        !starts.has(control.para) &&
+        control.para > first &&
+        control.para <= first + para,
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
  * The width one column of a section takes in the engine's units, not rounded to points:
  * a tab stop at the right edge must not stand past it.
  */
@@ -7959,7 +7985,8 @@ export const agentPlugin = {
           // a table across the columns is the head of the document: it goes in front of
           // the first paragraph. Anywhere else the text before it would stand in the first
           // column only, beside the table's place.
-          const { sec } = box.place(box.index, 0)
+          const { sec, para } = box.place(box.index, 0)
+          if (columnsUnknownAt(doc, sec, para)) return { ok: false, reason: 'columns_unknown', count: 1 }
           const head = where === 'before' && sec === 0 && box.index === 0
           return look.across && columnsOf(doc, sec).count > 1 && !head
             ? { ok: false, reason: 'not_at_start', count: 1 }

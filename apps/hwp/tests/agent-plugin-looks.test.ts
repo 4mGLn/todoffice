@@ -3470,10 +3470,21 @@ describe('a test paper in two columns', () => {
       '<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="2" sameSz="1" sameGap="2268"/></hp:ctrl>'
     zip.file(name, xml.slice(0, opened) + zone + xml.slice(opened))
     const form = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }))
-    expect(open(form).plugin.pageLayout().columns).toEqual({
+    const { plugin, doc } = open(form)
+    expect(plugin.pageLayout().columns).toEqual({
       count: 1,
       gapMm: 0,
       changesWithin: true,
+    })
+    const box = [['〈보기〉 ㄱ. ㄴ. ㄷ.']]
+    expect(plugin.insertTable(QUESTIONS[4]!, null, 'after', box, false)).toEqual({
+      ok: false,
+      reason: 'columns_unknown',
+      count: 1,
+    })
+    expect(() => tableIn(doc(), 5)).toThrow()
+    expect(plugin.insertTable(QUESTIONS[0]!, null, 'after', box, false)).toMatchObject({
+      ok: true,
     })
     const sections = new HwpDocument(
       readFileSync(join(__dirname, 'fixtures', 'master-page-next-section.hwpx')),

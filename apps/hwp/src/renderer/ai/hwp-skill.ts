@@ -3771,6 +3771,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
               'Nothing was changed: a table across the columns is the head of the document. Pass where "before" with an anchor in the first paragraph of the document, or leave across_columns out for a table one column wide.',
             )
           }
+          if (result.reason === 'columns_unknown') {
+            return bad(
+              call,
+              'Nothing was changed: this part of the document runs in columns set part way through it, as the body of a test-paper form under its head, and this editor cannot read how wide a column is there, so the table would stand over the line between the columns. Make a box there as paragraphs with a border (format_paragraph border, sides box) instead.',
+            )
+          }
           return bad(call, placeRefusal(result))
         }
         deps.onChange({
