@@ -3833,7 +3833,9 @@ describe('the skill as the model sees it', () => {
       'A worksheet (학습지) or a quiz sheet is written as an ordinary document: it gets this form (B4, the approval box, points, the page border, the end mark) only when the user asks for it.',
     )
     expect(skill).not.toContain('a quiz or any sheet of numbered questions')
-    expect(skill).toContain('Typing `ㄱ.` into a 〈보기〉 line the form numbers itself prints it twice.')
+    expect(skill).toContain(
+      'Typing `ㄱ.` into a 〈보기〉 line the form numbers itself prints it twice.',
+    )
     expect(skill).toContain('`insert_table` refuses a new table')
     const { page, columns, body, questionIndentPt } = EXAM_PAPER
     expect(skill).toContain(

@@ -5822,6 +5822,12 @@ function columnsOf(doc, sec) {
   return { count, gapPt, line }
 }
 
+/** The line setColumns left between the columns when none was asked for. */
+function keptLine(doc, count) {
+  const { line } = columnsOf(doc, 0)
+  return count > 1 && line ? { line, lineKept: true } : {}
+}
+
 /** The lines set_columns draws between columns. */
 const COLUMN_LINES = ['none', 'solid', 'dashed', 'dotted']
 
@@ -7986,7 +7992,8 @@ export const agentPlugin = {
           // the first paragraph. Anywhere else the text before it would stand in the first
           // column only, beside the table's place.
           const { sec, para } = box.place(box.index, 0)
-          if (columnsUnknownAt(doc, sec, para)) return { ok: false, reason: 'columns_unknown', count: 1 }
+          if (columnsUnknownAt(doc, sec, para))
+            return { ok: false, reason: 'columns_unknown', count: 1 }
           const head = where === 'before' && sec === 0 && box.index === 0
           return look.across && columnsOf(doc, sec).count > 1 && !head
             ? { ok: false, reason: 'not_at_start', count: 1 }
@@ -9605,11 +9612,7 @@ export const agentPlugin = {
               gapMm: count > 1 ? gapMm : 0,
               was,
               sections,
-              ...(lineName !== null
-                ? { line: lineName }
-                : count > 1 && columnsOf(doc, 0).line
-                  ? { line: columnsOf(doc, 0).line, lineKept: true }
-                  : {}),
+              ...(lineName !== null ? { line: lineName } : keptLine(doc, count)),
             }
           },
           options,

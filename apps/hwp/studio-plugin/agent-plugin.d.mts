@@ -385,11 +385,7 @@ export type AgentColumnLine = 'solid' | 'dashed' | 'dotted'
 
 /** Every line a document may have between its columns. */
 export type AgentColumnLineDrawn =
-  | AgentColumnLine
-  | 'dash-dot'
-  | 'dash-dot-dot'
-  | 'long-dash'
-  | 'circles'
+  AgentColumnLine | 'dash-dot' | 'dash-dot-dot' | 'long-dash' | 'circles'
 
 export type AgentColumnsResult =
   /**

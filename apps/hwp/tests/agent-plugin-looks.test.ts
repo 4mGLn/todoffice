@@ -3369,7 +3369,11 @@ describe('a test paper in two columns', () => {
     const { plugin, doc } = open(blank(['']))
     plugin.insertParagraphs('', null, 'end', QUESTIONS)
     plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
-    plugin.fillCells(1, [{ row: 2, col: 5, text: '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄' }], true)
+    plugin.fillCells(
+      1,
+      [{ row: 2, col: 5, text: '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄' }],
+      true,
+    )
     plugin.setColumns({ count: 2 })
     const { foot, starts } = columnStarts(doc())
     for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
