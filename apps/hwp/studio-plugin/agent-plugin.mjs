@@ -61,6 +61,7 @@ import {
   titleBoxLookOf,
 } from './document-looks.mjs'
 import { equationSvgForThisPc } from './equation-fonts.mjs'
+import { gridOf as sizeGridOf, spanUpdates } from './table-sizes.mjs'
 import { fontOnPc, missingFonts, setMissingFontLabels, whenPcFontsSettled } from './pc-fonts.mjs'
 
 export const AGENT_PLUGIN_ID = 'ieum-agent'
@@ -3117,6 +3118,66 @@ function setRowEdges(doc, table, grid, edges) {
 
 /** How the body cells of a new table may be aligned. */
 const TABLE_ALIGNS = ['left', 'center', 'right']
+
+/**
+ * The shares of the width the columns take, from one positive number per column (`cols`
+ * of them; any number when null), summing to 1. A column far thinner than the rest could
+ * not hold a character, so none takes less than MIN_COLUMN_SHARE.
+ */
+function columnSharesOf(list, cols) {
+  const valid =
+    Array.isArray(list) &&
+    list.length > 0 &&
+    (cols === null || list.length === cols) &&
+    list.every((share) => typeof share === 'number' && Number.isFinite(share) && share > 0)
+  if (!valid) {
+    throw fail(
+      'BAD_ARGUMENT',
+      cols === null
+        ? 'columnWidths must be positive numbers, one for each column'
+        : `columnWidths must be ${cols} positive numbers, one for each column`,
+    )
+  }
+  const sum = list.reduce((total, share) => total + share, 0)
+  const floored = list.map((share) => Math.max(share / sum, MIN_COLUMN_SHARE))
+  const total = floored.reduce((all, share) => all + share, 0)
+  return floored.map((share) => share / total)
+}
+
+/**
+ * How to give the columns of a body table the shares `shares` of its width (one per
+ * column), the width of the table staying as it is: the engine's cell updates
+ * (resizeTableCells, which wraps the cell text again) and the new widths in millimetres.
+ * The widths are planned per column and given to each cell over the columns it spans
+ * (table-sizes.mjs). Null when a column has no cell of its own to read its width from.
+ */
+function columnPlanOf(doc, table, shares) {
+  const control = table.path[0].controlIndex
+  const cells = Array.from({ length: table.cells }, (_, cell) => {
+    const info = parse(doc.getCellInfo(table.sec, table.para, control, cell))
+    const props = parse(doc.getCellProperties(table.sec, table.para, control, cell))
+    return {
+      cellIdx: cell,
+      row: info.row,
+      col: info.col,
+      rowSpan: info.rowSpan || 1,
+      colSpan: info.colSpan || 1,
+      width: props.width,
+      height: props.height,
+    }
+  })
+  const { colWidth } = sizeGridOf(cells)
+  if (colWidth.some((width) => width === undefined)) return null
+  const total = colWidth.reduce((sum, width) => sum + width, 0)
+  const widths = shares.map((share) => Math.round(total * share))
+  widths[widths.length - 1] = total - widths.slice(0, -1).reduce((sum, width) => sum + width, 0)
+  const updates = spanUpdates(
+    cells,
+    'col',
+    widths.map((width, col) => width - colWidth[col]),
+  )
+  return { updates, widths: widths.map(mmOf) }
+}
 /** Font sizes a new table's text takes, in points. */
 const MIN_TABLE_FONT_PT = 6
 const MAX_TABLE_FONT_PT = 40
@@ -3207,22 +3268,7 @@ function tableLookOf(given, cols) {
   }
   let shares = null
   if (given.columnWidths !== undefined && given.columnWidths !== null) {
-    const list = given.columnWidths
-    const valid =
-      Array.isArray(list) &&
-      list.length === cols &&
-      list.every((share) => typeof share === 'number' && Number.isFinite(share) && share > 0)
-    if (!valid) {
-      throw fail(
-        'BAD_ARGUMENT',
-        `columnWidths must be ${cols} positive numbers, one for each column`,
-      )
-    }
-    const sum = list.reduce((total, share) => total + share, 0)
-    // a column far thinner than the rest could not hold a character
-    const floored = list.map((share) => Math.max(share / sum, MIN_COLUMN_SHARE))
-    const total = floored.reduce((all, share) => all + share, 0)
-    shares = floored.map((share) => share / total)
+    shares = columnSharesOf(given.columnWidths, cols)
   }
   let aligns = null
   if (given.align !== undefined && given.align !== null) {
@@ -3283,7 +3329,7 @@ const MAX_BORDER_RULES = 12
 function cellLookOf(given) {
   const spec = typeof given === 'string' ? { background: given } : given
   const nothing =
-    'name what to change: background, borders, verticalAlign, heightMm, diagonal or text'
+    'name what to change: background, borders, verticalAlign, heightMm, diagonal, text or columnWidths'
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw fail('BAD_ARGUMENT', nothing)
   const props = {}
   if (spec.background !== undefined && spec.background !== null) {
@@ -3351,10 +3397,14 @@ function cellLookOf(given) {
     text = styleFormatOf(standInFormat(spec.text, standIns), true)
     if (text?.paragraph?.list) throw fail('BAD_ARGUMENT', 'a list is not set for cells')
   }
-  if (Object.keys(props).length === 0 && rules.length === 0 && !text) {
+  const shares =
+    spec.columnWidths !== undefined && spec.columnWidths !== null
+      ? columnSharesOf(spec.columnWidths, null)
+      : null
+  if (Object.keys(props).length === 0 && rules.length === 0 && !text && !shares) {
     throw fail('BAD_ARGUMENT', nothing)
   }
-  return { props, rules, text, standIns }
+  return { props, rules, text, shares, standIns }
 }
 
 /**
@@ -8427,8 +8477,20 @@ export const agentPlugin = {
             }
           }
         }
-        const { props, rules, text, standIns } = cellLookOf(look)
+        const { props, rules, text, shares, standIns } = cellLookOf(look)
         const plan = (doc) => {
+          const found = cellsPlan(doc)
+          if (found.refusal || !shares) return found
+          const { table } = found
+          if (shares.length !== table.cols) {
+            return { refusal: { ok: false, reason: 'column_count', cols: table.cols } }
+          }
+          const columns = columnPlanOf(doc, table, shares)
+          if (!columns)
+            return { refusal: { ok: false, reason: 'merged_columns', cols: table.cols } }
+          return { ...found, columns }
+        }
+        const cellsPlan = (doc) => {
           const { tables } = tablesOf(doc)
           const table = Number.isInteger(number) ? tables[number - 1] : undefined
           if (!table) {
@@ -8503,9 +8565,20 @@ export const agentPlugin = {
           change(
             'format-cells',
             (doc) => {
-              const { table, grid, blocks } = plan(doc)
+              const { table, grid, blocks, columns } = plan(doc)
               if (!blocks) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
+              if (columns && columns.updates.length > 0) {
+                expectOk(
+                  doc.resizeTableCells(
+                    table.sec,
+                    table.para,
+                    table.path[0].controlIndex,
+                    JSON.stringify(columns.updates),
+                  ),
+                  'set the column widths',
+                )
+              }
               let count = 0
               for (const rect of blocks)
                 count += setCellBorders(doc, table, grid, rect, rules, props)
@@ -8525,6 +8598,8 @@ export const agentPlugin = {
                   ).length
                 }
               }
+              // cells whose width alone changed are counted too
+              if (count === 0 && columns) count = columns.updates.length
               mustKeep(before, objectsOf(doc))
               // a diagonal runs through the words of its cell: say which cells hold some
               const crossed = []
@@ -8566,6 +8641,7 @@ export const agentPlugin = {
                 place: { sec: table.sec, para: table.para, offset: 0, length: 0 },
                 ...(standIns.length > 0 ? { standIn: standIns } : {}),
                 ...(crossed.length > 0 ? { crossed } : {}),
+                ...(columns ? { columnWidthsMm: columns.widths } : {}),
               }
             },
             options,

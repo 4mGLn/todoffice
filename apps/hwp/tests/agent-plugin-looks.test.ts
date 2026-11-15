@@ -426,6 +426,49 @@ describe('insertTable: looks', () => {
     expect(paragraph.alignment).toBe('center')
   })
 
+  it('gives the columns of a table that is there new shares, merged cells and all, its width kept', () => {
+    const { plugin, doc, para } = withTable(true)
+    const address = '신청자 연락처 haneul.kim@example.org 로 회신'
+    plugin.fillCells(1, [{ row: 2, col: 3, text: address }], true)
+    const widths = (source: HwpDocument) => {
+      const table = tableIn(source, para)
+      return [0, 1, 2].map((cell) => table.cell(cell).width)
+    }
+    const lineCount = () =>
+      (
+        JSON.parse(doc().getLineInfoInCell(0, para, tableIn(doc(), para).control, 5, 0, 0)) as {
+          lineCount: number
+        }
+      ).lineCount
+    const before = widths(doc())
+    const wrapped = lineCount()
+    expect(wrapped).toBeGreaterThan(1)
+    const result = plugin.formatCells(1, null, { columnWidths: [1, 1, 4] })
+    expect(result).toMatchObject({ ok: true })
+    const after = widths(doc())
+    expect(after.reduce((a, b) => a + b)).toBe(before.reduce((a, b) => a + b))
+    expect(after[2] / after[0]).toBeGreaterThan(3.9)
+    expect(after[2] / after[0]).toBeLessThan(4.1)
+    expect(result.ok && result.columnWidthsMm).toHaveLength(3)
+    // the engine wraps the text again for the new width
+    expect(lineCount()).toBeLessThan(wrapped)
+    for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
+      expect(widths(new HwpDocument(bytes))).toEqual(after)
+    }
+    // a merged cell takes the sum of the columns it spans
+    plugin.mergeCells(1, { row: 1, col: 1 }, { row: 1, col: 2 })
+    plugin.formatCells(1, null, { columnWidths: [2, 1, 3] })
+    const table = tableIn(doc(), para)
+    const merged = table.cell(0).width
+    const [left, middle] = [table.cell(2).width, table.cell(3).width]
+    expect(Math.abs(merged - (left + middle))).toBeLessThan(5)
+    expect(plugin.formatCells(1, null, { columnWidths: [1, 2] })).toEqual({
+      ok: false,
+      reason: 'column_count',
+      cols: 3,
+    })
+  })
+
   it('refuses widths that do not fit the columns', () => {
     const { plugin } = open()
     expect(() =>

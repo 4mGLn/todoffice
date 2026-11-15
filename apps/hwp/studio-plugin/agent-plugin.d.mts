@@ -128,6 +128,8 @@ export interface AgentCellLook {
   /** in order: a later rule goes over an earlier one */
   borders?: AgentBorderRule[]
   verticalAlign?: 'top' | 'middle' | 'bottom'
+  /** the share of the table's width each column takes, one positive number per column */
+  columnWidths?: number[]
 }
 
 /** A block of cells from its top left to its bottom right corner, rows and columns from 1. */
@@ -675,8 +677,14 @@ export type AgentFormatCellsResult =
       standIn?: AgentStandInFont[]
       /** cells (rows and columns from 1) whose text the diagonal that was drawn runs through */
       crossed?: { row: number; col: number }[]
+      /** the widths of the columns now, in millimetres, when columnWidths was given */
+      columnWidthsMm?: number[]
     }
   | { ok: false; reason: 'no_such_table'; count: number }
+  /** columnWidths does not give one number for each of the `cols` columns */
+  | { ok: false; reason: 'column_count'; cols: number }
+  /** a column is covered only by merged cells, so its width cannot be read */
+  | { ok: false; reason: 'merged_columns'; cols: number }
   | { ok: false; reason: 'unsupported_place'; count: number }
   | {
       ok: false

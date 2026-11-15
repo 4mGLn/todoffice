@@ -1171,6 +1171,12 @@ const TOOLS: HwpToolDef[] = [
           type: 'number',
           description: 'height of the rows of the cells in millimetres, 3 to 250',
         },
+        column_widths: {
+          type: 'array',
+          items: { type: 'number' },
+          description:
+            'the share of the width each column of the whole table takes, one positive number per column, as insert_table takes it: widen the column whose text wraps, narrow a column of short labels. The table keeps its width',
+        },
         diagonal: {
           type: 'string',
           enum: ['down', 'up', 'both', 'none'],
@@ -4425,6 +4431,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           look.verticalAlign = vertical
         }
         if (typeof call.input.row_height_mm === 'number') look.heightMm = call.input.row_height_mm
+        if (Array.isArray(call.input.column_widths)) {
+          look.columnWidths = call.input.column_widths as number[]
+        }
         const diagonal = call.input.diagonal
         if (
           diagonal === 'down' ||
@@ -4444,15 +4453,17 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (Object.keys(look).length === 0) {
           return bad(
             call,
-            'Name at least one thing to change: background, borders, vertical_align, row_height_mm, diagonal, or the text of the cells (align, bold, size, font, color).',
+            'Name at least one thing to change: background, borders, vertical_align, row_height_mm, column_widths, diagonal, or the text of the cells (align, bold, size, font, color).',
           )
         }
         const fillOnly =
           look.borders === undefined &&
           look.verticalAlign === undefined &&
           look.heightMm === undefined &&
+          look.columnWidths === undefined &&
           look.diagonal === undefined &&
           look.text === undefined
+        const widthsOnly = Object.keys(look).length === 1 && look.columnWidths !== undefined
         // a background alone goes as the string the call has always taken
         const lookArg = fillOnly && look.background !== undefined ? look.background : look
         const outcome = await changeWithMemoApproval(
@@ -4468,6 +4479,18 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             return bad(
               call,
               'Nothing was changed: that table sits inside a cell of another table, whose cells cannot be coloured here.',
+            )
+          }
+          if (result.reason === 'column_count') {
+            return bad(
+              call,
+              `Nothing was changed: table ${table} has ${result.cols} column(s), so column_widths takes ${result.cols} number(s), one for each.`,
+            )
+          }
+          if (result.reason === 'merged_columns') {
+            return bad(
+              call,
+              `Nothing was changed: a column of table ${table} lies only under merged cells, so its width cannot be read. Split those cells first, or leave the widths as they are.`,
             )
           }
           const places = result.cells.map((cell) => `${cell.row}.${cell.col}`).join(', ')
@@ -4486,6 +4509,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           look.borders ? label('aiFmtCellBorders') : '',
           look.verticalAlign ? label('aiFmtCellVAlign') : '',
           look.heightMm !== undefined ? `${label('aiFmtRowHeight')} ${look.heightMm}mm` : '',
+          look.columnWidths ? label('aiFmtColumnWidths') : '',
           look.diagonal === undefined
             ? ''
             : look.diagonal === 'none'
@@ -4504,7 +4528,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           output:
             (fillOnly
               ? `Coloured ${result.count} cell(s): ${where}.`
-              : `Formatted ${result.count} cell(s): ${where}.`) +
+              : widthsOnly
+                ? `Set the column widths of table ${table}.`
+                : `Formatted ${result.count} cell(s): ${where}.`) +
+            (result.columnWidthsMm
+              ? ` Its columns are now ${result.columnWidthsMm.join(', ')} mm wide, from the left.`
+              : '') +
             (result.crossed
               ? ` The diagonal runs through the words of ${result.crossed.map((cell) => `${cell.row}.${cell.col}`).join(', ')}: empty those cells with fill_cells (text "") unless the user wants the words kept.`
               : '') +
@@ -4861,7 +4890,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           return {
             output: `Wrote the table of contents again with ${result.count} heading(s), on pages ${result.pages.join(', ')}. It is still table ${result.table}.`,
             mutated: true,
-            summary: label('aiToolToc', { count: result.count }),
+            summary: label('aiToolTocRebuild', { count: result.count }),
           }
         }
         if (result.changed > 0) {

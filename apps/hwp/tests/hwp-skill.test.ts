@@ -1521,6 +1521,34 @@ describe('format_cells', () => {
     expect(changes).toEqual([])
   })
 
+  it('sets the column widths of a table and says how wide they came out', async () => {
+    const { call, changes, bridge } = setup({
+      formatCells: vi.fn(async () => ({
+        ok: true as const,
+        count: 6,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+        columnWidthsMm: [25.1, 25.1, 100.6],
+      })),
+    })
+    const result = await call('format_cells', { table: 2, column_widths: [1, 1, 4] })
+    expect(bridge.formatCells).toHaveBeenCalledWith(2, null, { columnWidths: [1, 1, 4] })
+    expect(result.output).toMatch(
+      /^Set the column widths of table 2\. Its columns are now 25\.1, 25\.1, 100\.6 mm wide, from the left\./,
+    )
+    expect(changes[0]).toMatchObject({ kind: 'format', to: 'aiFmtColumnWidths' })
+  })
+
+  it('says how many widths a table takes', async () => {
+    const { call } = setup({
+      formatCells: async () => ({ ok: false as const, reason: 'column_count' as const, cols: 3 }),
+    })
+    const result = await call('format_cells', { table: 2, column_widths: [1, 2] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: table 2 has 3 column(s), so column_widths takes 3 number(s), one for each.',
+    )
+  })
+
   it('refuses a call without cells before asking the editor', async () => {
     const { call, bridge } = setup()
     const result = await call('format_cells', { table: 1, cells: [], background: '#000000' })
