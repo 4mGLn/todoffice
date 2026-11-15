@@ -377,7 +377,7 @@ describe('mcp server', () => {
       // 42 KiB before hwp_read (about 1 KiB) joined the catalog; 43 KiB before epub_translate and
       // epub_status (about 2 KiB); 45 KiB before hwp_apply and create_hwp (about 2.5 KiB); 48 KiB
       // before diagram_read, diagram_apply and create_drawio (about 3 KiB); measured 54291 B
-      // (54.0 KiB) with map_read, map_apply and map_create added (decision 0147) — the 54 KiB
+      // (53.0 KiB) with map_read, map_apply and map_create added (decision 0147) — the 54 KiB
       // ceiling has 1005 B left
       expect(JSON.stringify(tools).length).toBeLessThan(54 * 1024)
     } finally {
