@@ -558,6 +558,7 @@ const TOOLS: HwpToolDef[] = [
   },
   {
     name: 'web_search',
+    edits: false,
     description:
       'Search the web for textual information (references/data/facts). Use when you need up-to-date information or are unsure about a fact. Returns titles/links/snippets.',
     inputSchema: {
