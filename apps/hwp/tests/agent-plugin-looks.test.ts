@@ -3414,12 +3414,27 @@ describe('a test paper in two columns', () => {
       const again = JSON.parse(new HwpDocument(bytes).getColumnDef(0)) as { separatorType: number }
       expect(again.separatorType).toBe(1)
     }
-    // set again without the line: it stays
-    plugin.setColumns({ count: 2, gapMm: 10 })
+    // set again without the line: it stays, and the answer says so
+    expect(plugin.setColumns({ count: 2, gapMm: 10 })).toMatchObject({
+      line: 'solid',
+      lineKept: true,
+    })
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 10, line: 'solid' })
+    expect(() => plugin.setColumns({ count: 1, line: 'solid' })).toThrow(/count 1 leaves none/)
     expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 10, line: 'solid' })
     plugin.setColumns({ count: 2, line: 'none' })
     expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 8 })
     expect(() => plugin.setColumns({ count: 2, line: 'double' as never })).toThrow(/line must be/)
+  })
+
+  it('reads back every line a document may have between its columns', () => {
+    const { plugin, doc } = open(blank(QUESTIONS.slice(0, 20)))
+    plugin.setColumns({ count: 2 })
+    const names = ['solid', 'dashed', 'dotted', 'dash-dot', 'dash-dot-dot', 'long-dash', 'circles']
+    names.forEach((name, index) => {
+      doc().setColumnSeparator(0, JSON.stringify({ type: index + 1 }))
+      expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 8, line: name })
+    })
   })
 
   it('says when a later part of the document runs in other columns, and not for a new section', async () => {

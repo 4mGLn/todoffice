@@ -2275,12 +2275,14 @@ const rowsOf = (cells: { row: number }[] | AgentCellBlock | null): [from: number
   return [Math.min(...rows), Math.max(...rows)]
 }
 
-const columnLineNote = (line: string | undefined): string =>
+const columnLineNote = (line: string | undefined, kept: boolean): string =>
   line === undefined
     ? ''
     : line === 'none'
       ? ' and no line'
-      : `, a ${line} line down the middle of each gap`
+      : kept
+        ? `; the ${line} line down the middle of each gap was there and stays (line "none" takes it away)`
+        : `, a ${line} line down the middle of each gap`
 
 const wideTablesNote = (wide: readonly number[] | undefined): string => {
   if (!wide || wide.length === 0) return ''
@@ -5549,7 +5551,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         return {
           output:
             result.count > 1
-              ? `The text now runs in ${result.count} columns with ${result.gapMm} mm between them${columnLineNote(result.line)}. A table added from now on is one column wide; pass across_columns for one as wide as the page. Tables that were already there kept their width.${wideTablesNote(result.wide)}`
+              ? `The text now runs in ${result.count} columns with ${result.gapMm} mm between them${columnLineNote(result.line, result.lineKept === true)}. A table added from now on is one column wide; pass across_columns for one as wide as the page. Tables that were already there kept their width.${wideTablesNote(result.wide)}`
               : 'The text runs in one column again.',
           mutated: true,
           summary: label('aiToolColumnsSet', { count: result.count }),

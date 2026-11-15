@@ -5816,16 +5816,24 @@ function columnsOf(doc, sec) {
   }
   const count = Number.isInteger(def?.columnCount) && def.columnCount > 1 ? def.columnCount : 1
   const gapPt = count > 1 && Number.isFinite(def.spacing) ? Math.max(0, def.spacing) / 100 : 0
-  const line =
-    count > 1
-      ? (COLUMN_LINES.find((name) => name !== 'none' && BORDER_LINES[name] === def.separatorType) ??
-        null)
-      : null
+  const line = count > 1 ? (COLUMN_LINE_TYPES[def.separatorType] ?? null) : null
   return { count, gapPt, line }
 }
 
-/** The lines the engine draws between columns. */
+/** The lines set_columns draws between columns. */
 const COLUMN_LINES = ['none', 'solid', 'dashed', 'dotted']
+
+/** Every line a document may have between its columns, by the type the engine stores. */
+const COLUMN_LINE_TYPES = [
+  null,
+  'solid',
+  'dashed',
+  'dotted',
+  'dash-dot',
+  'dash-dot-dot',
+  'long-dash',
+  'circles',
+]
 
 /**
  * Whether the number of columns changes within the document (Hangul's 다단 설정 나누기, as
@@ -9541,6 +9549,12 @@ export const agentPlugin = {
         if (lineName !== null && !COLUMN_LINES.includes(lineName)) {
           throw fail('BAD_ARGUMENT', `line must be one of ${COLUMN_LINES.join(', ')}`)
         }
+        if (count === 1 && lineName !== null && lineName !== 'none') {
+          throw fail(
+            'BAD_ARGUMENT',
+            'a line is drawn between columns, and count 1 leaves none: leave line out, or give count 2 or more',
+          )
+        }
         const line = lineName === null ? null : borderRuleOf({ line: lineName }).line
         const done = change(
           'set-columns',
@@ -9562,7 +9576,11 @@ export const agentPlugin = {
               gapMm: count > 1 ? gapMm : 0,
               was,
               sections,
-              ...(lineName === null ? {} : { line: lineName }),
+              ...(lineName !== null
+                ? { line: lineName }
+                : count > 1 && columnsOf(doc, 0).line
+                  ? { line: columnsOf(doc, 0).line, lineKept: true }
+                  : {}),
             }
           },
           options,

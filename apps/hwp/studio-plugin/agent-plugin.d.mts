@@ -322,7 +322,7 @@ export interface AgentPageLayout {
    * the columns the text of the first section starts in; `line` the line between them when
    * there is one; `changesWithin` when a later part of the document sets other columns
    */
-  columns: { count: number; gapMm: number; line?: AgentColumnLine; changesWithin?: true }
+  columns: { count: number; gapMm: number; line?: AgentColumnLineDrawn; changesWithin?: true }
   pageNumber: AgentPageNumber | null
   header: AgentHeaderFooterState
   footer: AgentHeaderFooterState
@@ -380,13 +380,22 @@ export interface AgentTablePastFoot {
   taller?: true
 }
 
-/** The lines drawn between columns. */
+/** The lines setColumns draws between columns. */
 export type AgentColumnLine = 'solid' | 'dashed' | 'dotted'
+
+/** Every line a document may have between its columns. */
+export type AgentColumnLineDrawn =
+  | AgentColumnLine
+  | 'dash-dot'
+  | 'dash-dot-dot'
+  | 'long-dash'
+  | 'circles'
 
 export type AgentColumnsResult =
   /**
    * `wide`: the tables, as listTables numbers them, wider than a column now; absent when none is.
-   * `line`: the line asked for, when one was
+   * `line`: the line asked for, when one was; or, with `lineKept`, the line that was
+   * there and stays because none was asked for
    */
   | {
       ok: true
@@ -395,7 +404,8 @@ export type AgentColumnsResult =
       was: number
       sections: number
       wide?: number[]
-      line?: AgentColumnLine | 'none'
+      line?: AgentColumnLineDrawn | 'none'
+      lineKept?: true
     }
   | AgentMemoRemovalRefusal
 

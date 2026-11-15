@@ -3149,6 +3149,23 @@ describe('the look of a document', () => {
     expect(bridge.setColumns).toHaveBeenCalledTimes(2)
   })
 
+  it('names the line it kept when no line was asked for', async () => {
+    const { call } = setup({
+      setColumns: vi.fn(async () => ({
+        ok: true as const,
+        count: 2,
+        gapMm: 10,
+        was: 2,
+        sections: 1,
+        line: 'dotted' as const,
+        lineKept: true as const,
+      })),
+    })
+    expect((await call('set_columns', { count: 2, gap_mm: 10 })).output).toContain(
+      '10 mm between them; the dotted line down the middle of each gap was there and stays (line "none" takes it away).',
+    )
+  })
+
   it('starts a paragraph on a new page or in the next column, and says why it could not', async () => {
     const { call, bridge, changes } = setup()
     const page = await call('insert_break', { find: '5. 다음 글', kind: 'page' })
