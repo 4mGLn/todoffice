@@ -263,6 +263,7 @@ const HWP_GROUPS: { name: string; summary: string; ops: string[] }[] = [
       'check_layout',
       'list_fields',
       'list_notes',
+      'list_equations',
       'read_style',
       'read_note_settings',
       'read_page_setup',
@@ -280,6 +281,7 @@ const HWP_GROUPS: { name: string; summary: string; ops: string[] }[] = [
       'insert_paragraphs',
       'delete_paragraph',
       'insert_equations',
+      'edit_equation',
     ],
   },
   {
