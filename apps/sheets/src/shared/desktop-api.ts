@@ -8,10 +8,12 @@ import {
   MAX_PDF_TEMPLATE_CHARS,
   MAX_SAVE_EDITS,
   MAX_SAVE_EDITS_TOTAL,
+  MAX_SAVE_STRUCTURAL_OPS,
   SAVE_EDITS_CHUNK_JSON_MAX,
   SAVE_EDITS_CHUNK_MAX,
 } from './ipc-channels'
 import { ADDABLE_SHAPE_TYPES } from '@genoffice/xlsx-gateway/shared/shape-types'
+import type { PrintLayoutBridge } from '@genoffice/electron-utils/print-layout-bridge'
 import {
   PIVOT_AGGREGATIONS,
   PIVOT_SHOW_DATA_AS,
@@ -2064,7 +2066,7 @@ export const workbookSaveRequestSchema = z
     /// splices the accumulated chunks back in before applying.
     editsTransferId: z.string().uuid().optional(),
     bulkConstantFills: z.array(workbookBulkConstantFillSchema).max(1_000).optional(),
-    structuralOps: z.array(workbookStructuralOpSchema).max(1_000),
+    structuralOps: z.array(workbookStructuralOpSchema).max(MAX_SAVE_STRUCTURAL_OPS),
     chartEdits: z.array(workbookChartEditSchema).max(100),
     visualEdits: z.array(workbookVisualEditSchema).max(100),
     visualAdditions: z.array(workbookVisualAddSchema).max(50),
@@ -2273,6 +2275,23 @@ export const workbookSaveRequestSchema = z
   .refine((request) => request.sheetOps.length === 0 || request.sheetOrder.length > 0, {
     message: 'Sheet operations need the final sheet order.',
   })
+
+/// ODS export of the whole workbook. The main process converts a private
+/// temp copy, warns about the features ODS cannot hold, and only then moves
+/// the finished package onto `targetPath` (a Save As pick authorized for one
+/// export). The open session is never re-targeted and never saved.
+export const workbookExportOdsRequestSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    /// Write straight to this path (from the Save As dialog's ODS pick).
+    targetPath: z.string().min(1).max(4096).optional(),
+    /// The pending edits, as a save request for the same session: the main
+    /// process writes them into its private copy so the export shows what
+    /// is on screen without saving the workbook. Absent → the last saved
+    /// state is exported.
+    workbook: workbookSaveRequestSchema.optional(),
+  })
+  .strict()
 
 export const workbookSaveResultSchema = z.union([
   z
@@ -2934,18 +2953,6 @@ export const workbookExportCsvResultSchema = z.union([
 export type WorkbookExportCsvRequest = z.infer<typeof workbookExportCsvRequestSchema>
 export type WorkbookExportCsvResult = z.infer<typeof workbookExportCsvResultSchema>
 
-/// ODS export of the whole workbook. The main process converts a private
-/// temp copy, warns about the features ODS cannot hold, and only then moves
-/// the finished package onto `targetPath` (a Save As pick authorized for one
-/// export). The open session is never re-targeted.
-export const workbookExportOdsRequestSchema = z
-  .object({
-    sessionId: z.string().uuid(),
-    /// Write straight to this path (from the Save As dialog's ODS pick).
-    targetPath: z.string().min(1).max(4096).optional(),
-  })
-  .strict()
-
 const odsDroppedCountsSchema = z
   .object({
     charts: z.number().int().min(0),
@@ -2954,6 +2961,10 @@ const odsDroppedCountsSchema = z
     validations: z.number().int().min(0),
     pivots: z.number().int().min(0),
     comments: z.number().int().min(0),
+    macros: z.number().int().min(0),
+    shapes: z.number().int().min(0),
+    slicers: z.number().int().min(0),
+    sparklines: z.number().int().min(0),
   })
   .strict()
 
@@ -3182,6 +3193,10 @@ export interface DesktopApi {
   ): Promise<{ renamed: boolean; name?: string }>
   exportPdf(request: WorkbookExportPdfRequest): Promise<WorkbookExportPdfResult>
   printWorkbook(request: WorkbookExportPdfRequest): Promise<WorkbookPrintResult>
+  /// The Print dialog's shared layout panel (`sheets:print-layout-*`); the
+  /// editor part of each request is the request `printWorkbook` would get,
+  /// without the printer fields.
+  printLayout: PrintLayoutBridge<WorkbookExportPdfRequest>
   listPrinters(): Promise<PrinterInfo[]>
   exportCsv(request: WorkbookExportCsvRequest): Promise<WorkbookExportCsvResult>
   /// Export the whole workbook as an ODS copy; the session stays .xlsx.
@@ -3251,7 +3266,11 @@ export interface DesktopApi {
   /// Image search (same shared main-process channel as docs/slides)
   imageSearch(query: string, maxResults?: number): Promise<ImageSearchResponse>
   /// AI image generation (sheets-owned channel)
-  generateImage(op: { prompt: string; aspectRatio?: string }): Promise<GenerateImageResult>
+  generateImage(op: {
+    prompt: string
+    aspectRatio?: string
+    model?: string
+  }): Promise<GenerateImageResult>
   /// Downloads an image URL in the main process (SSRF-guarded); null on failure
   fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
   onAiStream(handler: (chunk: AiStreamChunk) => void): () => void
@@ -3323,4 +3342,6 @@ export type ReadUrlResult =
 export interface GenerateImageResult {
   url?: string
   error?: string
+  /** the shared tool's remark for the model (e.g. Codex picked the image model) */
+  note?: string
 }

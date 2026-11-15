@@ -12,6 +12,8 @@ import { USER_SKILLS_BRIDGE_KEY } from '@genoffice/electron-utils/user-skills-ch
 import { docAttachBridge } from '@genoffice/electron-utils/doc-attach-bridge'
 import { DOC_ATTACH_BRIDGE_KEY } from '@genoffice/electron-utils/doc-attach-channels'
 import { splitPaneBridge } from '@genoffice/electron-utils/split-pane-bridge'
+import { createPrintLayoutBridge } from '@genoffice/electron-utils/print-layout-bridge'
+import { APP_CHOICE_BRIDGE_KEY, appChoiceBridge } from '@genoffice/electron-utils/app-choice-bridge'
 
 import type { AiChatResponse, AiSettings, AiStreamChunk } from '@genoffice/ai-provider'
 import { SUBSCRIPTION_IPC_CHANNELS } from '@genoffice/ai-provider/browser'
@@ -66,9 +68,11 @@ import {
   MAX_PDF_TEMPLATE_CHARS,
   MAX_SAVE_EDITS,
   MAX_SAVE_EDITS_TOTAL,
+  MAX_SAVE_STRUCTURAL_OPS,
   SAVE_EDITS_CHUNK_JSON_MAX,
 } from '../shared/ipc-channels'
 import {
+  SUBSCRIPTION_USAGE_CHANNEL,
   isSubscriptionProviderId,
   subscriptionLaunchResultOf,
   subscriptionStatusMapOf,
@@ -133,6 +137,11 @@ const aiSubscription: SubscriptionApi = {
       handler(subscriptionStatusMapOf(statuses))
     ipcRenderer.on(SUBSCRIPTION_IPC_CHANNELS.changed, listener)
     return () => ipcRenderer.removeListener(SUBSCRIPTION_IPC_CHANNELS.changed, listener)
+  },
+  onUsage(handler) {
+    const listener = (_event: unknown, usage: unknown) => handler(Array.isArray(usage) ? usage : [])
+    ipcRenderer.on(SUBSCRIPTION_USAGE_CHANNEL, listener)
+    return () => ipcRenderer.removeListener(SUBSCRIPTION_USAGE_CHANNEL, listener)
   },
 }
 
@@ -450,6 +459,7 @@ const desktopApi: DesktopApi = {
     }
     return result as { ok: true } | { ok: false; error?: string }
   },
+  printLayout: createPrintLayoutBridge(ipcRenderer, 'sheets'),
   async listPrinters() {
     const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.listPrinters)
     if (!Array.isArray(result)) throw new Error('Invalid printer list.')
@@ -494,7 +504,8 @@ const desktopApi: DesktopApi = {
       typeof request.sessionId !== 'string' ||
       !isUuid(request.sessionId) ||
       (request.targetPath !== undefined &&
-        (typeof request.targetPath !== 'string' || request.targetPath.length === 0))
+        (typeof request.targetPath !== 'string' || request.targetPath.length === 0)) ||
+      (request.workbook !== undefined && !isRecord(request.workbook))
     ) {
       throw new Error('Invalid ODS export request.')
     }
@@ -525,6 +536,10 @@ const desktopApi: DesktopApi = {
           validations: number
           pivots: number
           comments: number
+          macros: number
+          shapes: number
+          slicers: number
+          sparklines: number
         }
       }
     }
@@ -925,6 +940,12 @@ contextBridge.exposeInMainWorld('projectApi', projectApi)
 contextBridge.exposeInMainWorld(PROJECT_FOLDER_BRIDGE_KEY, projectFolderBridge(ipcRenderer))
 // The shell's split panes: which pane this view is, and focus requests for it
 contextBridge.exposeInMainWorld('aiOfficeSplit', splitPaneBridge(ipcRenderer))
+// Settings' AI switch: the screen only reads it and hears changes (hides its AI parts)
+const appChoice = appChoiceBridge()
+contextBridge.exposeInMainWorld(APP_CHOICE_BRIDGE_KEY, {
+  get: appChoice.get,
+  onChange: appChoice.onChange,
+})
 
 // Off by default. e2e drivers launch the BUILT app with GENOFFICE_DEBUG_HOOKS=1
 // so the renderer exposes window.__genofficeDebug (see App.tsx) — the dev-only
@@ -2200,7 +2221,7 @@ function parseSaveRequest(input: WorkbookSaveRequest): WorkbookSaveRequest {
   if (input.editsTransferId !== undefined && input.edits.length > 0)
     invalid('cell edits: inline edits mixed with a transfer')
   cappedArray('bulk constant fills', input.bulkConstantFills ?? [], 1_000)
-  cappedArray('structural operations', input.structuralOps, 1_000)
+  cappedArray('structural operations', input.structuralOps, MAX_SAVE_STRUCTURAL_OPS)
   cappedArray('chart edits', input.chartEdits, 100)
   cappedArray('visual edits', input.visualEdits, 100)
   cappedArray('visual additions', input.visualAdditions, 100)
@@ -4126,7 +4147,11 @@ function isOdsDroppedCounts(input: unknown): boolean {
     isNonnegativeInteger(input.conditionalFormats) &&
     isNonnegativeInteger(input.validations) &&
     isNonnegativeInteger(input.pivots) &&
-    isNonnegativeInteger(input.comments)
+    isNonnegativeInteger(input.comments) &&
+    isNonnegativeInteger(input.macros) &&
+    isNonnegativeInteger(input.shapes) &&
+    isNonnegativeInteger(input.slicers) &&
+    isNonnegativeInteger(input.sparklines)
   )
 }
 

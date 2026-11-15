@@ -2,6 +2,7 @@ import type { AiPanelPrefs } from '@genoffice/ui'
 import type { Lang } from '@genoffice/i18n'
 import type { AiSettings, AiStreamChunk, AiStreamRequest } from '@genoffice/ai-provider'
 import type { AiToolCapabilities } from '@genoffice/ai-search'
+import type { PrintLayoutBridge } from '@genoffice/electron-utils/print-layout-bridge'
 import type { ExportImageMime } from './export-image-mime'
 import type { SubscriptionApi } from './subscription-api'
 
@@ -60,6 +61,7 @@ export const MARKDOWN_CHANNELS = {
   exportRequest: 'markdown:export-request',
   exportDocx: 'markdown:export-docx',
   exportOdt: 'markdown:export-odt',
+  exportHwp: 'markdown:export-hwp',
   exportPdf: 'markdown:export-pdf',
   printPreview: 'markdown:print-preview',
   printDocument: 'markdown:print-document',
@@ -282,10 +284,11 @@ export interface SaveMarkdownRequest {
 }
 
 /**
- * Save As › a format the renderer builds with its export code (Word, ODT, page
- * images). The main process only approves the path; nothing is written yet.
+ * Save As › a format the renderer builds with its export code (Word, ODT,
+ * Hangul, page images). The main process only approves the path; nothing is
+ * written yet.
  */
-export type SaveAsExportFormat = 'docx' | 'odt' | 'png'
+export type SaveAsExportFormat = 'docx' | 'odt' | 'hwp' | 'hwpx' | 'png'
 
 export type SaveMarkdownResult =
   | {
@@ -361,7 +364,8 @@ export type ReadUrlResult =
     }
   | { ok: false; error: string; errorCode: string }
 
-export type ExportFormat = 'pdf' | 'docx' | 'docs' | 'png' | 'odt'
+/** 'hwp' from the menu asks for the format (.hwp or .hwpx) in its own dialog */
+export type ExportFormat = 'pdf' | 'docx' | 'docs' | 'png' | 'odt' | 'hwp' | 'hwpx'
 
 export interface ExportDocxRequest {
   /** .docx bytes, base64 */
@@ -381,6 +385,16 @@ export interface ExportOdtRequest {
   /** file name (no extension) suggested in the dialog */
   suggestedName: string
   /** Save As › ODT: the path the save dialog approved (`exportAs`); no second dialog */
+  saveAsTarget?: string
+}
+
+/** Hangul export: the Word export's .docx bytes, converted to .hwp / .hwpx in the main process */
+export interface ExportHwpRequest {
+  /** .docx bytes, base64 (the same bytes the Word export writes) */
+  base64: string
+  /** file name (no extension) suggested in the dialog */
+  suggestedName: string
+  /** Save As › HWP / HWPX: the path the save dialog approved (`exportAs`); no second dialog */
   saveAsTarget?: string
 }
 
@@ -411,6 +425,18 @@ export interface MarkdownPrintDocumentRequest {
 
 export type MarkdownPrintDocumentResult =
   { ok: true; canceled?: boolean } | { ok: false; error: string }
+
+/**
+ * The advanced print layout's job (decision 0141): the print preview's PDF of
+ * this HTML and paper, cut to `pages` when the dialog chose a range.
+ */
+export interface MarkdownPrintLayoutJob {
+  html: string
+  pages: MarkdownPageRange | null
+  options: MarkdownPrintOptions
+  /** the document's name, offered in the save dialog of the arranged PDF */
+  name: string
+}
 
 export interface ImageExportRequest extends Omit<ExportPdfRequest, 'outPath'> {
   /**
@@ -583,11 +609,18 @@ export interface MarkdownApi {
   exportDocx(request: ExportDocxRequest): Promise<ExportResult>
   /** save dialog (.odt) → docx → ODT → confirmation when something changes → write */
   exportOdt(request: ExportOdtRequest): Promise<ExportResult>
+  /** save dialog (.hwp / .hwpx) → docx → Hangul → confirmation when something is lost → write */
+  exportHwp(request: ExportHwpRequest): Promise<ExportResult>
   exportPdf(request: ExportPdfRequest): Promise<ExportResult>
   /** the PDF the print preview shows; the same options the PDF export uses */
   renderPrintPreview(request: MarkdownPrintPreviewRequest): Promise<MarkdownPrintPreviewResult>
   /** print through the system dialog, using the same HTML and options as the preview */
   printDocument(request: MarkdownPrintDocumentRequest): Promise<MarkdownPrintDocumentResult>
+  /**
+   * The advanced print layout: the preview's PDF of the job's HTML and paper,
+   * arranged and previewed, printed or saved by the shared print layout
+   */
+  printLayout: PrintLayoutBridge<MarkdownPrintLayoutJob>
   prepareImageExport(request: ImageExportRequest): Promise<ImageExportPreparation>
   writeExportImage(
     id: string,
@@ -632,8 +665,10 @@ export interface MarkdownApi {
   /** Download an image URL in the main process (CORS-free, scheme/target validated) */
   fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
   /** AI image generation through the configured image route (markdown-owned channel) */
-  aiGenerateImage(op: { prompt: string; aspectRatio?: string }): Promise<{
+  aiGenerateImage(op: { prompt: string; aspectRatio?: string; model?: string }): Promise<{
     url?: string
     error?: string
+    /** the shared tool's remark for the model (e.g. Codex picked the image model) */
+    note?: string
   }>
 }

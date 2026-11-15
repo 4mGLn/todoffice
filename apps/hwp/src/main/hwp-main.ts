@@ -19,6 +19,10 @@ import {
   showSaveDialogWithMemory,
 } from '@genoffice/electron-utils'
 import type { SaveDiskState } from '@genoffice/electron-utils'
+import {
+  LABEL_SPEC_FILE_NAME,
+  ensurePrintLayoutIpc,
+} from '@genoffice/electron-utils/print-arranged'
 import { hwpToText } from '@genoffice/file-parse'
 import { getUiLang } from '@genoffice/i18n'
 import { registerHwpAttachmentIpc } from './attachments-ipc'
@@ -26,6 +30,7 @@ import { registerHwpImageIpc } from './ai-image'
 import { atomicWriteFile } from './atomic-write'
 import { readHwpDefaultFormat } from './default-format'
 import { badJob, printJobToPdf, printJobToPrinter } from './print-document'
+import { registerHwpPrintLayout } from './print-layout'
 import { tm } from './dialog-strings'
 import { fieldKindsOf } from './field-kinds'
 import type { FieldKinds } from './field-kinds'
@@ -52,6 +57,7 @@ import { newTabsOf } from './tab-widths'
 import { hasTrackedChanges, withoutTrackedChanges } from './tracked-changes'
 import { HWP_CHANNELS, MAX_HWP_SAVE_BYTES, hwpFormatOfPath } from '../shared/ipc'
 import type {
+  AttachmentImportResult,
   BeginSaveResult,
   CommitSaveResult,
   HwpFormat,
@@ -63,6 +69,7 @@ import type {
   PrintMode,
   PrintResult,
   SaveMode,
+  SavePreview,
   TabSpot,
 } from '../shared/ipc'
 
@@ -89,6 +96,23 @@ interface RuntimePaths {
    * opens in for this view, or null for the default save folder.
    */
   newDocumentDir?: (webContentsId: number) => Promise<string | null>
+  /**
+   * The AI's import_attachment (decision 0135): the shell converts a Markdown
+   * file and opens the result as a new, untitled Hangul document in a tab of
+   * its own, handing `request` (the person's words) to that tab's AI panel.
+   * This view's document is not touched. Without a shell there is no tab to open.
+   */
+  openMarkdownAsDocument?: (
+    webContentsId: number,
+    path: string,
+    request?: string,
+  ) => Promise<AttachmentImportResult>
+  /**
+   * The AI panel's run was stopped by the app's own rule. `stop` is what the
+   * renderer sent, unchecked: the shell keeps the rule and its counts in the
+   * crash record on this PC and nothing else.
+   */
+  noteAiRunStop?: (stop: unknown) => void
 }
 
 let runtime: RuntimePaths = { preloadPath: '' }
@@ -322,6 +346,13 @@ export function requestHwpPreview(contents: WebContents, action: PreviewAction):
 const printWindow = (): BrowserWindow =>
   new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } })
 
+/**
+ * The hidden window the advanced print layout prints its face pictures from: no preload,
+ * sandboxed, scripts on for the shared readiness check (the page it loads has none).
+ */
+const arrangedPrintWindow = (): BrowserWindow =>
+  new BrowserWindow({ show: false, webPreferences: { sandbox: true } })
+
 /** The name an exported PDF is offered under: the document's, or the untitled one. */
 function pdfName(wcId: number): string {
   const current = savePathByWc.get(wcId)
@@ -495,6 +526,7 @@ function memoSnapshotsOf(value: unknown): MemoSnapshot[] | null {
 function commitOptionsOf(raw: unknown): {
   auto: boolean
   memos: MemoSnapshot[] | null | undefined
+  preview: SavePreview | undefined
 } {
   const options = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   const memos =
@@ -503,7 +535,21 @@ function commitOptionsOf(raw: unknown): {
       : options.memos === null
         ? null
         : memoSnapshotsOf(options.memos)
-  return { auto: options.auto === true, memos }
+  return { auto: options.auto === true, memos, preview: savePreviewOf(options.preview) }
+}
+
+/**
+ * The preview the renderer sent. Anything but a well-formed one (null, a failed draw) is
+ * a blank preview: the save writes that over the stale one rather than keep it. Absent
+ * (an older renderer): the preview is left as the engine wrote it.
+ */
+function savePreviewOf(raw: unknown): SavePreview | undefined {
+  if (raw === undefined) return undefined
+  const given = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return {
+    text: typeof given.text === 'string' ? given.text : '',
+    image: given.image instanceof Uint8Array ? given.image : null,
+  }
 }
 
 let ipcRegistered = false
@@ -512,7 +558,11 @@ function registerHwpIpc(): void {
   // every view calls this; the channels are registered once, by the first
   if (ipcRegistered) return
   ipcRegistered = true
-  registerHwpAttachmentIpc()
+  registerHwpAttachmentIpc(() => ({
+    ...(runtime.openMarkdownAsDocument
+      ? { openMarkdownAsDocument: runtime.openMarkdownAsDocument }
+      : {}),
+  }))
   // the AI panel's pictures: search result or generated file → bytes for the plugin
   registerHwpImageIpc({
     filePathOf: (wcId) => savePathByWc.get(wcId) ?? openPathByWc.get(wcId) ?? null,
@@ -520,12 +570,28 @@ function registerHwpIpc(): void {
   installHwpRecovery(recoveryHost)
   registerHwpRecoveryIpc()
 
+  // advanced print layout: the job PDF is the PDF export's, arranged and printed or saved
+  ensurePrintLayoutIpc({
+    ipcMain,
+    labelSpecPath: () => join(app.getPath('userData'), LABEL_SPEC_FILE_NAME),
+  })
+  registerHwpPrintLayout({
+    ipcMain,
+    createJobWindow: printWindow,
+    createPrintWindow: arrangedPrintWindow,
+    pickSavePath: (event) => pickPdfTarget(event.sender as WebContents),
+  })
+
   // ---- headless export mode (--headless-export) ----
   ipcMain.handle(HWP_CHANNELS.consumeHeadlessExport, (e): string | null => {
     const target = headlessTargetByWc.get(e.sender.id) ?? null
     headlessTargetByWc.delete(e.sender.id)
     return target
   })
+  ipcMain.on(HWP_CHANNELS.aiRunStop, (_e, stop: unknown) => {
+    runtime.noteAiRunStop?.(stop)
+  })
+
   ipcMain.on(HWP_CHANNELS.headlessExportDone, (e, result: unknown) => {
     const settle = headlessWaiters.get(e.sender.id)
     if (!settle) return
@@ -770,6 +836,7 @@ function registerHwpIpc(): void {
           pending.format,
           Array.isArray(tabs) ? (tabs as MeasuredTab[]) : undefined,
           recoveryHost.saveBaseOf(wcId),
+          saveOptions.preview,
         )
         const bytes = fixed.bytes
         const tailsLost = fixed.tailsSkipped !== undefined

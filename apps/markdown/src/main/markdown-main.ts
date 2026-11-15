@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
@@ -19,6 +19,7 @@ import {
   confirmOverwriteIfConflicted,
   fetchRemoteImage,
   readBodyCapped,
+  readHwpDefaultFormat,
   saveImageFromUrl,
   contextMenuLabels,
   installContextMenu,
@@ -36,12 +37,25 @@ import {
   rendererUrl,
 } from '@genoffice/electron-utils'
 import type { RecoveryIdentity, SaveDiskState } from '@genoffice/electron-utils'
+import {
+  LABEL_SPEC_FILE_NAME,
+  ensurePrintLayoutIpc,
+} from '@genoffice/electron-utils/print-arranged'
+import { askBeforeMakeAndOpen } from '@genoffice/electron-utils/editor-entrance'
 import { createI18n, getUiLang } from '@genoffice/i18n'
 import { sharedSubscriptionStatuses } from '@genoffice/ai-provider/subscription'
-import { generateImageTool, documentMediaRoots, withMediaCallSignal } from '@genoffice/ai-search'
+import {
+  abortMediaCalls,
+  generateImageTool,
+  documentMediaRoots,
+  withMediaCallSignal,
+} from '@genoffice/ai-search'
+import { registerAiJob } from '@genoffice/electron-utils/ai-activity'
+import { aiFeaturesOn } from '@genoffice/electron-utils/app-choice'
 import { ImageExportSessions } from './image-export'
 import { printMarkdownDocument } from './print-document'
 import { printMarkdownPdf } from './print-pdf'
+import { registerMarkdownPrintLayout } from './print-layout'
 import { atomicWriteFile } from './atomic-write'
 import {
   copyImageIntoOwnedAssets,
@@ -103,6 +117,7 @@ import type {
   MarkdownPrintPreviewRequest,
   MarkdownPrintPreviewResult,
   SaveMarkdownRequest,
+  ExportHwpRequest,
   SaveAsExportFormat,
   SaveMarkdownResult,
   SaveMode,
@@ -116,6 +131,9 @@ const tDlg = createI18n({
     filterPdf: 'PDF 文档',
     filterWord: 'Word 文档',
     filterPageImages: '页面图片 (PNG)',
+    filterHwp: 'HWP 文档 (HWP)',
+    filterHwpx: 'HWP 文档 (HWPX)',
+    dlgExportHwp: '导出为 HWP 文档',
     dlgPickImage: '选择图片',
     dlgSaveImage: '保存图片',
     filterImages: '图片',
@@ -132,6 +150,9 @@ const tDlg = createI18n({
     filterPdf: 'PDF Document',
     filterWord: 'Word Document',
     filterPageImages: 'Page Images (PNG)',
+    filterHwp: 'HWP Documents (HWP)',
+    filterHwpx: 'HWP Documents (HWPX)',
+    dlgExportHwp: 'Export as HWP Document',
     dlgPickImage: 'Choose an Image',
     dlgSaveImage: 'Save Image',
     filterImages: 'Images',
@@ -148,6 +169,9 @@ const tDlg = createI18n({
     filterPdf: 'Tài liệu PDF',
     filterWord: 'Tài liệu Word',
     filterPageImages: 'Hình ảnh trang (PNG)',
+    filterHwp: 'Tài liệu HWP (HWP)',
+    filterHwpx: 'Tài liệu HWP (HWPX)',
+    dlgExportHwp: 'Xuất dưới dạng tài liệu HWP',
     dlgPickImage: 'Chọn một hình ảnh',
     dlgSaveImage: 'Lưu hình ảnh',
     filterImages: 'Hình ảnh',
@@ -158,12 +182,34 @@ const tDlg = createI18n({
     btnDontSave: 'Không lưu',
     btnCancel: 'Hủy',
   },
+  tr: {
+    dlgSaveTitle: 'Markdown Belgesini Kaydet',
+    filterMarkdown: 'Metin Dosyaları (Markdown, TXT, JSON)',
+    filterPdf: 'PDF Belgesi',
+    filterWord: 'Word Belgesi',
+    filterPageImages: 'Sayfa Görüntüleri (PNG)',
+    filterHwp: 'HWP Belgeleri (HWP)',
+    filterHwpx: 'HWP Belgeleri (HWPX)',
+    dlgExportHwp: 'HWP Belgesi Olarak Dışa Aktar',
+    dlgPickImage: 'Görsel Seç',
+    dlgSaveImage: 'Görseli Kaydet',
+    filterImages: 'Görseller',
+    untitledFile: 'Adsız',
+    closeUnsavedMsg: 'Bu belgede kaydedilmemiş değişiklikler var.',
+    closeUnsavedDetail: 'Kapatmadan önce kaydedilsin mi?',
+    btnSave: 'Kaydet',
+    btnDontSave: 'Kaydetme',
+    btnCancel: 'İptal',
+  },
   ja: {
     dlgSaveTitle: 'Markdown ドキュメントを保存',
     filterMarkdown: 'テキストファイル (Markdown, TXT, JSON)',
     filterPdf: 'PDF 文書',
     filterWord: 'Word 文書',
     filterPageImages: 'ページ画像 (PNG)',
+    filterHwp: 'HWP ドキュメント (HWP)',
+    filterHwpx: 'HWP ドキュメント (HWPX)',
+    dlgExportHwp: 'HWP 文書としてエクスポート',
     dlgPickImage: '画像を選択',
     dlgSaveImage: '画像を保存',
     filterImages: '画像',
@@ -180,6 +226,9 @@ const tDlg = createI18n({
     filterPdf: 'PDF 문서',
     filterWord: 'Word 문서',
     filterPageImages: '쪽 이미지 (PNG)',
+    filterHwp: '한글 문서 (HWP)',
+    filterHwpx: '한글 문서 (HWPX)',
+    dlgExportHwp: '한글 문서로 내보내기',
     dlgPickImage: '이미지 선택',
     dlgSaveImage: '이미지 저장',
     filterImages: '이미지',
@@ -196,6 +245,9 @@ const tDlg = createI18n({
     filterPdf: 'Document PDF',
     filterWord: 'Document Word',
     filterPageImages: 'Images des pages (PNG)',
+    filterHwp: 'Documents HWP (HWP)',
+    filterHwpx: 'Documents HWP (HWPX)',
+    dlgExportHwp: 'Exporter en document HWP',
     dlgPickImage: 'Choisir une image',
     dlgSaveImage: "Enregistrer l'image",
     filterImages: 'Images',
@@ -212,6 +264,9 @@ const tDlg = createI18n({
     filterPdf: 'PDF-Dokument',
     filterWord: 'Word-Dokument',
     filterPageImages: 'Seitenbilder (PNG)',
+    filterHwp: 'HWP-Dokumente (HWP)',
+    filterHwpx: 'HWP-Dokumente (HWPX)',
+    dlgExportHwp: 'Als HWP-Dokument exportieren',
     dlgPickImage: 'Bild auswählen',
     dlgSaveImage: 'Bild speichern',
     filterImages: 'Bilder',
@@ -228,6 +283,9 @@ const tDlg = createI18n({
     filterPdf: 'Documento PDF',
     filterWord: 'Documento de Word',
     filterPageImages: 'Imágenes de página (PNG)',
+    filterHwp: 'Documentos HWP (HWP)',
+    filterHwpx: 'Documentos HWP (HWPX)',
+    dlgExportHwp: 'Exportar como documento HWP',
     dlgPickImage: 'Elegir imagen',
     dlgSaveImage: 'Guardar imagen',
     filterImages: 'Imágenes',
@@ -244,6 +302,9 @@ const tDlg = createI18n({
     filterPdf: 'เอกสาร PDF',
     filterWord: 'เอกสาร Word',
     filterPageImages: 'รูปภาพแต่ละหน้า (PNG)',
+    filterHwp: 'เอกสาร HWP (HWP)',
+    filterHwpx: 'เอกสาร HWP (HWPX)',
+    dlgExportHwp: 'ส่งออกเป็นเอกสาร HWP',
     dlgPickImage: 'เลือกรูปภาพ',
     dlgSaveImage: 'บันทึกรูปภาพ',
     filterImages: 'รูปภาพ',
@@ -260,6 +321,9 @@ const tDlg = createI18n({
     filterPdf: 'Dokumen PDF',
     filterWord: 'Dokumen Word',
     filterPageImages: 'Gambar halaman (PNG)',
+    filterHwp: 'Dokumen HWP (HWP)',
+    filterHwpx: 'Dokumen HWP (HWPX)',
+    dlgExportHwp: 'Ekspor sebagai dokumen HWP',
     dlgPickImage: 'Pilih gambar',
     dlgSaveImage: 'Simpan Gambar',
     filterImages: 'Gambar',
@@ -276,6 +340,9 @@ const tDlg = createI18n({
     filterPdf: 'Документ PDF',
     filterWord: 'Документ Word',
     filterPageImages: 'Изображения страниц (PNG)',
+    filterHwp: 'Документы HWP (HWP)',
+    filterHwpx: 'Документы HWP (HWPX)',
+    dlgExportHwp: 'Экспорт в документ HWP',
     dlgPickImage: 'Выберите изображение',
     dlgSaveImage: 'Сохранить изображение',
     filterImages: 'Изображения',
@@ -292,6 +359,9 @@ const tDlg = createI18n({
     filterPdf: 'مستند PDF',
     filterWord: 'مستند Word',
     filterPageImages: 'صور الصفحات (PNG)',
+    filterHwp: 'مستندات HWP (HWP)',
+    filterHwpx: 'مستندات HWP (HWPX)',
+    dlgExportHwp: 'تصدير كمستند HWP',
     dlgPickImage: 'اختر صورة',
     dlgSaveImage: 'حفظ الصورة',
     filterImages: 'صور',
@@ -308,6 +378,9 @@ const tDlg = createI18n({
     filterPdf: 'Documento PDF',
     filterWord: 'Documento do Word',
     filterPageImages: 'Imagens das páginas (PNG)',
+    filterHwp: 'Documentos HWP (HWP)',
+    filterHwpx: 'Documentos HWP (HWPX)',
+    dlgExportHwp: 'Exportar como documento HWP',
     dlgPickImage: 'Escolher imagem',
     dlgSaveImage: 'Salvar imagem',
     filterImages: 'Imagens',
@@ -324,6 +397,9 @@ const tDlg = createI18n({
     filterPdf: 'Documento PDF',
     filterWord: 'Documento Word',
     filterPageImages: 'Immagini delle pagine (PNG)',
+    filterHwp: 'Documenti HWP (HWP)',
+    filterHwpx: 'Documenti HWP (HWPX)',
+    dlgExportHwp: 'Esporta come documento HWP',
     dlgPickImage: 'Scegli immagine',
     dlgSaveImage: 'Salva immagine',
     filterImages: 'Immagini',
@@ -340,6 +416,9 @@ const tDlg = createI18n({
     filterPdf: 'Dokument PDF',
     filterWord: 'Dokument Word',
     filterPageImages: 'Obrazy stron (PNG)',
+    filterHwp: 'Dokumenty HWP (HWP)',
+    filterHwpx: 'Dokumenty HWP (HWPX)',
+    dlgExportHwp: 'Eksportuj jako dokument HWP',
     dlgPickImage: 'Wybierz obraz',
     dlgSaveImage: 'Zapisz obraz',
     filterImages: 'Obrazy',
@@ -356,6 +435,9 @@ const tDlg = createI18n({
     filterPdf: 'Dokument PDF',
     filterWord: 'Dokument Word',
     filterPageImages: 'Obrázky stránek (PNG)',
+    filterHwp: 'Dokumenty HWP (HWP)',
+    filterHwpx: 'Dokumenty HWP (HWPX)',
+    dlgExportHwp: 'Exportovat jako dokument HWP',
     dlgPickImage: 'Vyberte obrázek',
     dlgSaveImage: 'Uložit obrázek',
     filterImages: 'Obrázky',
@@ -372,6 +454,9 @@ const tDlg = createI18n({
     filterPdf: 'PDF-document',
     filterWord: 'Word-document',
     filterPageImages: 'Paginaafbeeldingen (PNG)',
+    filterHwp: 'HWP-documenten (HWP)',
+    filterHwpx: 'HWP-documenten (HWPX)',
+    dlgExportHwp: 'Exporteren als HWP-document',
     dlgPickImage: 'Kies een afbeelding',
     dlgSaveImage: 'Afbeelding opslaan',
     filterImages: 'Afbeeldingen',
@@ -388,6 +473,9 @@ const tDlg = createI18n({
     filterPdf: 'Dokumen PDF',
     filterWord: 'Dokumen Word',
     filterPageImages: 'Imej halaman (PNG)',
+    filterHwp: 'Dokumen HWP (HWP)',
+    filterHwpx: 'Dokumen HWP (HWPX)',
+    dlgExportHwp: 'Eksport sebagai dokumen HWP',
     dlgPickImage: 'Pilih imej',
     dlgSaveImage: 'Simpan Imej',
     filterImages: 'Imej',
@@ -404,6 +492,9 @@ const tDlg = createI18n({
     filterPdf: 'מסמך PDF',
     filterWord: 'מסמך Word',
     filterPageImages: 'תמונות עמודים (PNG)',
+    filterHwp: 'מסמכי HWP (HWP)',
+    filterHwpx: 'מסמכי HWP (HWPX)',
+    dlgExportHwp: 'ייצוא כמסמך HWP',
     dlgPickImage: 'בחרו תמונה',
     dlgSaveImage: 'שמור תמונה',
     filterImages: 'תמונות',
@@ -420,6 +511,9 @@ const tDlg = createI18n({
     filterPdf: 'PDF दस्तावेज़',
     filterWord: 'Word दस्तावेज़',
     filterPageImages: 'पृष्ठ छवियाँ (PNG)',
+    filterHwp: 'HWP दस्तावेज़ (HWP)',
+    filterHwpx: 'HWP दस्तावेज़ (HWPX)',
+    dlgExportHwp: 'HWP दस्तावेज़ के रूप में निर्यात करें',
     dlgPickImage: 'छवि चुनें',
     dlgSaveImage: 'छवि सहेजें',
     filterImages: 'छवियाँ',
@@ -436,6 +530,9 @@ const tDlg = createI18n({
     filterPdf: 'PDF 文件',
     filterWord: 'Word 文件',
     filterPageImages: '頁面圖片 (PNG)',
+    filterHwp: 'HWP 文件 (HWP)',
+    filterHwpx: 'HWP 文件 (HWPX)',
+    dlgExportHwp: '匯出為 HWP 文件',
     dlgPickImage: '選擇圖片',
     dlgSaveImage: '儲存圖片',
     filterImages: '圖片',
@@ -453,6 +550,9 @@ type DlgKey =
   | 'filterPdf'
   | 'filterWord'
   | 'filterPageImages'
+  | 'filterHwp'
+  | 'filterHwpx'
+  | 'dlgExportHwp'
   | 'dlgPickImage'
   | 'dlgSaveImage'
   | 'filterImages'
@@ -626,6 +726,30 @@ let fileSavedHook: ((wc: WebContents, path: string) => void) | null = null
 
 export function setMarkdownFileSavedHook(hook: (wc: WebContents, path: string) => void): void {
   fileSavedHook = hook
+}
+
+/** one feature a Hangul copy does not carry, as the converter reports it */
+export interface HwpCopyLoss {
+  feature: string
+  kind: 'dropped' | 'changed'
+  count: number
+}
+
+/**
+ * Markdown → Hangul (.hwp / .hwpx): the shell lends the Word editor's
+ * converter (a worker thread per export) and its confirmation. Without it (the
+ * standalone app) the formats are not offered.
+ */
+export interface MarkdownHwpExport<L extends HwpCopyLoss = HwpCopyLoss> {
+  convert(docx: Uint8Array, format: 'hwp' | 'hwpx'): Promise<{ bytes: Uint8Array; losses: L[] }>
+  /** asked only when the copy loses something; false = cancel */
+  confirm(parent: BrowserWindow | undefined, losses: readonly L[]): Promise<boolean>
+}
+let hwpExport: MarkdownHwpExport | null = null
+
+export function setMarkdownHwpExport<L extends HwpCopyLoss>(lent: MarkdownHwpExport<L>): void {
+  // the losses only travel from convert to confirm of the same lender
+  hwpExport = lent as unknown as MarkdownHwpExport
 }
 
 /** Fired after a "convert & open in Docs" export — the shell routes the new .docx to a docs tab */
@@ -897,6 +1021,8 @@ const SAVE_AS_EXPORT_BY_EXT: Record<string, 'pdf' | SaveAsExportFormat> = {
   '.pdf': 'pdf',
   '.docx': 'docx',
   '.odt': 'odt',
+  '.hwp': 'hwp',
+  '.hwpx': 'hwpx',
   '.png': 'png',
 }
 
@@ -920,6 +1046,13 @@ function takeSaveAsExportTarget(
   if (!approved || approved.format !== format || approved.path !== requested) return null
   saveAsExportTargets.delete(wcId)
   return approved.path
+}
+
+/** the two Hangul formats for a save dialog, the default one first */
+function hwpFilters(first: 'hwp' | 'hwpx'): Array<{ name: string; extensions: string[] }> {
+  const hwp = { name: tm('filterHwp'), extensions: ['hwp'] }
+  const hwpx = { name: tm('filterHwpx'), extensions: ['hwpx'] }
+  return first === 'hwpx' ? [hwpx, hwp] : [hwp, hwpx]
 }
 
 async function resolveSaveTarget(
@@ -962,6 +1095,7 @@ async function resolveSaveTarget(
       { name: tm('filterPdf'), extensions: ['pdf'] },
       { name: tm('filterWord'), extensions: ['docx'] },
       { name: odtFilterName(), extensions: ['odt'] },
+      ...(hwpExport ? hwpFilters('hwp') : []),
       { name: tm('filterPageImages'), extensions: ['png'] },
     )
   }
@@ -1042,6 +1176,27 @@ function registerImageProtocol(): void {
 const imageExports = new ImageExportSessions()
 
 let ipcRegistered = false
+
+/** what a picture call answers while AI is off; the model reads it, so it stays English */
+const AI_OFF_ERROR = 'AI features are turned off in Settings.'
+
+/**
+ * A tab's AI picture call: refused while AI is off (Settings › Editors and
+ * AI), else one running AI job that turning AI off stops the way the tab's
+ * Stop does (ending its media calls ends the program the call started).
+ */
+async function aiImageCall<T>(
+  senderId: number,
+  run: () => Promise<T>,
+): Promise<T | { error: string }> {
+  if (!aiFeaturesOn()) return { error: AI_OFF_ERROR }
+  const end = registerAiJob({ kind: 'chat', stop: () => abortMediaCalls(senderId) })
+  try {
+    return await run()
+  } finally {
+    end()
+  }
+}
 
 function registerMarkdownIpc(): void {
   if (ipcRegistered) return
@@ -1230,8 +1385,10 @@ function registerMarkdownIpc(): void {
             return done({ ok: false, error: err instanceof Error ? err.message : String(err) })
           }
         }
-        const exportAs =
+        const byExt =
           pdfHtml !== undefined ? SAVE_AS_EXPORT_BY_EXT[extname(target).toLowerCase()] : undefined
+        // without the lent converter a typed .hwp name is an ordinary Markdown save
+        const exportAs = (byExt === 'hwp' || byExt === 'hwpx') && !hwpExport ? undefined : byExt
         if (exportAs && exportAs !== 'pdf') {
           // Save As › Word, ODT or page images: the renderer builds the copy with
           // its export code and writes it to this approved path. Nothing here is
@@ -1340,24 +1497,31 @@ function registerMarkdownIpc(): void {
   // shell-registered, but image generation is gated per app
   ipcMain.handle(
     MARKDOWN_CHANNELS.aiGenerateImage,
-    (e, op: { prompt?: unknown; aspectRatio?: unknown }) =>
-      // ends with its tab, or when the tab's AI run is stopped
-      withMediaCallSignal(e.sender, (signal) =>
-        generateImageTool(
-          join(app.getPath('userData'), 'ai-settings.json'),
-          {
-            prompt: String(op?.prompt ?? ''),
-            aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
-          },
-          // markdown keeps pasted/picked images as doc-relative assets, so the
-          // open document's own directory is the media root
-          {
-            mediaRoots: documentMediaRoots(markdownFilePath(e.sender.id), undefined),
-            context: { path: 'screen', statuses: sharedSubscriptionStatuses() },
-            signal,
-          },
+    (e, op: { prompt?: unknown; aspectRatio?: unknown; model?: unknown }) => {
+      // the model the user named, as given: the shared tool decides whether the route offers it
+      const model = typeof op?.model === 'string' ? op.model.trim() : ''
+      // refused while AI is off, else one running AI job; ends with its tab,
+      // or when the tab's AI run is stopped
+      return aiImageCall(e.sender.id, () =>
+        withMediaCallSignal(e.sender, (signal) =>
+          generateImageTool(
+            join(app.getPath('userData'), 'ai-settings.json'),
+            {
+              prompt: String(op?.prompt ?? ''),
+              aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
+              ...(model ? { model } : {}),
+            },
+            // markdown keeps pasted/picked images as doc-relative assets, so the
+            // open document's own directory is the media root
+            {
+              mediaRoots: documentMediaRoots(markdownFilePath(e.sender.id), undefined),
+              context: { path: 'screen', statuses: sharedSubscriptionStatuses() },
+              signal,
+            },
+          ),
         ),
-      ),
+      )
+    },
   )
 
   // ---- image host (genoffice#388): bring-your-own storage for pasted images,
@@ -1485,6 +1649,20 @@ function registerMarkdownIpc(): void {
       try {
         const bytes = Buffer.from(request.base64, 'base64')
         if (request.mode === 'openInDocs') {
+          // "open in Word" while the Word editor is off asks before anything is
+          // written (editor choice spec 7.3); "create the file only" puts the
+          // file where new documents go and shows it in its folder
+          const answer = await askBeforeMakeAndOpen('docs', { fileName: `${safeName}.docx` })
+          if (answer === 'cancel') return { ok: true, canceled: true }
+          if (answer === 'file-only') {
+            const dir = configuredDefaultSaveDir(app)
+            await mkdir(dir, { recursive: true })
+            let target = join(dir, `${safeName}.docx`)
+            for (let n = 2; existsSync(target); n++) target = join(dir, `${safeName}-${n}.docx`)
+            await writeFile(target, bytes)
+            shell.showItemInFolder(target)
+            return { ok: true, path: target }
+          }
           // Each conversion gets an app-owned cache file. A marked session is
           // retained for the life of open Docs tabs; crash leftovers expire
           // after the explicit TTL enforced when the next session starts.
@@ -1560,6 +1738,69 @@ function registerMarkdownIpc(): void {
           ),
         write: (path, bytes) => writeFile(path, bytes),
       })
+    },
+  )
+
+  // Hangul export: the Word export's bytes converted by the lent converter; the
+  // tables get a Hangul look, since those bytes have no Word layout to keep. A
+  // copy that loses something is confirmed before anything is written.
+  ipcMain.handle(
+    MARKDOWN_CHANNELS.exportHwp,
+    async (e, request: ExportHwpRequest): Promise<ExportResult> => {
+      if (typeof request?.base64 !== 'string' || !request.base64) {
+        return { ok: false, error: 'markdown: bad export request' }
+      }
+      const lent = hwpExport
+      if (!lent) return { ok: false, error: 'markdown: the Hangul export is not available' }
+      const safeName =
+        String(request.suggestedName || tm('untitledFile'))
+          .replace(/[/\\:*?"<>|]/g, '_')
+          .slice(0, 80)
+          .trim() || tm('untitledFile')
+      const win =
+        BrowserWindow.fromWebContents(e.sender) ?? BrowserWindow.getFocusedWindow() ?? undefined
+      // Save As › HWP / HWPX already chose (and approved) the path: no second dialog
+      const asked = request.saveAsTarget
+      const askedFormat = typeof asked === 'string' && /\.hwpx$/i.test(asked) ? 'hwpx' : 'hwp'
+      const approved = takeSaveAsExportTarget(e.sender.id, askedFormat, asked)
+      if (approved === null) return { ok: false, error: 'markdown: save target not approved' }
+      let target = approved ?? null
+      // the File menu's export opens the copy in a Hangul tab: while that editor
+      // is off it asks first (editor choice spec 7.3); Save As does not ask
+      if (!target && (await askBeforeMakeAndOpen('hwp', { fileName: safeName })) === 'cancel') {
+        return { ok: true, canceled: true }
+      }
+      if (!target) {
+        const first = readHwpDefaultFormat(app)
+        const picked = await showSaveDialogWithMemory(
+          dialog,
+          win,
+          {
+            title: tm('dlgExportHwp'),
+            defaultPath: `${safeName}.${first}`,
+            filters: hwpFilters(first),
+          },
+          configuredDefaultSaveDir(app),
+        )
+        if (picked.canceled || !picked.filePath) return { ok: true, canceled: true }
+        // a dialog that adds no extension leaves a bare name: the default format
+        target = /\.hwpx?$/i.test(picked.filePath) ? picked.filePath : `${picked.filePath}.${first}`
+      }
+      try {
+        const format = /\.hwpx$/i.test(target) ? 'hwpx' : 'hwp'
+        const docx = new Uint8Array(Buffer.from(request.base64, 'base64'))
+        const { bytes, losses } = await lent.convert(docx, format)
+        if (e.sender.isDestroyed()) return { ok: true, canceled: true }
+        if (losses.length > 0 && !(await lent.confirm(win, losses))) {
+          return { ok: true, canceled: true }
+        }
+        await writeFile(target, bytes)
+        // opened in a Hangul tab (shell) or shown in its folder, like the PDF copy
+        openExportedPdf(target)
+        return { ok: true, path: target }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
     },
   )
 
@@ -1658,6 +1899,38 @@ function registerMarkdownIpc(): void {
       }
     },
   )
+
+  // advanced print layout: the job PDF is the print preview's, arranged and printed or saved
+  ensurePrintLayoutIpc({
+    ipcMain,
+    labelSpecPath: () => join(app.getPath('userData'), LABEL_SPEC_FILE_NAME),
+  })
+  registerMarkdownPrintLayout({
+    ipcMain,
+    // no preload, sandboxed; scripts on for the shared readiness check (the page has none)
+    createPrintWindow: () => new BrowserWindow({ show: false, webPreferences: { sandbox: true } }),
+    pickSavePath: async (event, job) => {
+      const safeName =
+        String(job?.name || tm('untitledFile'))
+          .replace(/[/\\:*?"<>|]/g, '_')
+          .slice(0, 80)
+          .trim() || tm('untitledFile')
+      const win =
+        BrowserWindow.fromWebContents(event.sender as WebContents) ??
+        BrowserWindow.getFocusedWindow() ??
+        undefined
+      const picked = await showSaveDialogWithMemory(
+        dialog,
+        win,
+        {
+          defaultPath: `${safeName}.pdf`,
+          filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        },
+        configuredDefaultSaveDir(app),
+      )
+      return picked.canceled || !picked.filePath ? null : picked.filePath
+    },
+  })
 
   ipcMain.handle(
     MARKDOWN_CHANNELS.prepareImageExport,

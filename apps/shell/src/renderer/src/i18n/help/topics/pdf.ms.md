@@ -7,7 +7,7 @@ Editor PDF mempunyai lima tab pada reben: **Laman Utama / Anotasi / Edit / Halam
 - Bar sisi kiri: **lakaran kenit** untuk melompat ke slaid dengan julat yang kelihatan ditanda, atau **kerangka** untuk penanda halaman apabila ia wujud.
 - Zum: kawalan nisbah di penjuru kanan bawah. Gunakan ctrl dan roda tetikus untuk menukar zum secara berperingkat.
 - Zum semasa dibuka: **Semasa dibuka** pada tab Pandangan memilih paparan permulaan PDF yang baru dibuka: muat lebar, muat halaman, atau zum 50% hingga 200%. PDF yang zumnya anda ubah sendiri akan dibuka semula pada zum itu.
-- Mengalihkan paparan: hidupkan **Alat Tangan** (tab Laman Utama dan Pandangan) dan seret untuk mengalihkan halaman ke semua arah. Semasa ia hidup, menyeret tidak memilih teks dan klik biasa masih membuka pautan. Menyeret sambil menekan butang tengah (roda) mengalihkan paparan tanpa alat ini. Esc atau memilih alat lain mematikannya.
+- Mengalihkan paparan: hidupkan **Alat Tangan** (tab Laman Utama dan Pandangan) dan seret untuk mengalihkan halaman ke semua arah. Semasa ia hidup, menyeret tidak memilih teks dan klik biasa masih membuka pautan. Menyeret sambil menekan butang tengah (roda) mengalihkan paparan tanpa alat ini. Esc atau memilih alat lain mematikannya. Apabila tiada teks dipilih, tekan H untuk menghidupkan atau mematikannya.
 - Putaran: setiap halaman atau kesemua halaman melalui menu Halaman, dan putaran itu ditulis semula semasa menyimpan.
 - Carian: ctrl+F untuk mencari teks penuh, dengan semua hasil ditanda.
 - PDF yang disulitkan: prompts pertanyaan kata laluan dalam tetingkap kecil tersendiri, dan kata laluan itu hanya digunakan untuk sesi ini. Dokumen seperti ini boleh disunting dan disimpan; apabila disimpan, kata laluannya kekal. **Anotasi → Lindung** menetapkan, menukar atau membuang kata laluan dan perkara yang dibenarkan kepada pembaca.
@@ -87,7 +87,7 @@ Enam alat disediakan: **dakwat, segi empat, elips, anak panah, dan nota**, serta
 - **Eksport sebagai Word… / PowerPoint… / Excel…** dalam menu Fail, atau ketiga-tiganya daripada **Tukar PDF** pada reben — semuanya setempat, tiada muat naik. Fail .pptx keluar dengan satu slaid bagi setiap halaman dan fail .xlsx dengan satu lembar kerja bagi setiap halaman. Setiap satu akan bertanya di mana untuk disimpan.
 - **PDF kepada HWP** di bawah **Tukar PDF** pada reben menukar PDF kepada dokumen HWP dalam tab HWP baharu. Pilih **Import** (가져오기) dalam tetingkap import PDF yang dipaparkan tab; dokumen dibuat dalam tab itu, dan simpanan pertama bertanya tempat untuk fail .hwp atau .hwpx. PDF asal kekal seperti sedia ada, dan penukaran berjalan pada PC ini. Sama ada teks masuk sebagai perenggan yang mengalir mengikut halaman atau sebagai kotak teks tetap dipilih dalam pilihan (환경 설정) tab HWP, bahagian import PDF.
 - Penukaran yang sama juga boleh dimulakan dari tab HWP. Pilih PDF dengan **Fail** ▸ **Import PDF…**, dan tab HWP baharu dibuka dengan tetingkap import PDF yang sama. Dokumen dalam tab tempat menu digunakan kekal seperti sedia ada.
-- **Cetak** menggunakan susunan halaman dan putaran semasa melalui dialog sistem, dan julat halaman disokong.
+- **Cetak** menggunakan susunan halaman dan putaran semasa melalui dialog sistem. Anda boleh mencetak julat halaman atau halaman yang dipilih pada imej kecil, dan memilih dalam **Susun atur halaman** beberapa halaman setiap helai, buku kecil, skala kelabu dan lain-lain.
 
 ## Simpanan
 

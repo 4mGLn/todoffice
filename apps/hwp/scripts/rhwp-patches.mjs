@@ -136,6 +136,17 @@
  *   font box showed its name as if it were there. The menu marks such an entry and the box
  *   underlines such a name, with a tooltip saying the file keeps the font's name
  *   (studio-plugin/pc-fonts.mjs, in the words the app gives).
+ *
+ * studio-source-font-alias
+ *   The engine leads a canvas font list with its own alias for the document's font program
+ *   (`__rhwp_ttf__함초롬바탕`), meant for a host that supplies font files. The studio's
+ *   substitution took the alias for the document's font: it is on no PC, so the stand-in
+ *   (바탕, 맑은 고딕) went before the font the document names and the page drew every such
+ *   font in the stand-in, even one that is installed. The print and the PDF read the
+ *   engine's list without the alias and drew the font itself, so the paper did not look
+ *   like the page. The aliases keep their place and the list is weighed by its first real
+ *   name. Upstream had the same defect (edwardkim/rhwp#9077) and fixed it on devel the same
+ *   way (PR #9093); the patch is dropped with the release that has that fix.
  */
 
 import { CLIPBOARD_HTML_MODULE } from '../studio-plugin/clipboard-html.mjs'
@@ -1106,6 +1117,63 @@ const PATCHES = {
       },
     ],
   },
+  // Hancom's equation fonts are written in private code points, which mean nothing in the
+  // font the substitution would put in their place while the PC's fonts are not known yet
+  // or the font is not there. The app's own layer (equation-fonts.mjs) sits under the
+  // substitution: it keeps the font when the PC has it and decodes the run when it has not.
+  'studio-equation-fonts': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]core[\\/]wasm-bridge\.ts$/,
+    edits: [
+      {
+        find: "import { rememberRawCanvasFontDescriptor } from './canvas-font-raw';",
+        replace: [
+          "import { rememberRawCanvasFontDescriptor } from './canvas-font-raw';",
+          `import { installEquationFonts, isEquationGlyphFont } from '${PC_FONTS_MODULE}';`,
+          '',
+          '// before the substitution below wraps the canvas font: it must sit on top of this',
+          'installEquationFonts();',
+        ].join('\n'),
+      },
+      {
+        find: ['  const primary = incoming[0];', '  if (!primary) return cssFont;'].join('\n'),
+        replace: [
+          '  const primary = incoming[0];',
+          '  if (!primary) return cssFont;',
+          '  if (isEquationGlyphFont(primary)) return cssFont;',
+        ].join('\n'),
+      },
+    ],
+  },
+  // The engine leads a canvas font list with its alias for the document's font program
+  // (pc-fonts.mjs, isEngineFontAlias). The substitution took that alias for the document's
+  // font, found it on no PC and put its stand-in first: the page drew 함초롬바탕, 궁서 or
+  // Arial in 바탕 or 맑은 고딕 while the print drew the font. The aliases stay where the
+  // engine put them and the list is weighed by its first real name.
+  'studio-source-font-alias': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]core[\\/]wasm-bridge\.ts$/,
+    edits: [
+      {
+        find: "import type { FileSystemFileHandleLike } from '@/command/file-system-access';",
+        replace: [
+          "import type { FileSystemFileHandleLike } from '@/command/file-system-access';",
+          `import { isEngineFontAlias } from '${PC_FONTS_MODULE}';`,
+        ].join('\n'),
+      },
+      {
+        find: '  const incoming = parseCssFontFamilyList(familyPart);',
+        replace: [
+          '  const listed = parseCssFontFamilyList(familyPart);',
+          '  const engineAliases = listed.filter(name => isEngineFontAlias(name));',
+          '  const incoming = listed.filter(name => !isEngineFontAlias(name));',
+        ].join('\n'),
+      },
+      {
+        find: '  return prefix + formatCssFontFamilyList(completeFontFamilyList(merged, studioChain.slice(1)));',
+        replace:
+          '  return prefix + formatCssFontFamilyList([...engineAliases, ...completeFontFamilyList(merged, studioChain.slice(1))]);',
+      },
+    ],
+  },
   'studio-missing-font-marks': {
     file: /[\\/]rhwp-studio[\\/]src[\\/]ui[\\/]toolbar\.ts$/,
     edits: [
@@ -1196,6 +1264,8 @@ export const STUDIO_PATCHES = /** @type {const} */ ([
   'studio-cell-block-paste',
   'studio-pc-fonts',
   'studio-missing-font-marks',
+  'studio-equation-fonts',
+  'studio-source-font-alias',
 ])
 
 /** Whether a patch is written against this file. */

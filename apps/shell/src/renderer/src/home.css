@@ -207,7 +207,7 @@ body.vib .home {
   justify-content: center;
 }
 
-/* ---- bottom-left settings entry: where the AI subscription connection stands ---- */
+/* ---- bottom-left settings entry: "Settings" over the state of the AI in use ---- */
 /* clicking it opens the settings modal (settings.css) directly, which hosts
    the connection plus preferences (language / theme / save location / update channel) */
 
@@ -220,10 +220,8 @@ body.vib .home {
 
 .account-btn {
   display: flex;
-  /* a sidebar too narrow for both drops the settings button under the AI name */
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px 9px;
+  gap: 9px;
   width: 100%;
   padding: 7px 8px;
   border: none;
@@ -274,28 +272,13 @@ body.vib .home {
   flex-direction: column;
   min-width: 0;
   line-height: 1.25;
-  /* the least room the AI name keeps before the settings button moves down */
-  flex: 1 1 72px;
+  flex: 1;
 }
 
-/* the way into the settings: drawn as a button, in the sidebar items' own text */
-.account-settings {
+.account-chevron {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   margin-left: auto;
-  padding: 4px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--text);
-  white-space: nowrap;
-}
-
-.account-settings svg {
-  flex-shrink: 0;
-  color: var(--text-primary);
+  color: var(--text-muted);
 }
 
 .account-name {
