@@ -1383,7 +1383,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'refresh_toc',
     edits: true,
     description:
-      'Write the page numbers of a table of contents again, after the document changed. Pass the text of the line right above it, its title line when it has one: the two-column table right after that line is written (contents insert_toc made since the document was opened are found past empty lines too). Any other table is written only when every row that holds a page number names text of the body, and refused otherwise. It writes page numbers only: for headings added, renamed or removed, delete_table the table and call insert_toc again.',
+      'Write the page numbers of a table of contents again, after the document changed. Pass the text of the line right above it, its title line when it has one: the two-column table right after that line is written, each row whose heading is found in the body. It writes page numbers only: for headings added, renamed or removed, delete_table the table and call insert_toc again.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -4910,12 +4910,6 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             return bad(
               call,
               'Nothing was changed: no table of contents follows that line. Pass the title line of a table of contents made with insert_toc.',
-            )
-          }
-          if (result.reason === 'not_toc') {
-            return bad(
-              call,
-              `Nothing was changed: table ${result.table} was not made by insert_toc since the document was opened, and its row "${result.row}" names no text of the body, so it is not taken for a table of contents and stays as it is.`,
             )
           }
           if (result.reason === 'in_table') return bad(call, IN_TABLE_HELP)

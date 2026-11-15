@@ -359,9 +359,9 @@ const TWO = [
   { find: 'Ⅱ. 결과', level: 1 },
 ]
 
-describe('telling a table of contents from a table of the user', () => {
-  it('leaves a count table alone whose rows name no text of the body', () => {
-    const { plugin, doc, steps } = withUserTable(
+describe('refresh_toc on a table it did not make here', () => {
+  it('leaves a count table as it is when its rows name no text of the body', () => {
+    const { plugin, doc } = withUserTable(
       [
         ['학생', '328'],
         ['교사', '24'],
@@ -370,15 +370,13 @@ describe('telling a table of contents from a table of the user', () => {
       '구성원 수',
     )
     const was = doc().exportHwp()
-    const before = steps()
-    expect(plugin.refreshToc('구성원 수', null)).toEqual({
-      ok: false,
-      reason: 'not_toc',
-      count: 0,
-      table: 1,
-      row: '학생',
+    expect(plugin.refreshToc('구성원 수', null)).toMatchObject({
+      ok: true,
+      lines: 2,
+      changed: 0,
+      missing: ['학생', '교사'],
     })
-    expect([steps(), doc().exportHwp()]).toEqual([before, was])
+    expect(doc().exportHwp()).toEqual(was)
     expect(plugin.insertToc('보고서', null, 'after', '차 례', TWO)).toMatchObject({
       ok: true,
       table: 1,
@@ -404,21 +402,44 @@ describe('telling a table of contents from a table of the user', () => {
     ])
   })
 
+  it('writes the other rows of contents made before and names a heading renamed since', () => {
+    const { plugin, doc } = withUserTable(
+      [
+        ['Ⅰ. 개요', '1'],
+        ['Ⅱ. 결과', '1'],
+        ['결과 본문', '1'],
+      ],
+      false,
+      '차 례',
+    )
+    expect(plugin.replaceText('Ⅱ. 결과', 'Ⅱ. 실적', 2)).toMatchObject({ ok: true })
+    expect(plugin.insertBreak('결과 본문', 2, 'page')).toMatchObject({ ok: true })
+    expect(plugin.refreshToc('차 례', null)).toMatchObject({
+      ok: true,
+      lines: 3,
+      changed: 1,
+      missing: ['Ⅱ. 결과'],
+    })
+    const table = plugin.readTable(1)
+    if (!table.ok) throw new Error('no table')
+    expect(table.cells.filter((cell) => cell.col === 2).map((cell) => cell.text)).toEqual([
+      '1',
+      '1',
+      String(pageOf(doc(), '결과 본문이다.')),
+    ])
+    expect(pageOf(doc(), '결과 본문이다.')).toBe(2)
+  })
+
   it('takes a two-column table of numbers without lines for no table of contents', () => {
-    const { plugin, doc, steps } = withUserTable([
+    const { plugin, doc } = withUserTable([
       ['출석', '10'],
       ['과제', '20'],
       ['시험', '70'],
     ])
     plugin.formatCells(1, null, { borders: [{ sides: 'all', line: 'none' }] })
     const was = doc().exportHwp()
-    const before = steps()
-    expect(plugin.refreshToc('평가 비율은', null)).toMatchObject({
-      ok: false,
-      reason: 'not_toc',
-      table: 1,
-    })
-    expect([steps(), doc().exportHwp()]).toEqual([before, was])
+    expect(plugin.refreshToc('평가 비율은', null)).toMatchObject({ ok: true, changed: 0 })
+    expect(doc().exportHwp()).toEqual(was)
     expect(plugin.insertToc('보고서', null, 'after', '차 례', TWO)).toMatchObject({
       ok: true,
       table: 1,
@@ -456,10 +477,9 @@ describe('telling a table of contents from a table of the user', () => {
     })
     const was = now().exportHwp()
     expect(plugin.refreshToc('차례', null)).toMatchObject({
-      ok: false,
-      reason: 'not_toc',
-      table: 2,
-      row: '이서연',
+      ok: true,
+      changed: 0,
+      missing: ['이서연', '박지훈'],
     })
     expect(now().exportHwp()).toEqual(was)
     expect(plugin.insertToc('김민수가', null, 'after', '목 차', entries)).toMatchObject({
@@ -508,11 +528,11 @@ describe('contents this tool made, whatever line is above them', () => {
     }
   })
 
-  it('finds them past an empty line under the title and refuses a second one', () => {
+  it('refuses a second one past an empty line under the title, where refresh_toc finds none', () => {
     const { plugin, steps } = reportOf()
     plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', entries)
     plugin.insertParagraphs('차 례', null, 'after', [''])
-    expect(plugin.refreshToc('차 례', null)).toMatchObject({ ok: true, lines: 3 })
+    expect(plugin.refreshToc('차 례', null)).toEqual({ ok: false, reason: 'no_toc', count: 0 })
     const before = steps()
     const again = entries.map((entry) => ({ ...entry, occurrence: 2 }))
     expect(plugin.insertToc('사업 결과 보고서', null, 'after', '차 례', again)).toMatchObject({

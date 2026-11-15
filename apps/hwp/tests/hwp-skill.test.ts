@@ -2366,23 +2366,6 @@ describe('a table of contents', () => {
     )
   })
 
-  it('leaves a table whose row names no text of the body alone and says so', async () => {
-    const { call } = setup({
-      refreshToc: async () => ({
-        ok: false as const,
-        reason: 'not_toc' as const,
-        count: 0,
-        table: 2,
-        row: '학생',
-      }),
-    })
-    const result = await call('refresh_toc', { title: '구성원 수' })
-    expect(result.isError).toBe(true)
-    expect(result.output).toBe(
-      'Nothing was changed: table 2 was not made by insert_toc since the document was opened, and its row "학생" names no text of the body, so it is not taken for a table of contents and stays as it is.',
-    )
-  })
-
   it('says when no table of contents follows the line', async () => {
     const { call } = setup({
       refreshToc: async () => ({ ok: false as const, reason: 'no_toc' as const, count: 0 }),

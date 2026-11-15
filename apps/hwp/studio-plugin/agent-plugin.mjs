@@ -5829,52 +5829,6 @@ function contentsOf(doc, made) {
   return null
 }
 
-/**
- * A long heading was cut short with … in the table, so a row is matched by the start of
- * its text; a body paragraph that starts with it beats a mention elsewhere.
- */
-function headingHitOf(doc, heading) {
-  const key = heading.replace(/…$/, '').slice(0, TOC_KEY_CHARS)
-  const body = key
-    ? searchAll(doc, key).filter((hit) => !cellPathOf(hit) && isReplaceable(hit))
-    : []
-  return (
-    body.find((candidate) => bodyText(doc, candidate.sec, candidate.para).trim().startsWith(key)) ??
-    body[0] ??
-    null
-  )
-}
-
-/** Its `number` is the one listTables shows. */
-function tableIn(doc, sec, para) {
-  const { tables } = tablesOf(doc)
-  const index = tables.findIndex(
-    (candidate) =>
-      candidate.sec === sec &&
-      candidate.para === para &&
-      candidate.path.length === 1 &&
-      candidate.cols === 2,
-  )
-  return index < 0 ? null : { table: tables[index], number: index + 1 }
-}
-
-function pageRowsOf(doc, table) {
-  const grid = gridOf(doc, table)
-  const rows = []
-  for (let row = 0; row < table.rows; row++) {
-    const headingCell = cellOf(grid, row, 0)
-    const pageCell = cellOf(grid, row, 1)
-    if (!headingCell || !pageCell) continue
-    const shown = PAGE_NUMBER.exec(paragraphsOf(cellBox(doc, table, pageCell.cell)).join(''))
-    if (!shown) continue
-    const heading = paragraphsOf(cellBox(doc, table, headingCell.cell))
-      .join(' ')
-      .trim()
-    rows.push({ heading, pageCell: pageCell.cell, shown: Number(shown[1]) })
-  }
-  return rows
-}
-
 /** Width of a character in ems, roughly: full width for Hangul and CJK, about half for the rest. */
 const emsOf = (ch) => (ch.codePointAt(0) > 0x2e7f ? 1 : 0.55)
 
@@ -10923,42 +10877,24 @@ export const agentPlugin = {
 
       /**
        * Write the page numbers of a table of contents again: the two-column table in the
-       * paragraph after the one `title` occurs in (for contents insertToc made here, after
-       * empty lines too). Each row's heading is looked up by its text in the body; a row whose
-       * heading is gone, or whose second cell is not a page number, is left alone. A table
-       * insertToc did not make here is refused when a row that holds a page number names no
-       * text of the body.
+       * paragraph after the one `title` occurs in. Each row's heading is looked up by its
+       * text in the body; a row whose heading is gone, or whose second cell is not a page
+       * number, is left alone.
        */
       refreshToc: guarded((title, occurrence, options) => {
         const find = (doc) => {
           const located = locate(doc, title, occurrence, 'after')
           if (located.refusal) return { refusal: located.refusal }
           if (located.box.inTable) return { refusal: { ok: false, reason: 'in_table', count: 1 } }
-          const { box } = located
-          const { sec } = box.place(box.index, 0)
-          const next = tableIn(doc, sec, box.index + 1)
-          if (next) {
-            if (isMadeContents(doc, contentsMade, next.table)) return { table: next.table }
-            const lost = pageRowsOf(doc, next.table).find((row) => !headingHitOf(doc, row.heading))
-            if (!lost) return { table: next.table }
-            return {
-              refusal: {
-                ok: false,
-                reason: 'not_toc',
-                count: 0,
-                table: next.number,
-                row: lost.heading,
-              },
-            }
-          }
-          let para = box.index + 1
-          const count = doc.getParagraphCount(sec)
-          while (para < count && !tableIn(doc, sec, para) && !bodyText(doc, sec, para).trim()) {
-            para += 1
-          }
-          const below = para > box.index + 1 ? tableIn(doc, sec, para) : null
-          if (below && isMadeContents(doc, contentsMade, below.table)) return { table: below.table }
-          return { refusal: { ok: false, reason: 'no_toc', count: 0 } }
+          const { sec } = located.box.place(located.box.index, 0)
+          const table = tablesOf(doc).tables.find(
+            (candidate) =>
+              candidate.sec === sec &&
+              candidate.para === located.box.index + 1 &&
+              candidate.path.length === 1 &&
+              candidate.cols === 2,
+          )
+          return table ? { table } : { refusal: { ok: false, reason: 'no_toc', count: 0 } }
         }
         const refusal = host.read((doc) => find(doc).refusal ?? null)
         if (refusal) return refusal
@@ -10969,24 +10905,45 @@ export const agentPlugin = {
               const { table } = find(doc)
               if (!table) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
-              const rows = pageRowsOf(doc, table)
+              const grid = gridOf(doc, table)
+              let rows = 0
               let changed = 0
               const missing = []
-              for (const row of rows) {
-                const hit = headingHitOf(doc, row.heading)
+              for (let row = 0; row < table.rows; row++) {
+                const headingCell = cellOf(grid, row, 0)
+                const pageCell = cellOf(grid, row, 1)
+                if (!headingCell || !pageCell) continue
+                const shown = PAGE_NUMBER.exec(
+                  paragraphsOf(cellBox(doc, table, pageCell.cell)).join(''),
+                )
+                if (!shown) continue
+                rows += 1
+                const heading = paragraphsOf(cellBox(doc, table, headingCell.cell))
+                  .join(' ')
+                  .trim()
+                // looked up by the start of its text (a long one was cut short in the table); a
+                // body paragraph that starts with it is preferred to a mention elsewhere
+                const key = heading.replace(/…$/, '').slice(0, TOC_KEY_CHARS)
+                const body = key
+                  ? searchAll(doc, key).filter((hit) => !cellPathOf(hit) && isReplaceable(hit))
+                  : []
+                const hit =
+                  body.find((candidate) =>
+                    bodyText(doc, candidate.sec, candidate.para).trim().startsWith(key),
+                  ) ?? body[0]
                 if (!hit) {
-                  missing.push(row.heading)
+                  missing.push(heading)
                   continue
                 }
                 const page = pageNumberOf(doc, hit.sec, hit.para)
-                if (page === row.shown) continue
-                setCellText(doc, table, row.pageCell, String(page))
+                if (page === Number(shown[1])) continue
+                setCellText(doc, table, pageCell.cell, String(page))
                 changed += 1
               }
               mustKeep(before, objectsOf(doc))
               return {
                 ok: true,
-                lines: rows.length,
+                lines: rows,
                 changed,
                 ...(missing.length > 0 ? { missing } : {}),
                 place: { sec: table.sec, para: table.para, offset: 0, length: 0 },

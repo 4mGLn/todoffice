@@ -1503,8 +1503,6 @@ export type AgentRefreshTocResult =
   | AgentPlaceRefusal
   | { ok: false; reason: 'in_table'; count: number }
   | { ok: false; reason: 'no_toc'; count: number }
-  /** table `table`, which insertToc did not make here, has a row `row` that names no text of the body */
-  | { ok: false; reason: 'not_toc'; count: number; table: number; row: string }
 
 export type AgentUndoResult =
   { ok: boolean; undone: number } | { ok: false; reason: 'changed'; undone: 0 }
