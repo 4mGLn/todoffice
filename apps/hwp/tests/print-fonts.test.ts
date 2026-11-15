@@ -313,3 +313,66 @@ describe('the engine’s alias for a document’s font program', () => {
     }
   })
 })
+
+describe('waiting for the PC’s fonts before a print', () => {
+  const known = (source: string) =>
+    ({
+      resolveLocalFont: () => null,
+      records: () => [],
+      detected: () => new Set<string>(),
+      state: () => ({ source, count: 1, detectedAt: 1 }),
+    }) as never
+
+  it('waits for the start-up look, then says whether the screen’s fonts are known', async () => {
+    let finish!: () => void
+    const listed = new Promise<{ family: string; fullName: string; postscriptName: string }[]>(
+      (resolve) => {
+        finish = () => {
+          pc.installFontPresence(known('local-font-access'))
+          resolve([])
+        }
+      },
+    )
+    const visible = { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} }
+    void pc.refreshPcFonts({
+      queryLocalFonts: () => listed,
+      loadStored: async () => {},
+      records: () => [],
+      detect: async () => {},
+      changed: () => {},
+      document: visible as never,
+    })
+    let answer: boolean | undefined
+    const ready = pc.printFontsReady({ doc: visible as never }).then((value) => (answer = value))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    // still reading the PC's fonts: the print waits
+    expect(answer).toBeUndefined()
+    finish()
+    await ready
+    expect(answer).toBe(true)
+  })
+
+  it('answers at once for a page that is not shown, which never gets the PC’s list', async () => {
+    void pc.refreshPcFonts({
+      queryLocalFonts: () => new Promise(() => {}),
+      loadStored: async () => {},
+      records: () => [],
+      detect: async () => {},
+      changed: () => {},
+    })
+    const hidden = { visibilityState: 'hidden' }
+    await expect(pc.printFontsReady({ doc: hidden as never })).resolves.toBe(false)
+  })
+
+  it('goes on after the wait when the look takes too long', async () => {
+    void pc.refreshPcFonts({
+      queryLocalFonts: () => new Promise(() => {}),
+      loadStored: async () => {},
+      records: () => [],
+      detect: async () => {},
+      changed: () => {},
+    })
+    const visible = { visibilityState: 'visible' }
+    await expect(pc.printFontsReady({ wait: 10, doc: visible as never })).resolves.toBe(false)
+  })
+})
