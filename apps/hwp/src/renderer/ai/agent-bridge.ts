@@ -72,6 +72,7 @@ const METHODS = [
   'editStyle',
   'printPages',
   'printPageSizes',
+  'printFontsReady',
   'documentRevision',
   'previewPage',
   'pageTarget',

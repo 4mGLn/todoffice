@@ -1556,6 +1556,8 @@ export interface AgentPluginSurface {
   ): AgentStyleResult
   /** pages for printing from `from`, as many as are drawn in about two seconds */
   printPages(from: number): AgentPrintPages
+  /** once the start-up look at the PC's fonts is over: whether print can use the screen's fonts */
+  printFontsReady(): Promise<boolean>
   /** each page's size as the print path lays it out, from `from`, measured for about two seconds */
   printPageSizes(from: number): AgentPrintPageSizes
   /** one page as the print path draws it, for the preview; `page` is 0-based */
