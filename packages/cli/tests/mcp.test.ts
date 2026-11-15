@@ -293,8 +293,9 @@ describe('mcp server', () => {
     // columns, paragraph borders and background, character width and spacing, cell text and
     // row height, the width and place of a table (about 4 KiB, decision 0137); 129 KiB before
     // the HWP equations, tab stops, page border, cell diagonal and picture width (about
-    // 1.7 KiB, decision 0137)
-    expect(bytes).toBeLessThanOrEqual(130 * 1024)
+    // 1.7 KiB, decision 0137); 131 KiB before map_read, map_apply with its typed
+    // ops and map_create (about 3.4 KiB, decision 0147)
+    expect(bytes).toBeLessThanOrEqual(133 * 1024)
     expect(bytes).toBeGreaterThan(60 * 1024)
   })
 
@@ -375,8 +376,9 @@ describe('mcp server', () => {
       expect(props.ops!.items).toBeUndefined()
       // 42 KiB before hwp_read (about 1 KiB) joined the catalog; 43 KiB before epub_translate and
       // epub_status (about 2 KiB); 45 KiB before hwp_apply and create_hwp (about 2.5 KiB); 48 KiB
-      // before diagram_read, diagram_apply and create_drawio (about 3 KiB)
-      expect(JSON.stringify(tools).length).toBeLessThan(51 * 1024)
+      // before diagram_read, diagram_apply and create_drawio (about 3 KiB); 52 KiB
+      // before map_read, map_apply and map_create (about 2.2 KiB, decision 0147)
+      expect(JSON.stringify(tools).length).toBeLessThan(54 * 1024)
     } finally {
       await client2.close()
       disposeContext(ctx2)
