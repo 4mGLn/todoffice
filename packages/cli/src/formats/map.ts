@@ -139,8 +139,8 @@ export function readMap(opened: OpenedMap, json: boolean): CommandResult {
 
 /**
  * `--ops`: inline JSON (`[...]` or `{"ops": [...]}`), `@<file>`, a file path, or `-` for stdin.
- * An empty array is a no-op batch (it asks for the file to be saved as it is);
- * a malformed list is refused.
+ * An empty array is a no-op batch (nothing changed, nothing written in place;
+ * `guide map` has the batch rules); a malformed list is refused.
  */
 export function mapOpsOf(args: ParsedArgs, ctx: PathContext): unknown[] {
   const spec = flagString(args, 'ops')
@@ -832,9 +832,9 @@ const MAP_OP_NOTES: Readonly<Record<string, string>> = {
 export function mapGuideText(catalog: OpCatalog, group?: string): string {
   return [
     'Map ops (ieumoffice map apply --ops, ieumoffice create from an outline with map create): a JSON array; every entry is { "op": "<name>", ...fields }. They are the tools the in-app AI uses on a mind map, checked by the same rules.',
-    'Topics are named by the ids `ieumoffice map read <file> --json` lists; the same id on another sheet is another topic, so keep one sheet per batch. Later ops see what earlier ones made; a new topic id comes back in detail.results[].created.',
+    'Topics are named by the ids `ieumoffice map read <file> --json` lists; the same id on another sheet is another topic, so keep one sheet per batch. Later ops run against the map as the earlier ops left it, but can only name ids the map already had: a new topic id comes back in detail.results[].created, and no later op can name it.',
     'delete_topic is refused when the topic would take elements the map preserves (boundaries, floating topics, callouts, the branches under a summary topic): the refusal reports how many. Everything the editor does not show goes back out on save as it came in.',
-    'A batch is all or nothing by default: one refused op leaves the file as it was. --best-effort applies every op that can apply, --stop-on-error stops at the first refusal. An empty list saves the file as it is.',
+    'A batch is all or nothing by default: one refused op leaves the file as it was. --best-effort applies every op that can apply, --stop-on-error stops at the first refusal. An empty list (or one where nothing changed) writes nothing unless --out names another file.',
     'Field notation: bare = string, n = number, bool = boolean, ? = optional, a|b = one of.',
     '',
     ...renderGroups(catalog, group),
