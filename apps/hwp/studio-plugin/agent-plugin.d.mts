@@ -1039,6 +1039,12 @@ export interface AgentMissingFontLabels {
   hint: string
 }
 
+/**
+ * Whether a line break between the characters `before` and `after` of a cell splits a word,
+ * as checkLayout counts the cells that wrap inside one.
+ */
+export declare function splitsWord(before: string, after: string): boolean
+
 /** The parts of the editor toolbar's style list (a select element) syncStyleList uses. */
 export interface StyleListElement {
   readonly options: ArrayLike<{ value: string; textContent: string | null }>

@@ -3990,18 +3990,16 @@ function overflowIn(runs, box, paragraphs) {
 /** Hangul and other CJK script: text written in it breaks between any two characters. */
 const BREAKS_ANYWHERE = /[ᄀ-ᇿ぀-ヿ㄰-㆏一-鿿가-힯]/
 
-/** A bracket or a punctuation mark: a line may start or end at one without breaking a word. */
-const WORD_EDGE = /[\p{P}\p{S}]/u
-
 /**
- * Whether a line break between the characters `before` and `after` splits a word: no space
- * or punctuation mark on either side, and neither side in a script that breaks between any
- * two characters (Korean text breaks per syllable when its paragraph says so, as Hangul's
- * default does), except a number cut from the Hangul word it goes with (2026|년).
+ * Whether a line break between the characters `before` and `after` splits a word: no space on
+ * either side, no closing bracket before it and no opening bracket after it, and neither side
+ * in a script that breaks between any two characters (Korean text breaks per syllable when its
+ * paragraph says so, as Hangul's default does), except a number cut from the Hangul word it
+ * goes with (2026|년). Other marks hold a word together: 36.5|℃, 1,|234, example.|org.
  */
-function splitsWord(before, after) {
+export function splitsWord(before, after) {
   if (!/\S/.test(before) || !/\S/.test(after)) return false
-  if (WORD_EDGE.test(before) || WORD_EDGE.test(after)) return false
+  if (/\p{Pe}/u.test(before) || /\p{Ps}/u.test(after)) return false
   const anywhere = [before, after].filter((char) => BREAKS_ANYWHERE.test(char)).length
   if (anywhere === 0) return true
   return anywhere === 1 && (/\d/.test(before) || /\d/.test(after))

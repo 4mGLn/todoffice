@@ -12,6 +12,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import init, { HwpDocument } from '@rhwp/core'
 import {
   agentPlugin,
+  splitsWord,
   type AgentMapPage,
   type AgentPluginHost,
 } from '../studio-plugin/agent-plugin.mjs'
@@ -2333,6 +2334,29 @@ describe('what a change leaves on the pages', () => {
     expect(plugin.checkLayout(1, 1, 3).wrapped).toEqual([])
     plugin.fillCells(2, [{ row: 3, col: 3, text: '국립중앙박물관어린이박물관체험학습실' }], true)
     expect(plugin.checkLayout(2, 3, 3).wrapped).toEqual([])
+  })
+
+  it.each([
+    ['36.5|℃', true],
+    ['1,|234', true],
+    ['3.|14', true],
+    ['12:|30', true],
+    ['50|%', true],
+    ['name@|example', true],
+    ['example.|org', true],
+    ['010-|1234', true],
+    ['COVID-|19', true],
+    ['examp|le.org', true],
+    ['2026|년', true],
+    ['체험비|(버스비', false],
+    ['(입장료)|체험비', false],
+    ['비용|(10,000원', false],
+    ['서|명', false],
+    ['name |example', false],
+    ['name| example', false],
+  ])('counts a line break at %s as inside a word: %s', (text, counts) => {
+    const at = text.indexOf('|')
+    expect(splitsWord(text[at - 1]!, text[at + 1]!)).toBe(counts)
   })
 
   it('does not count a line that starts at a bracket or beside Hangul as a broken word', () => {
