@@ -1083,7 +1083,7 @@ const PATCHES = {
         replace: [
           '  resolveLocalFont,',
           "} from '@/core/local-fonts';",
-          `import { installFontPresence, refreshPcFonts } from '${PC_FONTS_MODULE}';`,
+          `import { installFontPresence, noteFontsApplying, refreshPcFonts } from '${PC_FONTS_MODULE}';`,
           // under a name of its own: rhwp v0.9.0's main.ts no longer imports it, and a later
           // one that does must not clash
           "import { getLocalFontRecords as ieumLocalFontRecords } from '@/core/local-fonts';",
@@ -1114,6 +1114,19 @@ const PATCHES = {
           '    });',
           '    setupModalFocusRestore();',
         ].join('\n'),
+      },
+      // The studio works the document's fonts out again when told the PC's fonts changed,
+      // without waiting: the work is handed over, so a print waits for the substitution the
+      // screen then draws with (pc-fonts.mjs printFontsReady).
+      {
+        find: "    void wasm.prepareDeclaredFontEnvironment('canvas2d').then(changed => {",
+        replace:
+          "    noteFontsApplying(wasm.prepareDeclaredFontEnvironment('canvas2d').then(changed => {",
+      },
+      {
+        find: "    }).catch(error => console.warn('[LocalFonts] View refresh failed:', error));",
+        replace:
+          "    }).catch(error => console.warn('[LocalFonts] View refresh failed:', error)));",
       },
     ],
   },
