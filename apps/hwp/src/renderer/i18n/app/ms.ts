@@ -78,7 +78,6 @@ export const ms = {
   aiToolFields: 'Medan borang disemak · {count}',
   aiToolToc: 'Menambah jadual kandungan · {count} tajuk',
   aiToolTocRefresh: 'Menulis semula nombor halaman jadual kandungan · {count}',
-  aiToolTocRebuild: 'Jadual kandungan ditulis semula · {count} tajuk',
   aiTocName: 'Jadual kandungan',
   aiTocPagesChanged: '{count} nombor halaman dikemas kini',
   aiToolNotes: 'Menyemak nota kaki dan nota akhir · {count}',

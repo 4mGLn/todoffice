@@ -78,7 +78,6 @@ export const nl = {
   aiToolFields: 'Formuliervelden gecontroleerd · {count}',
   aiToolToc: 'Inhoudsopgave toegevoegd · {count} kopjes',
   aiToolTocRefresh: 'Paginanummers van de inhoudsopgave herschreven · {count}',
-  aiToolTocRebuild: 'Inhoudsopgave herschreven · {count} koppen',
   aiTocName: 'Inhoudsopgave',
   aiTocPagesChanged: '{count} paginanummer(s) bijgewerkt',
   aiToolNotes: 'Voet- en eindnoten bekeken · {count}',

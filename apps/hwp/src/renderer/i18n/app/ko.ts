@@ -77,7 +77,6 @@ export const ko = {
   aiToolFields: '누름틀 {count}개 확인',
   aiToolToc: '차례 넣음 · 제목 {count}개',
   aiToolTocRefresh: '차례 쪽 번호 다시 씀 · {count}곳',
-  aiToolTocRebuild: '차례 다시 씀 · 제목 {count}개',
   aiTocName: '차례',
   aiTocPagesChanged: '쪽 번호 {count}곳 바뀜',
   aiToolNotes: '각주·미주 {count}개 확인',

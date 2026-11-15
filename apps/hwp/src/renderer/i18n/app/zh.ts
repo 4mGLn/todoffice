@@ -72,7 +72,6 @@ export const zh = {
   aiToolFields: '已查看表单域 · {count} 个',
   aiToolToc: '添加了目录 · {count} 个标题',
   aiToolTocRefresh: '重新写了目录页码 · {count}',
-  aiToolTocRebuild: '重写目录 · {count} 个标题',
   aiTocName: '目录',
   aiTocPagesChanged: '{count} 处页码已更新',
   aiToolNotes: '检查了脚注和尾注 · {count}',

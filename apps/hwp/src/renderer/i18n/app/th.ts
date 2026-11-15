@@ -77,7 +77,6 @@ export const th = {
   aiToolFields: 'ตรวจฟิลด์แบบฟอร์มแล้ว · {count} ฟิลด์',
   aiToolToc: 'เพิ่มสารบัญ · หัวข้อ {count}',
   aiToolTocRefresh: 'เขียนเลขหน้าของสารบัญใหม่ · {count}',
-  aiToolTocRebuild: 'เขียนสารบัญใหม่ · หัวข้อ {count} รายการ',
   aiTocName: 'สารบัญ',
   aiTocPagesChanged: 'อัปเดตเลขหน้า {count} แห่ง',
   aiToolNotes: 'ตรวจเชิงอรรถและอ้างอิงท้ายเรื่อง · {count}',

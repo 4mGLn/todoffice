@@ -77,7 +77,6 @@ export const en = {
   aiToolFields: 'Checked form fields · {count}',
   aiToolToc: 'Added a table of contents · {count} headings',
   aiToolTocRefresh: 'Rewrote the contents page numbers · {count}',
-  aiToolTocRebuild: 'Rewrote the table of contents · {count} headings',
   aiTocName: 'Table of contents',
   aiTocPagesChanged: '{count} page number(s) updated',
   aiToolNotes: 'Checked footnotes and endnotes · {count}',

@@ -77,7 +77,6 @@ export const tr = {
   aiToolFields: 'Form alanları denetlendi · {count}',
   aiToolToc: 'İçindekiler eklendi · {count} başlık',
   aiToolTocRefresh: 'İçindekiler sayfa numaraları yeniden yazıldı · {count}',
-  aiToolTocRebuild: 'İçindekiler yeniden yazıldı · {count} başlık',
   aiTocName: 'İçindekiler',
   aiTocPagesChanged: '{count} sayfa numarası güncellendi',
   aiToolNotes: 'Dipnotlar ve sonnotlar denetlendi · {count}',

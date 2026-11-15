@@ -75,7 +75,6 @@ export const he = {
   aiToolFields: 'שדות הטופס נבדקו · {count}',
   aiToolToc: 'נוסף תוכן עניינים · {count} כותרות',
   aiToolTocRefresh: 'מספרי העמודים של תוכן העניינים נכתבו מחדש · {count}',
-  aiToolTocRebuild: 'תוכן העניינים נכתב מחדש · {count} כותרות',
   aiTocName: 'תוכן עניינים',
   aiTocPagesChanged: 'עודכנו {count} מספרי עמודים',
   aiToolNotes: 'נבדקו הערות שוליים · {count}',

@@ -80,7 +80,6 @@ export const it = {
   aiToolFields: 'Campi modulo controllati · {count}',
   aiToolToc: 'Aggiunto un indice · {count} titoli',
   aiToolTocRefresh: "Riscritti i numeri di pagina dell'indice · {count}",
-  aiToolTocRebuild: 'Indice riscritto · {count} titoli',
   aiTocName: 'Indice',
   aiTocPagesChanged: '{count} numero/i di pagina aggiornato/i',
   aiToolNotes: 'Note controllate · {count}',

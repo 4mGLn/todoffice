@@ -78,7 +78,6 @@ export const hi = {
   aiToolFields: 'फ़ॉर्म फ़ील्ड देखे गए · {count}',
   aiToolToc: 'विषय-सूची जोड़ी · {count} शीर्षक',
   aiToolTocRefresh: 'विषय-सूची के पृष्ठ क्रमांक फिर से लिखे · {count}',
-  aiToolTocRebuild: 'विषय-सूची फिर से लिखी गई · {count} शीर्षक',
   aiTocName: 'विषय-सूची',
   aiTocPagesChanged: '{count} पृष्ठ क्रमांक अपडेट हुए',
   aiToolNotes: 'फ़ुटनोट और एंडनोट जाँचे · {count}',

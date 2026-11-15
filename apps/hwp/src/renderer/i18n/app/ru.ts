@@ -79,7 +79,6 @@ export const ru = {
   aiToolFields: 'Поля формы проверены · {count}',
   aiToolToc: 'Добавлено оглавление · заголовков: {count}',
   aiToolTocRefresh: 'Номера страниц оглавления обновлены · {count}',
-  aiToolTocRebuild: 'Оглавление переписано · заголовков: {count}',
   aiTocName: 'Оглавление',
   aiTocPagesChanged: 'Обновлено номеров страниц: {count}',
   aiToolNotes: 'Проверены сноски · {count}',

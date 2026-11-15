@@ -81,7 +81,6 @@ export const de = {
   aiToolFields: 'Formularfelder geprüft · {count}',
   aiToolToc: 'Inhaltsverzeichnis eingefügt · {count} Überschriften',
   aiToolTocRefresh: 'Seitenzahlen des Inhaltsverzeichnisses neu geschrieben · {count}',
-  aiToolTocRebuild: 'Inhaltsverzeichnis neu geschrieben · {count} Überschriften',
   aiTocName: 'Inhaltsverzeichnis',
   aiTocPagesChanged: '{count} Seitenzahl(en) aktualisiert',
   aiToolNotes: 'Fuß- und Endnoten geprüft · {count}',

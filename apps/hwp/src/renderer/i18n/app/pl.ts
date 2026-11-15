@@ -78,7 +78,6 @@ export const pl = {
   aiToolFields: 'Sprawdzono pola formularza · {count}',
   aiToolToc: 'Dodano spis treści · nagłówki: {count}',
   aiToolTocRefresh: 'Przepisano numery stron spisu treści · {count}',
-  aiToolTocRebuild: 'Spis treści przepisany · nagłówków: {count}',
   aiTocName: 'Spis treści',
   aiTocPagesChanged: 'Zaktualizowano numery stron: {count}',
   aiToolNotes: 'Sprawdzono przypisy · {count}',

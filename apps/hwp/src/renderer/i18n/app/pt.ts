@@ -80,7 +80,6 @@ export const pt = {
   aiToolFields: 'Campos de formulário verificados · {count}',
   aiToolToc: 'Sumário adicionado · {count} títulos',
   aiToolTocRefresh: 'Números de página do sumário reescritos · {count}',
-  aiToolTocRebuild: 'Sumário reescrito · {count} títulos',
   aiTocName: 'Sumário',
   aiTocPagesChanged: '{count} número(s) de página atualizado(s)',
   aiToolNotes: 'Notas verificadas · {count}',

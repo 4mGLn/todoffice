@@ -81,7 +81,6 @@ export const es = {
   aiToolFields: 'Campos de formulario revisados · {count}',
   aiToolToc: 'Se añadió un índice · {count} títulos',
   aiToolTocRefresh: 'Se reescribieron los números de página del índice · {count}',
-  aiToolTocRebuild: 'Índice reescrito · {count} títulos',
   aiTocName: 'Índice',
   aiTocPagesChanged: '{count} número(s) de página actualizado(s)',
   aiToolNotes: 'Notas revisadas · {count}',

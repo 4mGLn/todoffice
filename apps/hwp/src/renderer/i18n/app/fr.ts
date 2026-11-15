@@ -80,7 +80,6 @@ export const fr = {
   aiToolFields: 'Champs de formulaire vérifiés · {count}',
   aiToolToc: 'Table des matières ajoutée · {count} titres',
   aiToolTocRefresh: 'Numéros de page de la table réécrits · {count}',
-  aiToolTocRebuild: 'Table des matières réécrite · {count} titres',
   aiTocName: 'Table des matières',
   aiTocPagesChanged: '{count} numéro(s) de page mis à jour',
   aiToolNotes: 'Notes vérifiées · {count}',

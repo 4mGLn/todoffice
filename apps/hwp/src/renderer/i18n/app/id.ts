@@ -78,7 +78,6 @@ export const id = {
   aiToolFields: 'Bidang formulir diperiksa · {count}',
   aiToolToc: 'Menambahkan daftar isi · {count} judul',
   aiToolTocRefresh: 'Menulis ulang nomor halaman daftar isi · {count}',
-  aiToolTocRebuild: 'Daftar isi ditulis ulang · {count} judul',
   aiTocName: 'Daftar isi',
   aiTocPagesChanged: '{count} nomor halaman diperbarui',
   aiToolNotes: 'Memeriksa catatan kaki dan catatan akhir · {count}',

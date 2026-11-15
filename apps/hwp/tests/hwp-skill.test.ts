@@ -2297,36 +2297,19 @@ describe('a table of contents', () => {
   it('writes the page numbers again and lists the rows that changed', async () => {
     const { bridge, call, changes } = setup()
     const result = await call('refresh_toc', { title: '차 례' })
-    expect(bridge.refreshToc).toHaveBeenCalledWith('차 례', null, null)
+    expect(bridge.refreshToc).toHaveBeenCalledWith('차 례', null)
     expect(result.output).toBe('1 of 2 page number(s) changed.')
     expect(changes[0]).toMatchObject({ kind: 'cells', from: '차 례', count: 1 })
   })
 
-  it('writes the rows anew from entries and says it is the same table', async () => {
-    const { bridge, call } = setup({
-      refreshToc: vi.fn(async () => ({
-        ok: true as const,
-        rebuilt: true as const,
-        count: 3,
-        pages: [1, 2, 4],
-        table: 2,
-        place: PLACE,
-      })),
-    })
-    const entries = [
-      { find: 'Ⅰ. 개요', level: 1 },
-      { find: 'Ⅱ. 결과', level: 1 },
-      { find: 'Ⅲ. 향후 계획', level: 1, occurrence: 2 },
-    ]
-    const result = await call('refresh_toc', { title: '차 례', entries })
-    expect(bridge.refreshToc).toHaveBeenCalledWith('차 례', null, entries)
-    expect(result.output).toBe(
-      'Wrote the table of contents again with 3 heading(s), on pages 1, 2, 4. It is still table 2.',
-    )
-    expect(result.mutated).toBe(true)
+  it('takes no entries for refresh_toc: it writes page numbers only', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'refresh_toc')
+    expect(Object.keys(tool?.inputSchema.properties ?? {})).toEqual(['title', 'occurrence'])
+    expect(tool?.description).toContain('delete_table the table and call insert_toc again')
   })
 
-  it('refuses a second table of contents and points to refresh_toc', async () => {
+  it('refuses a second table of contents and says how to make it anew', async () => {
     const { call } = setup({
       insertToc: async () => ({
         ok: false as const,
@@ -2339,7 +2322,7 @@ describe('a table of contents', () => {
     const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
     expect(result.isError).toBe(true)
     expect(result.output).toBe(
-      'Nothing was changed: the document has a table of contents already (table 1, under the line "차 례"). To change its headings, call refresh_toc with its title line and the entries; it writes the rows anew in the same place.',
+      'Nothing was changed: the document has a table of contents already (table 1, under the line "차 례"). refresh_toc with that title line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc with anchor "차 례", where after and no title, so that the line stays its title.',
     )
   })
 
@@ -2360,23 +2343,20 @@ describe('a table of contents', () => {
     )
   })
 
-  it('leaves a table that is no table of contents alone and says what it found', async () => {
+  it('leaves a table after a line that is not 차례 or 목차 alone and says so', async () => {
     const { call } = setup({
       refreshToc: async () => ({
         ok: false as const,
         reason: 'not_toc' as const,
         count: 0,
         table: 2,
-        found: { row: 1, heading: '성명', page: '소속', why: 'page' as const },
+        title: '구성원 수',
       }),
     })
-    const result = await call('refresh_toc', {
-      title: '참석자 명단',
-      entries: [{ find: '안건', level: 1 }],
-    })
+    const result = await call('refresh_toc', { title: '구성원 수' })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain(
-      'table 2 follows that line, but it is not a table of contents (row 1 reads "성명" | "소속", and "소속" is not a page number)',
+    expect(result.output).toBe(
+      'Nothing was changed: table 2 follows the line "구성원 수", which is not a 차례 or 목차 line, so it is not taken for a table of contents and stays as it is. refresh_toc writes page numbers only into the two-column table right after a 차례 or 목차 line (spaces aside).',
     )
   })
 

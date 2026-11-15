@@ -73,7 +73,6 @@ export const zhTW = {
   aiToolFields: '已查看表單欄位 · {count} 個',
   aiToolToc: '新增了目錄 · {count} 個標題',
   aiToolTocRefresh: '重新寫了目錄頁碼 · {count}',
-  aiToolTocRebuild: '重寫目錄 · {count} 個標題',
   aiTocName: '目錄',
   aiTocPagesChanged: '{count} 處頁碼已更新',
   aiToolNotes: '檢查了註腳和章節附註 · {count}',

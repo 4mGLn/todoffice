@@ -79,7 +79,6 @@ export const cs = {
   aiToolFields: 'Pole formuláře zkontrolována · {count}',
   aiToolToc: 'Přidán obsah · nadpisů: {count}',
   aiToolTocRefresh: 'Přepsána čísla stran obsahu · {count}',
-  aiToolTocRebuild: 'Obsah přepsán · nadpisů: {count}',
   aiTocName: 'Obsah',
   aiTocPagesChanged: 'Aktualizováno čísel stran: {count}',
   aiToolNotes: 'Zkontrolovány poznámky · {count}',

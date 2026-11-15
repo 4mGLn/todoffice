@@ -232,7 +232,7 @@ describe('the look of a table of contents', () => {
   })
 })
 
-describe('a second table of contents and new headings', () => {
+describe('a second table of contents', () => {
   it('refuses a second table of contents and names the one there', () => {
     const { plugin, steps } = open()
     plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 2))
@@ -246,104 +246,43 @@ describe('a second table of contents and new headings', () => {
     expect(steps()).toBe(1)
   })
 
-  it('writes the rows anew from entries, a chapter added at the end, and keeps one table', () => {
-    const { plugin, doc } = open()
-    plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 4))
-    const last = doc().getParagraphCount(0) - 1
-    doc().splitParagraph(0, last, doc().getParagraphLength(0, last))
-    doc().insertText(0, last + 1, 0, '5. 향후 계획')
-    const result = plugin.refreshToc('차 례', null, [
-      ...ENTRIES.slice(0, 4),
-      { find: '향후 계획', level: 1 },
-    ])
-    expect(result).toMatchObject({ ok: true, rebuilt: true, count: 5, table: 1 })
-    const table = plugin.readTable(1)
-    if (!table.ok) throw new Error('no table')
-    expect(plugin.listTables().tables).toHaveLength(1)
-    const headings = table.cells.filter((cell) => cell.col === 1).map((cell) => cell.text)
-    expect(headings).toEqual([
-      '1. 장 제목 1',
-      '1.1 절 제목 1',
-      '2. 장 제목 2',
-      '2.1 절 제목 2',
-      '5. 향후 계획',
-    ])
-    const pages = table.cells.filter((cell) => cell.col === 2).map((cell) => Number(cell.text))
-    expect(pages.at(-1)).toBe(pageOf(doc(), '5. 향후 계획'))
-    expect(cellLook(doc(), 2, 8).style).toBe('차례 1')
-  })
-
-  it('names a new heading it cannot find and changes nothing', () => {
+  it('still refuses it once a heading was renamed', () => {
     const { plugin, steps } = open()
     plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 2))
-    expect(plugin.refreshToc('차 례', null, [{ find: '없는 장', level: 1 }])).toMatchObject({
-      ok: false,
-      reason: 'no_heading',
-      why: 'not_found',
-    })
-    expect(steps()).toBe(1)
-  })
-})
-
-function withUserTable(rows: string[][], header = false) {
-  const doc = HwpDocument.createEmpty()
-  doc.createBlankDocument()
-  const lines = ['보고서', 'Ⅰ. 개요', '평가 비율은 다음과 같다.', 'Ⅱ. 결과', '결과 본문이다.']
-  lines.forEach((line, k) => {
-    if (k > 0) doc.splitParagraph(0, k - 1, doc.getParagraphLength(0, k - 1))
-    doc.insertText(0, k, 0, line)
-  })
-  const opened = open(doc)
-  opened.plugin.insertTable('평가 비율은', null, 'after', rows, header)
-  return opened
-}
-
-const TWO = [
-  { find: 'Ⅰ. 개요', level: 1 },
-  { find: 'Ⅱ. 결과', level: 1 },
-]
-
-describe('telling a table of contents from a table of the user', () => {
-  it('takes a two-column table of numbers without lines for no table of contents', () => {
-    const { plugin, doc, steps } = withUserTable([
-      ['출석', '10'],
-      ['과제', '20'],
-      ['시험', '70'],
-    ])
-    plugin.formatCells(1, null, { borders: [{ sides: 'all', line: 'none' }] })
-    const was = doc().exportHwp()
+    expect(plugin.replaceText('장 제목 1', '개요와 배경', 2)).toMatchObject({ ok: true })
     const before = steps()
-    expect(plugin.refreshToc('평가 비율은', null, TWO)).toEqual({
-      ok: false,
-      reason: 'not_toc',
-      count: 0,
-      table: 1,
-      found: { row: 1, heading: '출석', page: '10', why: 'heading' },
-    })
-    expect([steps(), doc().exportHwp()]).toEqual([before, was])
-    expect(plugin.insertToc('보고서', null, 'after', '차 례', TWO)).toMatchObject({
-      ok: true,
-      table: 1,
-    })
+    expect(
+      plugin.insertToc('보고서 제목', null, 'after', '목 차', [
+        { find: '1. 개요와 배경', level: 1 },
+      ]),
+    ).toMatchObject({ ok: false, reason: 'toc_exists', table: 1, title: '차 례' })
+    expect(steps()).toBe(before)
   })
 
-  it('leaves a table with lines and a header under the named line alone', () => {
-    const { plugin, doc, steps } = withUserTable(
-      [
-        ['성명', '소속'],
-        ['김하늘', '교무부'],
-      ],
-      true,
-    )
-    const was = doc().exportHwp()
-    const before = steps()
-    expect(plugin.refreshToc('평가 비율은', null, TWO)).toMatchObject({
-      ok: false,
-      reason: 'not_toc',
-      table: 1,
-      found: { row: 1, heading: '성명', page: '소속', why: 'page' },
-    })
-    expect([steps(), doc().exportHwp()]).toEqual([before, was])
+  it('still refuses it when a heading holds a tab or two spaces', () => {
+    for (const heading of ['Ⅰ.\t개요', 'Ⅰ.  개요']) {
+      const doc = HwpDocument.createEmpty()
+      doc.createBlankDocument()
+      ;['보고서', heading, '개요 본문이다.', 'Ⅱ. 결과', '결과 본문이다.'].forEach((line, k) => {
+        if (k > 0) doc.splitParagraph(0, k - 1, doc.getParagraphLength(0, k - 1))
+        doc.insertText(0, k, 0, line)
+      })
+      const { plugin, steps } = open(doc)
+      const entries = [
+        { find: heading, level: 1 },
+        { find: 'Ⅱ. 결과', level: 1 },
+      ]
+      expect(plugin.insertToc('보고서', null, 'after', '차 례', entries)).toMatchObject({
+        ok: true,
+      })
+      const before = steps()
+      expect(plugin.insertToc('결과 본문', null, 'after', '목 차', entries)).toMatchObject({
+        ok: false,
+        reason: 'toc_exists',
+        table: 1,
+      })
+      expect(steps()).toBe(before)
+    }
   })
 
   it('still knows its table of contents once its lines and a page cell were changed', () => {
@@ -359,7 +298,6 @@ describe('telling a table of contents from a table of the user', () => {
       title: '차 례',
     })
     expect(steps()).toBe(before)
-    expect(plugin.refreshToc('차 례', null, TWO)).toMatchObject({ ok: true, rebuilt: true })
   })
 
   it('refuses a second contents where Hangul wrote them as lines with a tab to the page', () => {
@@ -377,5 +315,109 @@ describe('telling a table of contents from a table of the user', () => {
       title: '차 례',
     })
     expect(steps()).toBe(before)
+  })
+
+  it('makes the contents anew after the old table was removed, under the same title line', () => {
+    const { plugin, doc } = open()
+    plugin.insertToc('보고서 제목', null, 'after', '차 례', ENTRIES.slice(0, 2))
+    expect(plugin.deleteTable(1)).toMatchObject({ ok: true })
+    expect(plugin.insertToc('차 례', null, 'after', null, ENTRIES.slice(0, 4))).toMatchObject({
+      ok: true,
+      table: 1,
+      tables: 1,
+    })
+    const table = plugin.readTable(1)
+    if (!table.ok) throw new Error('no table')
+    expect(table.cells.filter((cell) => cell.col === 1).map((cell) => cell.text)).toEqual([
+      '1. 장 제목 1',
+      '1.1 절 제목 1',
+      '2. 장 제목 2',
+      '2.1 절 제목 2',
+    ])
+    expect(doc().getTextRange(0, 1, 0, 3)).toBe('차 례')
+  })
+})
+
+function withUserTable(rows: string[][], header = false, line = '평가 비율은 다음과 같다.') {
+  const doc = HwpDocument.createEmpty()
+  doc.createBlankDocument()
+  const lines = ['보고서', 'Ⅰ. 개요', line, 'Ⅱ. 결과', '결과 본문이다.']
+  lines.forEach((text, k) => {
+    if (k > 0) doc.splitParagraph(0, k - 1, doc.getParagraphLength(0, k - 1))
+    doc.insertText(0, k, 0, text)
+  })
+  const opened = open(doc)
+  opened.plugin.insertTable(line, null, 'after', rows, header)
+  return opened
+}
+
+const TWO = [
+  { find: 'Ⅰ. 개요', level: 1 },
+  { find: 'Ⅱ. 결과', level: 1 },
+]
+
+describe('telling a table of contents from a table of the user', () => {
+  it('leaves a count table whose first cells start body paragraphs alone', () => {
+    const { plugin, doc, steps } = withUserTable(
+      [
+        ['Ⅰ. 개요', '328'],
+        ['Ⅱ. 결과', '24'],
+      ],
+      false,
+      '구성원 수',
+    )
+    const was = doc().exportHwp()
+    const before = steps()
+    expect(plugin.refreshToc('구성원 수', null)).toEqual({
+      ok: false,
+      reason: 'not_toc',
+      count: 0,
+      table: 1,
+      title: '구성원 수',
+    })
+    expect([steps(), doc().exportHwp()]).toEqual([before, was])
+    // the headings occur in the count table too, which stands between them
+    const body = [
+      { ...TWO[0], occurrence: 1 },
+      { ...TWO[1], occurrence: 2 },
+    ]
+    expect(plugin.insertToc('보고서', null, 'after', '차 례', body)).toMatchObject({
+      ok: true,
+      table: 1,
+      tables: 2,
+    })
+  })
+
+  it('takes a two-column table of numbers without lines for no table of contents', () => {
+    const { plugin, doc, steps } = withUserTable([
+      ['출석', '10'],
+      ['과제', '20'],
+      ['시험', '70'],
+    ])
+    plugin.formatCells(1, null, { borders: [{ sides: 'all', line: 'none' }] })
+    const was = doc().exportHwp()
+    const before = steps()
+    expect(plugin.refreshToc('평가 비율은', null)).toMatchObject({
+      ok: false,
+      reason: 'not_toc',
+      table: 1,
+    })
+    expect([steps(), doc().exportHwp()]).toEqual([before, was])
+    expect(plugin.insertToc('보고서', null, 'after', '차 례', TWO)).toMatchObject({
+      ok: true,
+      table: 1,
+    })
+  })
+
+  it('takes no table under a 차례 line for contents unless its second column holds pages', () => {
+    const { plugin } = withUserTable(
+      [
+        ['성명', '소속'],
+        ['김하늘', '교무부'],
+      ],
+      true,
+      '차례',
+    )
+    expect(plugin.insertToc('보고서', null, 'after', '목 차', TWO)).toMatchObject({ ok: true })
   })
 })
