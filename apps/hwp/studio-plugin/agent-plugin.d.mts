@@ -128,6 +128,8 @@ export interface AgentCellLook {
   /** in order: a later rule goes over an earlier one */
   borders?: AgentBorderRule[]
   verticalAlign?: 'top' | 'middle' | 'bottom'
+  /** the share of the table's width each column takes, one positive number per column */
+  columnWidths?: number[]
 }
 
 /** A block of cells from its top left to its bottom right corner, rows and columns from 1. */
@@ -254,8 +256,8 @@ export type AgentTitleBoxResult =
       standIn?: AgentStandInFont[]
     }
   | AgentPlaceRefusal
-  /** the title is inside a table cell, where a box cannot be made */
-  | { ok: false; reason: 'in_table'; count: number }
+  /** the title is inside a table cell, where a box cannot be made: `table` is its number */
+  | { ok: false; reason: 'in_table'; count: number; table?: number }
 
 /** Which fonts Korean documents use this PC has and lacks; both are empty when that is not known. */
 export interface AgentDocumentFonts {
@@ -673,8 +675,14 @@ export type AgentFormatCellsResult =
       standIn?: AgentStandInFont[]
       /** cells (rows and columns from 1) whose text the diagonal that was drawn runs through */
       crossed?: { row: number; col: number }[]
+      /** the widths of the columns now, in millimetres, when columnWidths was given */
+      columnWidthsMm?: number[]
     }
   | { ok: false; reason: 'no_such_table'; count: number }
+  /** columnWidths does not give one number for each of the `cols` columns */
+  | { ok: false; reason: 'column_count'; cols: number }
+  /** a column is covered only by merged cells, so its width cannot be read */
+  | { ok: false; reason: 'merged_columns'; cols: number }
   | { ok: false; reason: 'unsupported_place'; count: number }
   | {
       ok: false
@@ -1259,6 +1267,28 @@ export type AgentFormatLookResult =
   | { ok: false; reason: 'has_objects'; count: number }
   | AgentMemoRemovalRefusal
 
+/** An equation of the body text: its number, the words on either side of it, its script. */
+export interface AgentListedEquation {
+  equation: number
+  before: string
+  after: string
+  /** the start of the paragraph before, where the words round the equation say little */
+  previous?: string
+  script: string
+}
+
+export interface AgentEquationList {
+  count: number
+  /** equations inside table cells, notes or text boxes, which these tools do not reach */
+  elsewhere: number
+  equations: AgentListedEquation[]
+}
+
+export type AgentEditEquationResult =
+  /** `was` is the script the equation had */
+  | { ok: true; removed: boolean; was: string; place: AgentPlace }
+  | { ok: false; reason: 'no_such_equation'; count: number }
+
 export interface AgentNoteList {
   count: number
   /** notes inside table cells or text boxes, which have no address here */
@@ -1455,6 +1485,13 @@ export type AgentInsertTocResult =
       count: number
       matches?: AgentMatch[]
     }
+  /**
+   * contents insertToc made in this document are there: table `table`, `title` when the
+   * paragraph right above it is a line of text, `first` when it is the first paragraph of the document
+   */
+  | { ok: false; reason: 'toc_exists'; count: number; table: number; title?: string; first?: true }
+  /** a 차례 or 목차 line `title` has Hangul's contents of tab lines under it already */
+  | { ok: false; reason: 'toc_exists'; count: number; lines: true; title: string }
 
 export type AgentRefreshTocResult =
   | {
@@ -1645,6 +1682,14 @@ export interface AgentPluginSurface {
     options?: AgentChangeOptions,
   ): AgentRefreshTocResult
   listNotes(): AgentNoteList
+  /** the equations of the body text, numbered for editEquation */
+  listEquations(): AgentEquationList
+  /** a new script for an equation of listEquations, or null to remove it */
+  editEquation(
+    equation: number,
+    script: string | null,
+    options?: AgentChangeOptions,
+  ): AgentEditEquationResult
   insertNote(
     kind: AgentNoteKind,
     anchor: string,

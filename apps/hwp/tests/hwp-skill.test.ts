@@ -851,7 +851,7 @@ describe('insert_paragraphs', () => {
       paragraphs: ['x'],
     })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain('a table, a picture or a form field')
+    expect(result.output).toContain('a table, a picture, an equation or a form field')
     expect(result.summary).toBe('aiToolNotDone:{"what":"제목"}')
     expect(changes).toEqual([])
   })
@@ -1519,6 +1519,34 @@ describe('format_cells', () => {
     expect(result.output).toContain('2 row(s) and 2 column(s)')
     expect(result.output).toContain('5.1')
     expect(changes).toEqual([])
+  })
+
+  it('sets the column widths of a table and says how wide they came out', async () => {
+    const { call, changes, bridge } = setup({
+      formatCells: vi.fn(async () => ({
+        ok: true as const,
+        count: 6,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+        columnWidthsMm: [25.1, 25.1, 100.6],
+      })),
+    })
+    const result = await call('format_cells', { table: 2, column_widths: [1, 1, 4] })
+    expect(bridge.formatCells).toHaveBeenCalledWith(2, null, { columnWidths: [1, 1, 4] })
+    expect(result.output).toMatch(
+      /^Set the column widths of table 2\. Its columns are now 25\.1, 25\.1, 100\.6 mm wide, from the left\./,
+    )
+    expect(changes[0]).toMatchObject({ kind: 'format', to: 'aiFmtColumnWidths' })
+  })
+
+  it('says how many widths a table takes', async () => {
+    const { call } = setup({
+      formatCells: async () => ({ ok: false as const, reason: 'column_count' as const, cols: 3 }),
+    })
+    const result = await call('format_cells', { table: 2, column_widths: [1, 2] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: table 2 has 3 column(s), so column_widths takes 3 number(s), one for each.',
+    )
   })
 
   it('refuses a call without cells before asking the editor', async () => {
@@ -2274,6 +2302,86 @@ describe('a table of contents', () => {
     expect(changes[0]).toMatchObject({ kind: 'cells', from: '차 례', count: 1 })
   })
 
+  it('takes no entries for refresh_toc: it writes page numbers only', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'refresh_toc')
+    expect(Object.keys(tool?.inputSchema.properties ?? {})).toEqual(['title', 'occurrence'])
+    expect(tool?.description).toContain('delete_table the table and call insert_toc again')
+  })
+
+  it('refuses a second table of contents and says how to make it anew', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+        title: '차 례',
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1, under the line "차 례"), made by insert_toc. refresh_toc with that line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc with anchor "차 례", where after and no title, so that the line stays above it.',
+    )
+  })
+
+  it('refuses a second table of contents at the start of the document', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc again where it was.',
+    )
+  })
+
+  it('says that an empty first line stays when the contents are made anew at the start', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+        first: true,
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc again where it was. Table 1 is the first paragraph of the document: delete_table leaves an empty first line, which stays above the new contents. No tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor.',
+    )
+  })
+
+  it('says that contents made before the document was opened are not known', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'insert_toc')
+    expect(tool?.description).toContain(
+      'Contents made before the document was last opened are not known',
+    )
+  })
+
+  it('refuses contents next to the lines of contents Hangul made', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        lines: true as const,
+        title: '목 차',
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: the document has contents already, made in Hangul as lines ending in a tab and a page number, under the line "목 차". They cannot be written again here; tell the user, who updates them in Hangul.',
+    )
+  })
+
   it('says when no table of contents follows the line', async () => {
     const { call } = setup({
       refreshToc: async () => ({ ok: false as const, reason: 'no_toc' as const, count: 0 }),
@@ -2281,6 +2389,82 @@ describe('a table of contents', () => {
     const result = await call('refresh_toc', { title: '차 례' })
     expect(result.isError).toBe(true)
     expect(result.output).toContain('no table of contents follows')
+  })
+})
+
+describe('equations', () => {
+  it('names in list_equations which lines count as questions and which as choices', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'list_equations')
+    expect(tool?.description).toContain('(1., 1), (1), 가., (가), 문 1), whatever it holds after')
+    expect(tool?.description).toContain(
+      '(1) after 1), (1) after (1), 1. after 1.) is the next question',
+    )
+    expect(tool?.description).toContain('A line that begins with Ⅰ. or Ⅱ. starts a part')
+  })
+
+  it('lists the equations with the words round them', async () => {
+    const { call } = setup({
+      listEquations: vi.fn(async () => ({
+        count: 3,
+        elsewhere: 1,
+        equations: [
+          { equation: 1, before: '넓이는 ', after: ' 이다.', script: 'x^2' },
+          { equation: 2, before: '비는\t', after: ' 이다.', script: '{a} over {b}' },
+          { equation: 3, before: '① ', after: '', previous: '1. 다음 중 근은?', script: 'x=1' },
+        ],
+      })),
+    })
+    const result = await call('list_equations', {})
+    expect(result.output).toBe(
+      [
+        '1. (in "넓이는 … 이다.") x^2',
+        '2. (in "비는 … 이다.") {a} over {b}',
+        '3. (in "① …", under "1. 다음 중 근은?") x=1',
+        '1 more equation(s) sit inside table cells, notes or text boxes, which these tools cannot reach.',
+      ].join('\n'),
+    )
+    expect(result.summary).toBe('aiToolEquations:{"count":3}')
+  })
+
+  it('changes the script of an equation, or removes it', async () => {
+    const editEquation = vi.fn(async (_number: number, script: string | null) => ({
+      ok: true as const,
+      removed: script === null,
+      was: '{a} over {b}',
+      place: PLACE,
+    }))
+    const { call, changes } = setup({ editEquation })
+    const changed = await call('edit_equation', { equation: 2, script: '{1} over {2}' })
+    expect(editEquation).toHaveBeenCalledWith(2, '{1} over {2}')
+    expect(changed.output).toBe('Changed equation 2 from {a} over {b} to {1} over {2}.')
+    expect(changed.mutated).toBe(true)
+    const removed = await call('edit_equation', { equation: 2, remove: true })
+    expect(editEquation).toHaveBeenLastCalledWith(2, null)
+    expect(removed.output).toBe(
+      'Removed equation 2 ({a} over {b}). Equations after it are numbered one lower.',
+    )
+    expect(changes.map((change) => change.kind)).toEqual(['replace', 'delete'])
+  })
+
+  it('refuses LaTeX, a script with remove, and a number the body has not', async () => {
+    const { call, bridge } = setup({
+      editEquation: vi.fn(async () => ({
+        ok: false as const,
+        reason: 'no_such_equation' as const,
+        count: 3,
+      })),
+    })
+    const latex = await call('edit_equation', { equation: 1, script: String.raw`\frac{1}{2}` })
+    expect(latex.isError).toBe(true)
+    expect(latex.output).toContain('LaTeX')
+    const both = await call('edit_equation', { equation: 1, script: 'x', remove: true })
+    expect(both.isError).toBe(true)
+    expect(bridge.editEquation).not.toHaveBeenCalled()
+    const missing = await call('edit_equation', { equation: 7, script: 'x' })
+    expect(missing.output).toBe(
+      'There is no equation 7: the body text has 3. Call list_equations for the numbers.',
+    )
   })
 })
 
@@ -2993,17 +3177,28 @@ describe('the look of a document', () => {
     ).toContain('The text colour was left as it was')
   })
 
-  it('says why a title box could not be made', async () => {
+  it('says why a title box could not be made, naming the table and the way to change it', async () => {
     const { call } = setup({
       insertTitleBox: vi.fn(async () => ({
         ok: false as const,
         reason: 'in_table' as const,
         count: 1,
+        table: 3,
       })),
     })
     const result = await call('insert_title_box', { find: '운영 계획' })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain('inside a table cell')
+    expect(result.output).toBe(
+      'Nothing was changed: that text is inside table 3, which is kept as it is. A title box is made only from a paragraph of the body text, and no table is drawn again as one: the document does not tell which tables insert_title_box made. To change the lines or fill of table 3, use format_cells. Only when you made this box with insert_title_box earlier in this conversation and the user asked for another look of it: delete_table 3 (its words go with it), put the title back as a new paragraph where the box was, and call insert_title_box on it. The new paragraph goes after the line above the box (insert_paragraphs where after, its anchor text of that line), or, when the box was the first paragraph of the document, before the line below it (where before). An anchor inside a table puts the paragraph into a cell of that table: when the line on that side is a table, tell the user instead. Where the box was the first paragraph, delete_table leaves an empty first line, which stays above the new box: no tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor. Anywhere else no line is left behind.',
+    )
+  })
+
+  it('lets delete_table go only where the user asked, a new look of a box made here included', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'delete_table')
+    expect(tool?.description).toContain(
+      'Use it only when the user asked for it, or asked for another look of a title box or table of contents you made in this conversation, which you then make again.',
+    )
   })
 
   it('numbers the pages and writes a footer', async () => {
@@ -3535,6 +3730,8 @@ describe('the skill as the model sees it', () => {
       'insert_break',
       'set_page_border',
       'insert_equations',
+      'list_equations',
+      'edit_equation',
       'set_page_number',
       'set_header_footer',
       'read_formatting',

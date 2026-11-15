@@ -251,7 +251,7 @@ const SYSTEM_PROMPT = [
   '- Make one only when the user asks. Pick the headings from the text: the lines that open the parts of the document, in order (for example Ⅰ./1./가. or □ at the start, or short title lines). Level 1 for the top parts, 2 and 3 for the parts inside them; leave out body lines.',
   '- Name each heading by text it contains, as short as is unambiguous (pass occurrence when it occurs more than once). The table shows the whole heading line and finds its page itself: never type page numbers.',
   '- Put it where the user says; otherwise after the title or cover of the document. Give it the title the user uses, or 차 례 for a Korean document.',
-  '- After changes that move text between pages, or when the user asks, call refresh_toc with the title of the table of contents.',
+  '- After changes that move text between pages, or when the user asks, call refresh_toc with the title of the table of contents. It writes page numbers only. When the user wants headings added, renamed or removed in it: delete_table that table, then insert_toc after its title line with no title.',
   '',
   '## Footnotes and endnotes',
   '- A footnote explains or gives the source of the words it follows and shows at the foot of the page; an endnote does the same at the end of the document. Use the kind the user asks for; when they do not say, use a footnote, and use endnotes where the document already has them.',
@@ -618,7 +618,10 @@ const TOOLS: HwpToolDef[] = [
       type: 'object',
       properties: {
         find: { type: 'string', description: 'the exact text to replace, within one paragraph' },
-        replace: { type: 'string', description: 'the new text, one line' },
+        replace: {
+          type: 'string',
+          description: 'the new text, one line (a tab in it stays a tab)',
+        },
         occurrence: { type: 'integer' },
       },
       required: ['find', 'replace'],
@@ -632,7 +635,10 @@ const TOOLS: HwpToolDef[] = [
       type: 'object',
       properties: {
         find: { type: 'string', description: 'the exact text to replace, within one paragraph' },
-        replace: { type: 'string', description: 'the new text, one line' },
+        replace: {
+          type: 'string',
+          description: 'the new text, one line (a tab in it stays a tab)',
+        },
       },
       required: ['find', 'replace'],
     },
@@ -682,7 +688,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_table',
     edits: true,
     description:
-      'Add a table after or before the paragraph that contains the anchor text, or at the end of the document. Cells are plain one-line text; short rows are padded with empty cells. The table takes the font of that paragraph. It cannot be put inside a cell of another table.',
+      'Add a table after or before the paragraph that contains the anchor text, or at the end of the document. Cells are plain one-line text; short rows are padded with empty cells. The table takes the font and size of the paragraph it follows when that is plain body text (no heading, not bold) in the size most body text has; otherwise the font and size most characters of the body have, headings and bold paragraphs left out; in a document of headings and bold lines only, that of most text that is not bold, else that of the paragraph it follows. It cannot be put inside a cell of another table.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -717,14 +723,17 @@ const TOOLS: HwpToolDef[] = [
         align: {
           type: 'string',
           enum: ['left', 'center', 'right'],
-          description: 'alignment of the body cells; the header row is centred anyway',
+          description:
+            'alignment of the body cells, default left; the header row is centred anyway',
         },
         size: {
           type: 'number',
-          description:
-            'font size of the table text in points; default that of the paragraph it is put next to, so name it when that paragraph is a heading',
+          description: 'font size of the table text in points; default as the description says',
         },
-        font: { type: 'string', description: 'font of the table text; default as for size' },
+        font: {
+          type: 'string',
+          description: 'font of the table text; default as the description says',
+        },
         width_percent: {
           type: 'number',
           description:
@@ -809,7 +818,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_title_box',
     edits: true,
     description:
-      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. One undo step.',
+      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. Text inside a table is refused, a title box made before included: a box is never drawn again in place. One undo step.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1161,6 +1170,12 @@ const TOOLS: HwpToolDef[] = [
           type: 'number',
           description: 'height of the rows of the cells in millimetres, 3 to 250',
         },
+        column_widths: {
+          type: 'array',
+          items: { type: 'number' },
+          description:
+            'the share of the width each column of the whole table takes, one positive number per column, as insert_table takes it: widen the column whose text wraps, narrow a column of short labels. The table keeps its width',
+        },
         diagonal: {
           type: 'string',
           enum: ['down', 'up', 'both', 'none'],
@@ -1317,7 +1332,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'delete_table',
     edits: true,
     description:
-      'Remove a whole table with what is in it, the tables inside its cells included. Use it only when the user asked for it. A table with a picture in a cell is not removed. The table numbers after it go down by one and more: call list_tables again before the next table call.',
+      'Remove a whole table with what is in it, the tables inside its cells included. Use it only when the user asked for it, or asked for another look of a title box or table of contents you made in this conversation, which you then make again. A table with a picture in a cell is not removed. The table numbers after it go down by one and more: call list_tables again before the next table call.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1351,7 +1366,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_toc',
     edits: true,
     description:
-      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document.',
+      'Add a table of contents: an optional title line, then a row per heading with its page number, next to the paragraph anchor occurs in (where after or before), or at the end of the document. Refused when the document has contents already: a table insert_toc made since the document was opened whose heading column is as it wrote it, or lines Hangul made under a 차례 or 목차 line, each ending in a tab and a page number. Contents made before the document was last opened are not known: read the document before you add contents to it.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1368,7 +1383,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'refresh_toc',
     edits: true,
     description:
-      'Write the page numbers of a table of contents again, after the document changed. Pass the text of its title line.',
+      'Write the page numbers of a table of contents again, after the document changed. Pass the text of the line right above it, its title line when it has one: the two-column table right after that line is written, each row whose heading is found in the body. It writes page numbers only: for headings added, renamed or removed, delete_table the table and call insert_toc again.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1620,6 +1635,28 @@ const TOOLS: HwpToolDef[] = [
         },
       },
       required: ['equations'],
+    },
+  },
+  {
+    name: 'list_equations',
+    edits: false,
+    description:
+      'List the equations (수식) of the body text in reading order: their number in this list (what edit_equation takes), the words in front of each and after it, and its script. Where those words are only a choice number or a few letters, also the start of the nearest question line above in the same section: a line that begins with a question number (1., 1), (1), 가., (가), 문 1), whatever it holds after. A line numbered in the style of a question above it (1) after 1), (1) after (1), 1. after 1.) is the next question. A line that begins with a circled number is a choice, and so is one that begins with 1) or (1) in another style right after a question or such a choice. A line that begins with Ⅰ. or Ⅱ. starts a part of the paper: it is no question, and no question above it is named. None when the line of the equation is a question line, or no question line is above.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'edit_equation',
+    edits: true,
+    description:
+      'Give one equation of the body text a new script, or remove it; the text round it stays as it is. Its number is from list_equations, and the script is written as for insert_equations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        equation: { type: 'integer', description: 'the equation number from list_equations' },
+        script: { type: 'string', description: 'the new script, one line' },
+        remove: { type: 'boolean', description: 'true removes the equation; give no script then' },
+      },
+      required: ['equation'],
     },
   },
   {
@@ -2293,10 +2330,25 @@ const NOT_FOUND_HELP =
   'Not found; nothing was changed. The text must match exactly (letters, spaces, punctuation) and lie inside one paragraph or one table cell. Read that part of the document again. Call find_text with a shorter piece (spaces count) to see how the document writes it. The guide text of an empty form field is not document text: use fill_field for it.'
 const IN_TABLE_HELP =
   'Nothing was changed: that paragraph is inside a table cell, and a table cannot be put inside another table here. Anchor the new table to a paragraph of the body text, or add the content to the cell as paragraphs.'
+/** The refusal of a title box for text in a table, as the model reads it. */
+function titleInTableRefusal(table: number | undefined): string {
+  const name = table === undefined ? 'that table' : `table ${table}`
+  return `Nothing was changed: that text is inside ${name}, which is kept as it is. A title box is made only from a paragraph of the body text, and no table is drawn again as one: the document does not tell which tables insert_title_box made. To change the lines or fill of ${name}, use format_cells. Only when you made this box with insert_title_box earlier in this conversation and the user asked for another look of it: delete_table ${table ?? 'it'} (its words go with it), put the title back as a new paragraph where the box was, and call insert_title_box on it. The new paragraph goes after the line above the box (insert_paragraphs where after, its anchor text of that line), or, when the box was the first paragraph of the document, before the line below it (where before). An anchor inside a table puts the paragraph into a cell of that table: when the line on that side is a table, tell the user instead. Where the box was the first paragraph, delete_table leaves an empty first line, which stays above the new box: no tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor. Anywhere else no line is left behind.`
+}
+
+/** The refusal of a script written in LaTeX, which the equation editor does not read. */
+const latexHelp = (what: string): string =>
+  `Nothing was changed: ${what} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum from {i=1} to {n}, LEFT ( ... RIGHT ).`
+
+/** Where an equation stands, as list_equations shows it: the words round it, … in its place. */
+const equationPlace = (equation: { before: string; after: string; previous?: string }): string =>
+  `${equation.before}…${equation.after}`.replace(/\s+/g, ' ') +
+  (equation.previous ? `", under "${equation.previous}` : '')
+
 const HAS_OBJECTS_HELP =
-  'Nothing was changed: a table, a picture or a form field sits in that paragraph, and the change would have moved or removed it. Use the paragraph before or after it as the anchor, or tell the user.'
+  'Nothing was changed: a table, a picture, an equation or a form field sits in that paragraph, and the change would have moved or removed it. Use the paragraph before or after it as the anchor, or tell the user. An equation can be removed first with edit_equation (its number is in list_equations).'
 const SPANS_OBJECT_ADVICE =
-  'Replace the words in front of it or the words behind it on their own, with replace_text.'
+  'Replace the words in front of it or the words behind it on their own, with replace_text; an equation itself is changed with edit_equation (list_equations shows the words round each).'
 const SPANS_OBJECT_HELP = `Nothing was changed: an equation or another object of the line (a footnote mark, a picture set in the text) stands inside the text to be replaced, and the new text has no place for it. ${SPANS_OBJECT_ADVICE}`
 const BREAK_BY_HAND =
   'Do not put the break on another paragraph instead: the page or column would turn at a different line. Tell the user that this break has to be typed in the editor in front of the paragraph, with Ctrl+Enter for a page or Ctrl+Shift+Enter for a column.'
@@ -2763,6 +2815,23 @@ function matchLines(matches: AgentMatch[], count: number): string {
   const lines = matches.map(matchLine)
   if (count > matches.length) lines.push(`(only the first ${matches.length} are listed)`)
   return lines.join('\n')
+}
+
+/** The refusal of a second table of contents, as the model reads it. */
+function tocExistsRefusal(
+  result: { table: number; title?: string; first?: true } | { lines: true; title: string },
+): string {
+  if ('lines' in result) {
+    return `Nothing was changed: the document has contents already, made in Hangul as lines ending in a tab and a page number, under the line "${result.title}". They cannot be written again here; tell the user, who updates them in Hangul.`
+  }
+  const { table, title, first } = result
+  if (!title) {
+    const start = first
+      ? ` Table ${table} is the first paragraph of the document: delete_table leaves an empty first line, which stays above the new contents. No tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor.`
+      : ''
+    return `Nothing was changed: the document has a table of contents already (table ${table}), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table ${table}, then call insert_toc again where it was.${start}`
+  }
+  return `Nothing was changed: the document has a table of contents already (table ${table}, under the line "${title}"), made by insert_toc. refresh_toc with that line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table ${table}, then call insert_toc with anchor "${title}", where after and no title, so that the line stays above it.`
 }
 
 /** Why rows or columns were not added or removed, as the model reads it. */
@@ -4379,6 +4448,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           look.verticalAlign = vertical
         }
         if (typeof call.input.row_height_mm === 'number') look.heightMm = call.input.row_height_mm
+        if (Array.isArray(call.input.column_widths)) {
+          look.columnWidths = call.input.column_widths as number[]
+        }
         const diagonal = call.input.diagonal
         if (
           diagonal === 'down' ||
@@ -4398,15 +4470,17 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (Object.keys(look).length === 0) {
           return bad(
             call,
-            'Name at least one thing to change: background, borders, vertical_align, row_height_mm, diagonal, or the text of the cells (align, bold, size, font, color).',
+            'Name at least one thing to change: background, borders, vertical_align, row_height_mm, column_widths, diagonal, or the text of the cells (align, bold, size, font, color).',
           )
         }
         const fillOnly =
           look.borders === undefined &&
           look.verticalAlign === undefined &&
           look.heightMm === undefined &&
+          look.columnWidths === undefined &&
           look.diagonal === undefined &&
           look.text === undefined
+        const widthsOnly = Object.keys(look).length === 1 && look.columnWidths !== undefined
         // a background alone goes as the string the call has always taken
         const lookArg = fillOnly && look.background !== undefined ? look.background : look
         const outcome = await changeWithMemoApproval(
@@ -4422,6 +4496,18 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             return bad(
               call,
               'Nothing was changed: that table sits inside a cell of another table, whose cells cannot be coloured here.',
+            )
+          }
+          if (result.reason === 'column_count') {
+            return bad(
+              call,
+              `Nothing was changed: table ${table} has ${result.cols} column(s), so column_widths takes ${result.cols} number(s), one for each.`,
+            )
+          }
+          if (result.reason === 'merged_columns') {
+            return bad(
+              call,
+              `Nothing was changed: a column of table ${table} lies only under merged cells, so its width cannot be read. Split those cells first, or leave the widths as they are.`,
             )
           }
           const places = result.cells.map((cell) => `${cell.row}.${cell.col}`).join(', ')
@@ -4440,6 +4526,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           look.borders ? label('aiFmtCellBorders') : '',
           look.verticalAlign ? label('aiFmtCellVAlign') : '',
           look.heightMm !== undefined ? `${label('aiFmtRowHeight')} ${look.heightMm}mm` : '',
+          look.columnWidths ? label('aiFmtColumnWidths') : '',
           look.diagonal === undefined
             ? ''
             : look.diagonal === 'none'
@@ -4458,7 +4545,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           output:
             (fillOnly
               ? `Coloured ${result.count} cell(s): ${where}.`
-              : `Formatted ${result.count} cell(s): ${where}.`) +
+              : widthsOnly
+                ? `Set the column widths of table ${table}.`
+                : `Formatted ${result.count} cell(s): ${where}.`) +
+            (result.columnWidthsMm
+              ? ` Its columns are now ${result.columnWidthsMm.join(', ')} mm wide, from the left.`
+              : '') +
             (result.crossed
               ? ` The diagonal runs through the words of ${result.crossed.map((cell) => `${cell.row}.${cell.col}`).join(', ')}: empty those cells with fill_cells (text "") unless the user wants the words kept.`
               : '') +
@@ -4771,6 +4863,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const result = outcome.result
         if (!result.ok) {
           if (result.reason === 'in_table') return bad(call, IN_TABLE_HELP)
+          if (result.reason === 'toc_exists') return bad(call, tocExistsRefusal(result))
           if (result.reason === 'no_heading') {
             const why =
               result.why === 'ambiguous'
@@ -4842,6 +4935,81 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           output: `${result.changed} of ${result.lines} page number(s) changed.${missing}`,
           mutated: result.changed > 0,
           summary: label('aiToolTocRefresh', { count: result.changed }),
+        }
+      }
+      case 'list_equations': {
+        const listed = await bridge.listEquations()
+        const elsewhere =
+          listed.elsewhere > 0
+            ? `\n${listed.elsewhere} more equation(s) sit inside table cells, notes or text boxes, which these tools cannot reach.`
+            : ''
+        const lines = listed.equations.map(
+          (equation) =>
+            `${equation.equation}. (in "${equationPlace(equation)}") ${equation.script}`,
+        )
+        return {
+          output:
+            listed.count === 0
+              ? `This document has no equations in its body text.${elsewhere}`
+              : `${lines.join('\n')}${listed.count > listed.equations.length ? `\n[${listed.count - listed.equations.length} more not listed]` : ''}${elsewhere}`,
+          summary: label('aiToolEquations', { count: listed.count }),
+        }
+      }
+      case 'edit_equation': {
+        const number = call.input.equation
+        if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) {
+          return bad(call, 'equation must be an equation number from list_equations')
+        }
+        const remove = call.input.remove === true
+        const given = call.input.script
+        if (remove && isGiven(given)) {
+          return bad(call, 'Nothing was changed: give a new script or remove: true, not both.')
+        }
+        if (!remove && (typeof given !== 'string' || !given.trim())) {
+          return bad(call, 'Nothing was changed: give the new script, or remove: true.')
+        }
+        let script: string | null = null
+        if (!remove) {
+          const text = given as string
+          if (hasLineBreak(text)) {
+            return bad(
+              call,
+              'Nothing was changed: the script has a line break. A script is one line; rows go into matrix {…} or cases {…} with # between them.',
+            )
+          }
+          if (text.includes('\\')) return bad(call, latexHelp('the script'))
+          script = equationScript(text)
+        }
+        const outcome = await changeWithMemoApproval(
+          () => bridge.editEquation(number, script),
+          (options) => bridge.editEquation(number, script, options),
+        )
+        if (outcome.kind !== 'done')
+          return bad(call, memoRemovalDeclined(outcome.refusal, outcome.kind))
+        const result = outcome.result
+        if (!result.ok) {
+          return bad(
+            call,
+            result.count === 0
+              ? 'This document has no equations in its body text.'
+              : `There is no equation ${number}: the body text has ${result.count}. Call list_equations for the numbers.`,
+          )
+        }
+        deps.onChange({
+          kind: result.removed ? 'delete' : 'replace',
+          from: result.was,
+          to: result.removed ? '' : (script ?? ''),
+          count: 1,
+          place: result.place,
+        })
+        return {
+          output: result.removed
+            ? `Removed equation ${number} (${result.was}). Equations after it are numbered one lower.`
+            : `Changed equation ${number} from ${result.was} to ${script}.`,
+          mutated: true,
+          summary: label(result.removed ? 'aiToolEquationRemove' : 'aiToolEquationEdit', {
+            number,
+          }),
         }
       }
       case 'list_notes': {
@@ -5255,9 +5423,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (!result.ok) {
           return bad(
             call,
-            result.reason === 'in_table'
-              ? 'Nothing was changed: that text is inside a table cell, and a title box is made from a paragraph of the body text.'
-              : placeRefusal(result),
+            result.reason === 'in_table' ? titleInTableRefusal(result.table) : placeRefusal(result),
           )
         }
         deps.onChange({
@@ -5444,10 +5610,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           }
           // the mark of LaTeX, which the equation editor does not read
           if (item.script.includes('\\')) {
-            return bad(
-              call,
-              `Nothing was changed: the script of equation ${index + 1} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum from {i=1} to {n}, LEFT ( ... RIGHT ).`,
-            )
+            return bad(call, latexHelp(`the script of equation ${index + 1}`))
           }
           items.push({
             find: item.find,
@@ -5490,7 +5653,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Put in ${result.count} equation(s), each where its text was. read_document does not show equations, so their places look empty there: do not put them in again.`,
+          output: `Put in ${result.count} equation(s), each where its text was. read_document does not show equations, so their places look empty there: do not put them in again. list_equations shows them.`,
           mutated: true,
           summary: label('aiToolEquationsInsert', { count: result.count }),
         }
