@@ -1624,6 +1624,59 @@ describe('format_cells', () => {
     expect(changes[0]).toMatchObject({ kind: 'format', to: 'aiFmtColumnWidths' })
   })
 
+  it('says when row_height_mm leaves a row of a head across the columns lower than its text', async () => {
+    const { call } = setup({
+      formatCells: async () => ({
+        ok: true as const,
+        count: 8,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+        overflowingRows: [2],
+      }),
+    })
+    const result = await call('format_cells', {
+      table: 1,
+      range: { from_row: 2, from_col: 1, to_row: 2, to_col: 8 },
+      row_height_mm: 8,
+    })
+    expect(result.output).toContain(
+      ' The text of row 2 needs more height than row_height_mm gives, so it overflows the row and column 2 starts over the head table.',
+    )
+  })
+
+  it('names a head row a change left taller than its text, in any change answer', async () => {
+    const { call } = setup({
+      fillCells: async () => ({
+        ok: true as const,
+        table: 1,
+        count: 1,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+        tallerRows: [{ table: 1, row: 2, heightMm: 15.8, needsMm: 4.5 }],
+      }),
+    })
+    const result = await call('fill_cells', {
+      table: 1,
+      cells: [{ row: 2, col: 5, text: '계' }],
+      overwrite: true,
+    })
+    expect(result.output).toContain(
+      ' Row 2 of table 1 (15.8 mm, its text needs 4.5 mm) keeps its height, which only format_cells row_height_mm lowers.',
+    )
+    const plain = setup({
+      fillCells: async () => ({
+        ok: true as const,
+        table: 1,
+        count: 1,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+      }),
+    })
+    const next = await plain.call('fill_cells', {
+      table: 1,
+      cells: [{ row: 2, col: 5, text: '계' }],
+      overwrite: true,
+    })
+    expect(next.output).not.toContain('keeps its height')
+  })
+
   it('says how many widths a table takes', async () => {
     const { call } = setup({
       formatCells: async () => ({ ok: false as const, reason: 'column_count' as const, cols: 3 }),

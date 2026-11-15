@@ -3325,27 +3325,207 @@ describe('a test paper in two columns', () => {
     return Array.from({ length: table.cells }, (_, index) => table.cell(index).height)
   }
 
-  it('gives a head row back its height once its text needs less, and leaves a height row_height_mm set', () => {
+  /** The highest stored height of each row of the document's first table, by its cells' rows. */
+  function rowHeights(doc: HwpDocument) {
+    const table = tableIn(doc, 0)
+    const boxes = JSON.parse(doc.getTableCellBboxes(0, 0, table.control)) as {
+      row: number
+      rowSpan: number
+      cellIdx: number
+    }[]
+    const rows: number[] = []
+    for (const box of boxes) {
+      if (box.rowSpan !== 1) continue
+      rows[box.row] = Math.max(rows[box.row] ?? 0, table.cell(box.cellIdx).height)
+    }
+    return rows
+  }
+
+  const TALL = '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄'
+
+  /** A test paper in two columns under a head table whose second row was raised for its text. */
+  function raisedHead() {
+    const opened = open(blank(['']))
+    opened.plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    opened.plugin.setColumns({ count: 2 })
+    opened.plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    opened.plugin.fillCells(1, [{ row: 2, col: 5, text: TALL }], true)
+    return opened
+  }
+
+  it('keeps a head row raised once its text needs less, and says so', () => {
+    const { plugin, doc } = raisedHead()
+    const raised = rowHeights(doc())
+    expect(raised[1]).toBeGreaterThan(raised[0]! * 3)
+    const shrunk = plugin.fillCells(1, [{ row: 2, col: 5, text: '계' }], true)
+    expect(rowHeights(doc())).toEqual(raised)
+    expect(shrunk).toMatchObject({ ok: true, tallerRows: [{ table: 1, row: 2 }] })
+    const [row] = (shrunk as { tallerRows: { heightMm: number; needsMm: number }[] }).tallerRows
+    expect(row!.needsMm).toBeLessThan(row!.heightMm / 3)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+    expect(plugin.fillCells(1, [{ row: 2, col: 5, text: '부' }], true)).not.toHaveProperty(
+      'tallerRows',
+    )
+    expect(plugin.fillCells(1, [{ row: 1, col: 3, text: '영어' }], true)).not.toHaveProperty(
+      'tallerRows',
+    )
+  })
+
+  it('keeps the height row_height_mm set on a row when a row above it is removed', () => {
+    const raised = rowHeights(raisedHead().doc())[1]!
     const { plugin, doc } = open(blank(['']))
     plugin.insertParagraphs('', null, 'end', QUESTIONS)
     plugin.setColumns({ count: 2 })
     plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
-    plugin.formatCells(1, { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 }, { heightMm: 14 })
-    const first = columnStarts(doc())
-    const heights = storedHeights(doc())
-    const tall = '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄'
-    plugin.fillCells(1, [{ row: 2, col: 5, text: tall }], true)
-    const grown = columnStarts(doc())
-    expect(grown.foot).toBeGreaterThan(first.foot + 50)
-    for (const start of grown.starts) expect(start).toBeGreaterThanOrEqual(grown.foot)
-    plugin.fillCells(1, [{ row: 2, col: 5, text: '계' }], true)
-    expect(storedHeights(doc())).toEqual(heights)
-    const back = columnStarts(doc())
-    expect(Math.abs(back.foot - first.foot)).toBeLessThan(1)
-    for (const start of back.starts) expect(start).toBeGreaterThanOrEqual(back.foot)
-    plugin.fillCells(1, [{ row: 2, col: 5, text: tall }], true)
-    plugin.setColumns({ count: 1 })
-    expect(storedHeights(doc())).toEqual(heights)
+    plugin.formatCells(
+      1,
+      { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 },
+      { heightMm: (raised * 25.4) / 7200 },
+    )
+    plugin.fillCells(1, [{ row: 2, col: 5, text: TALL }], true)
+    expect(rowHeights(doc()).slice(1)).toEqual([raised, raised])
+    plugin.removeTableLines(1, 'rows', 1, 1)
+    plugin.fillCells(1, [{ row: 1, col: 5, text: '계' }], true)
+    expect(rowHeights(doc())).toEqual([raised, raised])
+  })
+
+  it('gives a row added next to a raised head row the height of its own text', () => {
+    const { plugin, doc } = raisedHead()
+    const raised = rowHeights(doc())
+    expect(plugin.addTableLines(1, 'rows', 2, 'after', 1)).toMatchObject({ ok: true })
+    const now = rowHeights(doc())
+    expect(now).toHaveLength(4)
+    expect([now[0], now[1], now[3]]).toEqual(raised)
+    expect(now[2]).toBeLessThanOrEqual(raised[0]!)
+    const head = tableIn(doc(), 0)
+    const drawn = (
+      JSON.parse(doc().getTableCellBboxes(0, 0, head.control)) as { row: number; h: number }[]
+    ).find((box) => box.row === 2)!
+    expect(Math.abs(drawn.h * 75 - now[2]!)).toBeLessThan(75)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('says when row_height_mm leaves a head row lower than its text', () => {
+    const { plugin, doc } = raisedHead()
+    expect(
+      plugin.formatCells(1, { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 }, { heightMm: 8 }),
+    ).toMatchObject({ ok: true, overflowingRows: [2] })
+    expect(rowHeights(doc())[1]).toBe(Math.round((8 * 7200) / 25.4))
+    expect(
+      plugin.formatCells(1, { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 }, { heightMm: 15 }),
+    ).not.toHaveProperty('overflowingRows')
+  })
+
+  type Step = {
+    name: string
+    run: (plugin: ReturnType<typeof open>['plugin']) => unknown
+    /** for each row after the step, the row it was before it (null: new, or set by the step) */
+    rows?: (row: number) => number | null
+  }
+  const short = (row: number): Step => ({
+    name: `shorten row ${row}`,
+    run: (plugin) => plugin.fillCells(1, [{ row, col: 1, text: '마' }], true),
+  })
+  const SEQUENCES: [string, Step[]][] = [
+    [
+      'a row added before the raised one',
+      [
+        {
+          name: 'add before',
+          run: (plugin) => plugin.addTableLines(1, 'rows', 2, 'before', 1),
+          rows: (row) => (row < 1 ? row : row === 1 ? null : row - 1),
+        },
+        short(3),
+        short(3),
+      ],
+    ],
+    [
+      'a row added after the raised one',
+      [
+        {
+          name: 'add after',
+          run: (plugin) => plugin.addTableLines(1, 'rows', 2, 'after', 1),
+          rows: (row) => (row < 2 ? row : row === 2 ? null : row - 1),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'a row removed above the raised one',
+      [
+        {
+          name: 'remove row 1',
+          run: (plugin) => plugin.removeTableLines(1, 'rows', 1, 1),
+          rows: (row) => row + 1,
+        },
+        short(1),
+      ],
+    ],
+    [
+      'a cell of the first row split',
+      [{ name: 'split', run: (plugin) => plugin.splitCell(1, 1, 1, 1, 2) }, short(2)],
+    ],
+    [
+      'two cells of the first row merged',
+      [
+        {
+          name: 'merge',
+          run: (plugin) => plugin.mergeCells(1, { row: 1, col: 1 }, { row: 1, col: 2 }),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'the raised row merged down',
+      [
+        {
+          name: 'merge down',
+          run: (plugin) => plugin.mergeCells(1, { row: 2, col: 1 }, { row: 3, col: 1 }),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'row_height_mm on the raised row, then more text, then less',
+      [
+        {
+          name: 'row_height_mm',
+          run: (plugin) =>
+            plugin.formatCells(1, { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 }, { heightMm: 12 }),
+          rows: (row) => (row === 1 ? null : row),
+        },
+        {
+          name: 'more text',
+          run: (plugin) =>
+            plugin.fillCells(1, [{ row: 2, col: 1, text: `${TALL}\n여섯째\n일곱째` }], true),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'one column and two again',
+      [
+        { name: 'one column', run: (plugin) => plugin.setColumns({ count: 1 }) },
+        { name: 'two columns', run: (plugin) => plugin.setColumns({ count: 2 }) },
+        short(2),
+      ],
+    ],
+  ]
+
+  it.each(SEQUENCES)('lowers no head row: %s', (_name, steps) => {
+    const { plugin, doc } = raisedHead()
+    for (const step of steps) {
+      const before = rowHeights(doc())
+      expect(step.run(plugin), step.name).toMatchObject({ ok: true })
+      const after = rowHeights(doc())
+      after.forEach((height, row) => {
+        const was = step.rows ? step.rows(row) : row
+        if (was !== null && before[was] !== undefined)
+          expect(height, `${step.name}: row ${row + 1}`).toBeGreaterThanOrEqual(before[was]!)
+      })
+    }
   })
 
   it('leaves the rows of a table laid across a page of one column as they are stored', () => {

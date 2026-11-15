@@ -5979,55 +5979,116 @@ function acrossRowHeights(doc) {
 /**
  * Store the drawn height of the rows of a table across the columns that a change made
  * taller (`before` is acrossRowHeights from before it; a table that was not across the
- * columns then is measured against its stored heights); other rows keep theirs. The engine
- * starts the other columns below the sum of the stored row heights, which text growing in
- * a cell does not change.
- *
- * `raised` remembers the cells this did so (`control:cell` to the height they had and the
- * one they got). Each change first gives them back the height they had, as long as nothing
- * else set theirs since, and raises them again only as far as their text still needs, so a
- * row that later needs less, or a table no longer across columns, does not keep the height.
+ * columns then is measured against its stored heights); other rows keep theirs, and no row
+ * is lowered. The engine starts the other columns below the sum of the stored row heights,
+ * which text growing in a cell does not change.
  */
-function fitAcrossRows(doc, before, raised) {
-  const lowered = new Map()
-  for (const [key, { original, to }] of raised) {
-    const [control, cellIdx] = key.split(':').map(Number)
-    raised.delete(key)
-    let stored
-    try {
-      stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
-    } catch {
-      continue
-    }
-    if (stored !== to) continue
-    expectOk(
-      doc.setCellProperties(0, 0, control, cellIdx, JSON.stringify({ height: original })),
-      'fit the head table',
-    )
-    lowered.set(key, original)
-  }
+function fitAcrossRows(doc, before) {
   const after = acrossRowHeights(doc)
   after.forEach(({ control, rows, cells }, index) => {
     const was = before[index]?.rows
     for (const { row, cellIdx } of cells) {
-      const key = `${control}:${cellIdx}`
       const drawn = rows[row]
-      if (was && !lowered.has(key) && !(drawn > (was[row] ?? 0) + UNITS_PER_PX)) continue
+      if (was && !(drawn > (was[row] ?? 0) + UNITS_PER_PX)) continue
       const stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
       if (stored < drawn - UNITS_PER_PX) {
         expectOk(
           doc.setCellProperties(0, 0, control, cellIdx, JSON.stringify({ height: drawn })),
           'fit the head table',
         )
-        raised.set(key, { original: lowered.get(key) ?? stored, to: drawn })
       }
     }
   })
 }
 
-/** Forget the raised cells of a table whose row heights a call set (fitAcrossRows). */
-function forgetRaised(raised, control) {
-  for (const key of raised.keys()) if (key.startsWith(`${control}:`)) raised.delete(key)
+/** Give cells of the document's first paragraph a height (engine units) each. */
+function setCellHeights(doc, control, heights) {
+  for (const [cell, height] of heights) {
+    expectOk(
+      doc.setCellProperties(0, 0, control, cell, JSON.stringify({ height })),
+      'fit the head table',
+    )
+  }
+}
+
+/** The drawn height of each row of a table on its first page; a row a merged cell spans has none. */
+function drawnRows(doc, control) {
+  const boxes = parse(doc.getTableCellBboxes(0, 0, control))
+  const first = Math.min(...boxes.map((box) => box.pageIndex))
+  const rows = []
+  const spanned = new Set()
+  for (const box of boxes) {
+    if (box.pageIndex !== first) continue
+    if (box.rowSpan > 1) for (let r = box.row; r < box.row + box.rowSpan; r++) spanned.add(r)
+    else rows[box.row] = Math.max(rows[box.row] ?? 0, Math.round(box.h * UNITS_PER_PX))
+  }
+  for (const row of spanned) rows[row] = null
+  return { rows, boxes }
+}
+
+/**
+ * The height the text of each row of a table needs, in the engine's units: the engine
+ * draws a row of no set height as high as its text, so the cells are let down to nothing,
+ * measured and given back the heights they had.
+ */
+function rowNeeds(doc, control) {
+  const cells = parse(doc.getTableDimensions(0, 0, control)).cellCount
+  const heights = Array.from({ length: cells }, (_, cell) => [
+    cell,
+    parse(doc.getCellProperties(0, 0, control, cell)).height,
+  ])
+  setCellHeights(
+    doc,
+    control,
+    heights.map(([cell]) => [cell, 0]),
+  )
+  const { rows } = drawnRows(doc, control)
+  setCellHeights(doc, control, heights)
+  return rows
+}
+
+/** Give the rows of `cells` (cell numbers of a table) the height their own text needs. */
+function fitRowsToText(doc, control, cells) {
+  setCellHeights(
+    doc,
+    control,
+    cells.map((cell) => [cell, 0]),
+  )
+  const { rows, boxes } = drawnRows(doc, control)
+  setCellHeights(
+    doc,
+    control,
+    boxes
+      .filter((box) => cells.includes(box.cellIdx) && box.rowSpan === 1)
+      .map((box) => [box.cellIdx, rows[box.row]]),
+  )
+}
+
+/**
+ * The rows of the tables across the columns that a change left taller than their text
+ * needs, where it needed more before (`before` is acrossRowHeights and `needs` rowNeeds of
+ * each from before it): the row keeps its height, which only row_height_mm sets.
+ */
+function rowsLeftTaller(doc, before, needs) {
+  const left = []
+  acrossRowHeights(doc).forEach(({ control, rows, cells }, index) => {
+    const was = needs[index]
+    if (!was || before[index].rows.length !== rows.length) return
+    const now = rowNeeds(doc, control)
+    for (let row = 0; row < rows.length; row++) {
+      if (now[row] == null || was[row] == null) continue
+      const stored = Math.max(
+        0,
+        ...cells
+          .filter((cell) => cell.row === row)
+          .map((cell) => parse(doc.getCellProperties(0, 0, control, cell.cellIdx)).height),
+      )
+      if (!(now[row] + UNITS_PER_PX < Math.min(stored, was[row]))) continue
+      const { table } = tableNumberOf(doc, 0, 0, control)
+      if (table) left.push({ table, row: row + 1, heightMm: mmOf(stored), needsMm: mmOf(now[row]) })
+    }
+  })
+  return left
 }
 
 function checkTocEntries(entries) {
@@ -6559,12 +6620,9 @@ export const agentPlugin = {
     // the contents insertToc made in this document: the heading rows each wrote, squashed.
     // The document keeps no mark of them, so another document opened here starts with none.
     let contentsMade = []
-    // the head-table cells fitAcrossRows raised in this document
-    const raisedCells = new Map()
     host.events.on('document-swapped', () => {
       revision += 1
       contentsMade = []
-      raisedCells.clear()
     })
     // the text is read for every request; it only changes when the document does
     let text = null
@@ -7488,8 +7546,10 @@ export const agentPlugin = {
             const before = paragraphCounts(doc)
             const watched = MEMO_CHANGES.has(label) || allowMemoRemoval ? null : memoEntriesOf(doc)
             const across = acrossRowHeights(doc)
+            const needs = across.map(({ control }) => rowNeeds(doc, control))
             const result = fn(doc)
-            fitAcrossRows(doc, across, raisedCells)
+            fitAcrossRows(doc, across)
+            const taller = across.length > 0 ? rowsLeftTaller(doc, across, needs) : []
             if (watched && watched.length > 0) {
               const left = new Set(memoEntriesOf(doc).map((entry) => entry.id))
               const gone = watched.filter(
@@ -7504,7 +7564,14 @@ export const agentPlugin = {
                 throw failure
               }
             }
-            return { result, before, after: paragraphCounts(doc) }
+            return {
+              result:
+                taller.length > 0 && result?.ok === true
+                  ? { ...result, tallerRows: taller }
+                  : result,
+              before,
+              after: paragraphCounts(doc),
+            }
           })
         } catch (thrown) {
           if (thrown && thrown.code === 'MEMO_REMOVAL_REQUIRES_APPROVAL') {
@@ -9020,9 +9087,6 @@ export const agentPlugin = {
                   'set the column widths',
                 )
               }
-              if (props.height !== undefined && table.sec === 0 && table.para === 0) {
-                forgetRaised(raisedCells, table.path[0].controlIndex)
-              }
               let count = 0
               for (const rect of blocks)
                 count += setCellBorders(doc, table, grid, rect, rules, props)
@@ -9078,6 +9142,23 @@ export const agentPlugin = {
                   }
                 }
               }
+              // a row of a head across the columns set lower than its text: the engine
+              // starts the other columns below the stored heights, so over the head
+              const overflowing = []
+              if (props.height !== undefined && table.sec === 0 && table.para === 0) {
+                const control = table.path[0].controlIndex
+                const head = acrossRowHeights(doc).find((one) => one.control === control)
+                for (const { row, cellIdx } of head?.cells ?? []) {
+                  const inside = blocks.some((rect) => row >= rect.top && row <= rect.bottom)
+                  const stored = parse(doc.getCellProperties(0, 0, control, cellIdx)).height
+                  if (
+                    inside &&
+                    head.rows[row] > stored + UNITS_PER_PX &&
+                    !overflowing.includes(row + 1)
+                  )
+                    overflowing.push(row + 1)
+                }
+              }
               return {
                 ok: true,
                 count,
@@ -9085,6 +9166,7 @@ export const agentPlugin = {
                 ...(standIns.length > 0 ? { standIn: standIns } : {}),
                 ...(crossed.length > 0 ? { crossed } : {}),
                 ...(columns ? { columnWidthsMm: columns.widths } : {}),
+                ...(overflowing.length > 0 ? { overflowingRows: overflowing } : {}),
               }
             },
             options,
@@ -10563,6 +10645,22 @@ export const agentPlugin = {
                     'format the new cell',
                   )
                 }
+              }
+              // the engine copies the height of the row it adds next to, one a head table
+              // across the columns may have been raised to for its text: a new row gets what
+              // its own text needs
+              if (
+                rows &&
+                sec === 0 &&
+                para === 0 &&
+                acrossRowHeights(doc).some((head) => head.control === ctrl)
+              ) {
+                const added = grid.filter((cell) => cell.row >= first && cell.row < first + count)
+                fitRowsToText(
+                  doc,
+                  ctrl,
+                  added.map((cell) => cell.cell),
+                )
               }
               mustKeep(before, objectsOf(doc))
               const dims = parse(doc.getTableDimensions(sec, para, ctrl))

@@ -702,6 +702,11 @@ export type AgentFormatCellsResult =
       crossed?: { row: number; col: number }[]
       /** the widths of the columns now, in millimetres, when columnWidths was given */
       columnWidthsMm?: number[]
+      /**
+       * rows (from 1) of a head across the columns whose text needs more than the height
+       * set: the text runs past the row, and the other columns start over the head
+       */
+      overflowingRows?: number[]
     }
   | { ok: false; reason: 'no_such_table'; count: number }
   /** columnWidths does not give one number for each of the `cols` columns */
@@ -765,6 +770,18 @@ export interface AgentLayoutOverflow {
 
 /** A cut-off cell as cutCells lists it: its table, as listTables numbers them, row and column. */
 export type AgentCutCell = Pick<AgentLayoutOverflow, 'table' | 'row' | 'col'>
+
+/**
+ * A row of a table across the columns at the head of the document that a change left
+ * taller than its text needs (it needed more before): it keeps its height. Any change's
+ * answer may carry them as `tallerRows`.
+ */
+export interface AgentTallerRow {
+  table: number
+  row: number
+  heightMm: number
+  needsMm: number
+}
 
 /** A place in the tables to measure from: 1-based table (as listTables) and row. */
 export interface AgentLayoutPlace {

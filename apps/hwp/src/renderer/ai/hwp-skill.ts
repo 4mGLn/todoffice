@@ -18,6 +18,7 @@ import type {
   AgentCellText,
   AgentChangeOptions,
   AgentCutCell,
+  AgentTallerRow,
   AgentEquation,
   AgentCheckBox,
   AgentLayoutCheck,
@@ -2907,6 +2908,27 @@ function linesArgs(
 const LINES_HELP =
   'table and at must be numbers (from list_tables and read_table), and what "rows" or "columns".'
 
+/** The rows of a head across the columns that a change left taller than their text needs. */
+function tallerRowsOf(result: unknown): AgentTallerRow[] {
+  const rows =
+    typeof result === 'object' && result !== null
+      ? (result as { tallerRows?: unknown }).tallerRows
+      : undefined
+  return Array.isArray(rows) ? (rows as AgentTallerRow[]) : []
+}
+
+function tallerRowsNote(rows: AgentTallerRow[]): string {
+  if (rows.length === 0) return ''
+  const named = rows
+    .map(
+      (row) =>
+        `row ${row.row} of table ${row.table} (${row.heightMm} mm, its text needs ${row.needsMm} mm)`,
+    )
+    .join(', ')
+  const verb = rows.length === 1 ? 'keeps its height' : 'keep their height'
+  return ` ${named.charAt(0).toUpperCase()}${named.slice(1)} ${verb}, which only format_cells row_height_mm lowers.`
+}
+
 function noSuchTable(table: number, count: number): string {
   return count === 0
     ? 'This document has no tables.'
@@ -3068,6 +3090,8 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   /** delete_paragraph calls (find, occurrence) refused for hitting one of those, this run */
   let refusedDeletes = new Set<string>()
   let cutAtStart: number | 'unmeasured' | 'unknown' = 'unmeasured'
+  // what the change of the call being run said about the rows of a head across the columns
+  let tallerRows: AgentTallerRow[] = []
   const cutCellsNow = async (): Promise<AgentCutCell[] | null> => {
     try {
       return await bridge.cutCells()
@@ -3119,12 +3143,14 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     retry: (options: AgentChangeOptions) => Promise<T>,
   ): Promise<ChangeOutcome<T>> => {
     const firstResult = await first()
+    tallerRows = tallerRowsOf(firstResult)
     if (!isMemoRemovalRefusal(firstResult)) return { kind: 'done', result: firstResult }
     const approved = await deps.confirmMemoRemoval(firstResult)
     if (!approved) return { kind: 'declined', refusal: firstResult }
     // only the memos the user saw may go: if the document changed meanwhile and the change
     // would now take another one, it is refused again and nothing is changed
     const second = await retry({ approvedMemoIds: firstResult.memos.map((memo) => memo.id) })
+    tallerRows = tallerRowsOf(second)
     if (isMemoRemovalRefusal(second)) return { kind: 'changed', refusal: second }
     return { kind: 'done', result: second }
   }
@@ -4638,6 +4664,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             (result.crossed
               ? ` The diagonal runs through the words of ${result.crossed.map((cell) => `${cell.row}.${cell.col}`).join(', ')}: empty those cells with fill_cells (text "") unless the user wants the words kept.`
               : '') +
+            (result.overflowingRows
+              ? ` The text of ${result.overflowingRows.length === 1 ? 'row' : 'rows'} ${result.overflowingRows.join(', ')} needs more height than row_height_mm gives, so it overflows the row and column 2 starts over the head table.`
+              : '') +
             (fillOnly ? '' : await cutNote(table, ...rowsOf(cells))),
           mutated: true,
           summary: label(fillOnly ? 'aiToolCellFill' : 'aiToolCellLook', {
@@ -5965,9 +5994,10 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             cutAtStart = (await cutCellsNow())?.length ?? 'unknown'
           }
           const pagesBefore = tool.edits ? await pagesNow() : null
+          tallerRows = []
           const done = await run(withDoubledEscapesUndone(call), signal)
           if (done.isError) return done
-          const output = done.output + unusedNote(tool, prepared)
+          const output = done.output + unusedNote(tool, prepared) + tallerRowsNote(tallerRows)
           // read once the change returned: the editor pages the document when it commits
           const pages = pagesBefore !== null && done.mutated ? await pagesNow() : null
           if (pages === null || pages === pagesBefore) return { ...done, output }
