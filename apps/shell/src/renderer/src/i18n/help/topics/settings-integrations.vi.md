@@ -2,7 +2,7 @@
 
 ## Mở cài đặt
 
-Hàng ở góc dưới bên trái của Trang chủ mở bảng cài đặt (hàng đó ghi "Kết nối AI" cho đến khi có một AI được kết nối). Bảng đó có năm mục: Tài khoản, AI, Chung, Tích hợp và Giới thiệu.
+Hàng ở góc dưới bên trái của Trang chủ mở bảng cài đặt (dòng bên dưới cho biết đã có AI được kết nối hay chưa). Bảng đó có năm mục: Tài khoản, AI, Chung, Tích hợp và Giới thiệu.
 
 **Tài khoản** cho biết tình trạng các kết nối Claude, ChatGPT và Codex của bạn, còn **Quản lý kết nối** dẫn tới mục AI. AI có các bài riêng: [Kết nối gói đăng ký](help://subscription) và [Mô hình AI và cài đặt](help://ai-models).
 

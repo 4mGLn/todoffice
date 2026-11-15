@@ -2,7 +2,7 @@
 
 ## Otevření nastavení
 
-Řádek vlevo dole na domovské stránce otevře panel nastavení (dokud není připojena žádná AI, ukazuje Připojit AI). Má pět částí: Účet, AI, Obecné, Integrace a O aplikaci.
+Řádek vlevo dole na domovské stránce otevře panel nastavení (řádek pod ním ukazuje, zda je připojena AI). Má pět částí: Účet, AI, Obecné, Integrace a O aplikaci.
 
 **Účet** ukazuje, jak jsou na tom vaše připojení Claude, ChatGPT a Codex, a **Spravovat připojení** vás zavede do části AI. AI má vlastní kapitoly: [Připojení předplatného](help://subscription) a [Modely AI a nastavení](help://ai-models).
 

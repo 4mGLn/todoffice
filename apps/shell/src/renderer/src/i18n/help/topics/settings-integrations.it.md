@@ -2,7 +2,7 @@
 
 ## Apertura delle impostazioni
 
-La riga in basso a sinistra in Home apre il pannello delle impostazioni (finché non è collegata un'IA riporta Collega l’IA). Ha cinque sezioni: Account, IA, Generale, Integrazioni e Informazioni.
+La riga in basso a sinistra in Home apre il pannello delle impostazioni (la riga sotto indica se è collegata un'IA). Ha cinque sezioni: Account, IA, Generale, Integrazioni e Informazioni.
 
 **Account** mostra a che punto sono le tue connessioni Claude, ChatGPT e Codex, e **Gestisci connessioni** porta alla sezione IA. L'IA ha i suoi articoli: [Connessione con abbonamento](help://subscription) e [Modelli IA e impostazioni](help://ai-models).
 

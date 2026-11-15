@@ -2,7 +2,7 @@
 
 ## Opening settings
 
-The row at the bottom left of Home opens the settings panel (it reads Connect AI until an AI is connected). It has five sections: Account, AI, General, Integrations and About.
+The row at the bottom left of Home opens the settings panel (the line under it shows whether an AI is connected). It has five sections: Account, AI, General, Integrations and About.
 
 **Account** shows where your Claude, ChatGPT and Codex connections stand, and **Manage connections** leads to the AI section. AI has its own articles: [Subscription connection](help://subscription) and [AI models and settings](help://ai-models).
 
