@@ -64,6 +64,7 @@ const METHODS = [
   'paragraphLooks',
   'formatLook',
   'measureTabs',
+  'savePreview',
   'clearMarks',
   'listStyles',
   'readStyle',
