@@ -682,7 +682,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_table',
     edits: true,
     description:
-      'Add a table after or before the paragraph that contains the anchor text, or at the end of the document. Cells are plain one-line text; short rows are padded with empty cells. The table takes the font of that paragraph. It cannot be put inside a cell of another table.',
+      'Add a table after or before the paragraph that contains the anchor text, or at the end of the document. Cells are plain one-line text; short rows are padded with empty cells. The table takes the font of the body text. It cannot be put inside a cell of another table.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -717,14 +717,14 @@ const TOOLS: HwpToolDef[] = [
         align: {
           type: 'string',
           enum: ['left', 'center', 'right'],
-          description: 'alignment of the body cells; the header row is centred anyway',
+          description: 'alignment of the body cells, default left; the header row is centred anyway',
         },
         size: {
           type: 'number',
           description:
-            'font size of the table text in points; default that of the paragraph it is put next to, so name it when that paragraph is a heading',
+            'font size of the table text in points; default that of the body text',
         },
-        font: { type: 'string', description: 'font of the table text; default as for size' },
+        font: { type: 'string', description: 'font of the table text; default that of the body text' },
         width_percent: {
           type: 'number',
           description:

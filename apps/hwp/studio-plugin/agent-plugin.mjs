@@ -2862,6 +2862,27 @@ function fontOf(read) {
   }
 }
 
+/** The body style every document has, the one Hangul calls 바탕글. */
+const BODY_STYLE = '바탕글'
+
+/**
+ * The font of the body text: that of the most used look of the body paragraphs (looksOf,
+ * what readFormatting lists first), or of the body style when there is no text yet. A new
+ * table or table of contents is set in it, not in the font of the line it is put next to,
+ * which is often a heading.
+ */
+function bodyFontOf(doc) {
+  const [body] = looksOf(doc).looks
+  if (body) {
+    return fontOf(() =>
+      JSON.stringify({ fontFamily: body.look.font, fontSize: body.look.size * 100 }),
+    )
+  }
+  return fontOf(() =>
+    JSON.stringify(parse(doc.getStyleDetail(styleIdOf(doc, BODY_STYLE) ?? 0)).charProps),
+  )
+}
+
 /**
  * The engine builds a table from pasted HTML, the way it does for a paste from the
  * clipboard. Left to itself it uses the document's default font and a row too low for
@@ -2919,6 +2940,41 @@ function pastedTableAt(doc, place) {
     }
   }
   return null
+}
+
+/**
+ * Give the empty cells of a new table the look its text has. The pasted HTML carries the
+ * font on the text, so a cell without any would take the document default, and so would
+ * what is written into it later.
+ */
+function formatEmptyCells(doc, made, rows, font, aligns, header) {
+  const control = made.path[0].controlIndex
+  const chars = [false, true].map(
+    (bold) =>
+      resolveFormat(
+        doc,
+        formatOf({ ...(font.family ? { font: font.family } : {}), size: font.points, bold }, false),
+      ).chars,
+  )
+  for (const cell of gridOf(doc, made)) {
+    if (rows[cell.row]?.[cell.col] !== '') continue
+    const head = header && cell.row === 0
+    expectOk(
+      doc.applyCharFormatInCell(made.sec, made.para, control, cell.cell, 0, 0, 0, chars[+head]),
+      'format the empty cells',
+    )
+    expectOk(
+      doc.applyParaFormatInCell(
+        made.sec,
+        made.para,
+        control,
+        cell.cell,
+        0,
+        JSON.stringify({ alignment: head ? 'center' : aligns[cell.col] }),
+      ),
+      'format the empty cells',
+    )
+  }
 }
 
 /**
@@ -7197,13 +7253,15 @@ export const agentPlugin = {
               if (!box) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
               let at = box.index
-              // read before the paragraph is split: the table is to look like the text beside
-              // it, unless the call says what its text looks like
-              const beside = box.font(at)
+              // the table is set in the body font unless the call says what its text looks like
+              const body = look.font && look.size ? null : bodyFontOf(doc)
               const font = {
-                family: look.font ?? beside.family,
-                points: look.size ?? beside.points,
+                family: look.font ?? body.family,
+                points: look.size ?? body.points,
               }
+              // body cells are left-aligned unless told: a justified cell that wraps
+              // stretches the spaces between its words
+              const aligns = look.aligns ?? Array(table[0].length).fill('left')
               if (where === 'before') box.split(at, 0)
               else {
                 openAfter(box, at, plain)
@@ -7225,15 +7283,10 @@ export const agentPlugin = {
               const shares =
                 look.shares ??
                 (inColumns > 1 || narrow ? Array(table[0].length).fill(1 / table[0].length) : null)
-              const columns =
-                shares || look.aligns
-                  ? {
-                      widths: shares
-                        ? shares.map((share) => Math.round(room * share * 10) / 10)
-                        : null,
-                      aligns: look.aligns,
-                    }
-                  : null
+              const columns = {
+                widths: shares ? shares.map((share) => Math.round(room * share * 10) / 10) : null,
+                aligns,
+              }
               let headerTextColor = null
               // in the body the header's grey goes on after the paste, cell by cell (shadeHeaderCells)
               box.pasteHtml(at, tableHtml(table, font, look.header, box.inTable, columns))
@@ -7245,10 +7298,12 @@ export const agentPlugin = {
                 }
                 // the lines of a look other than the plain grid, over the thin line the paste gave every cell
                 const blocks = tableLookBlocks(look.look, look.header)
+                const empty = table.some((row) => row.includes(''))
                 const made =
-                  blocks.length > 0 || across || look.repeatHeader || headerTextColor
+                  blocks.length > 0 || across || look.repeatHeader || headerTextColor || empty
                     ? pastedTableAt(doc, place)
                     : null
+                if (made && empty) formatEmptyCells(doc, made, table, font, aligns, look.header)
                 if (made && headerTextColor) {
                   formatCellText(
                     doc,

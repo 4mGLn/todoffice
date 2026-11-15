@@ -259,6 +259,47 @@ describe('insertTable: looks', () => {
     expect(table.cell(4).fillType).not.toBe('solid')
   })
 
+  it('sets body cells left and gives empty cells the size, font and alignment of the table text', () => {
+    const rows = [
+      ['구분', ''],
+      ['1주', ''],
+      ['', '직무 과정'],
+    ]
+    const looks = (source: HwpDocument, para: number) => {
+      const table = tableIn(source, para)
+      return Array.from({ length: table.cells }, (_, cell) => {
+        const chars = JSON.parse(
+          source.getCellCharPropertiesAt(0, para, table.control, cell, 0, 0),
+        ) as { fontSize: number; fontFamily: string; bold: boolean }
+        const { alignment } = JSON.parse(
+          source.getCellParaPropertiesAt(0, para, table.control, cell, 0),
+        ) as { alignment: string }
+        return `${chars.fontFamily} ${chars.fontSize / 100}${chars.bold ? ' bold' : ''} ${alignment}`
+      })
+    }
+    const { plugin, doc } = open()
+    plugin.insertTable('□ 세부 일정', null, 'after', rows, {
+      header: true,
+      size: 9,
+      font: '함초롬돋움',
+    })
+    expect(looks(doc(), 5)).toEqual([
+      '함초롬돋움 9 bold center',
+      '함초롬돋움 9 bold center',
+      '함초롬돋움 9 left',
+      '함초롬돋움 9 left',
+      '함초롬돋움 9 left',
+      '함초롬돋움 9 left',
+    ])
+    plugin.fillCells(1, [{ row: 2, col: 2, text: '공통 과정' }], false)
+    for (const source of [doc(), new HwpDocument(doc().exportHwpx()), new HwpDocument(doc().exportHwp())]) {
+      expect(looks(source, 5)[3]).toBe('함초롬돋움 9 left')
+    }
+    const centred = open()
+    centred.plugin.insertTable('□ 세부 일정', null, 'after', rows, { align: 'center' })
+    expect(looks(centred.doc(), 5).slice(2)).toEqual(Array(4).fill('함초롬바탕 10 center'))
+  })
+
   it('writes the words of a header row white on a dark fill, in the document and in both files', () => {
     const { doc, para } = withTable({ header: true, headerColor: '#1F3864' })
     const colours = (source: HwpDocument) => {
