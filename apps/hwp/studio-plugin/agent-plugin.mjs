@@ -2877,22 +2877,60 @@ function fontOf(read) {
 
 const BODY_STYLE = '바탕글'
 
+/** Paragraph styles whose text is a heading, not body text. */
+const HEADING_STYLE = /개요|제목|heading|title/i
+
 /**
- * The font of the body text: that of the most used look of the body paragraphs (looksOf,
- * what readFormatting lists first), or of the body style when there is no text yet. A new
- * table or table of contents is set in it, not in the font of the line it is put next to,
- * which is often a heading.
+ * The font of the body text, for a new table or table of contents: the character look
+ * (font, size, bold) that most characters of the body paragraphs have, headings left out.
+ * A heading is a paragraph of an outline level or a heading style (HEADING_STYLE), or bold
+ * text larger than the size most characters have. The body style's font when there is no
+ * text yet. Not the font of the line a table is put next to, which is often a heading.
  */
 function bodyFontOf(doc) {
-  const [body] = looksOf(doc).looks
-  if (body) {
+  const styles = new Map(parse(doc.getStyleList()).map((style) => [style.id, style.name]))
+  const runs = []
+  let counted = 0
+  for (let sec = 0; sec < doc.getSectionCount(); sec++) {
+    const count = doc.getParagraphCount(sec)
+    for (let para = 0; para < count && counted < MAX_LOOK_PARAGRAPHS; para++) {
+      try {
+        const length = doc.getParagraphLength(sec, para)
+        if (length === 0) continue
+        if (parse(doc.getParaPropertiesAt(sec, para)).headType === 'Outline') continue
+        if (HEADING_STYLE.test(styles.get(parse(doc.getStyleAt(sec, para)).id) ?? '')) continue
+        counted += 1
+        const starts = parse(doc.getCharShapeRuns(sec, para, 0, length)).map(
+          (run) => run.startOffset ?? 0,
+        )
+        starts.forEach((start, index) => {
+          const chars = (starts[index + 1] ?? length) - start
+          if (chars <= 0) return
+          const props = parse(doc.getCharPropertiesAt(sec, para, start))
+          runs.push({ props, size: props.fontSize, bold: props.bold === true, chars })
+        })
+      } catch {
+        // a paragraph the engine will not read is not counted
+      }
+    }
+  }
+  /** The value of `key` the most characters of `list` have. */
+  const most = (list, key) => {
+    const totals = new Map()
+    for (const run of list) totals.set(key(run), (totals.get(key(run)) ?? 0) + run.chars)
+    return [...totals].sort((a, b) => b[1] - a[1])[0]?.[0]
+  }
+  const size = most(runs, (run) => run.size)
+  const body = runs.filter((run) => !(run.bold && run.size > size))
+  const lookOf = (run) => `${run.props.fontFamily}|${run.size}|${run.bold}`
+  const look = most(body, lookOf)
+  const chosen = body.find((run) => lookOf(run) === look)
+  if (!chosen) {
     return fontOf(() =>
-      JSON.stringify({ fontFamily: body.look.font, fontSize: body.look.size * 100 }),
+      JSON.stringify(parse(doc.getStyleDetail(styleIdOf(doc, BODY_STYLE) ?? 0)).charProps),
     )
   }
-  return fontOf(() =>
-    JSON.stringify(parse(doc.getStyleDetail(styleIdOf(doc, BODY_STYLE) ?? 0)).charProps),
-  )
+  return fontOf(() => JSON.stringify(chosen.props))
 }
 
 /**

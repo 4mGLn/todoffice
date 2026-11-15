@@ -304,6 +304,75 @@ describe('insertTable: looks', () => {
     expect(looks(centred.doc(), 5).slice(2)).toEqual(Array(4).fill('함초롬바탕 10 center'))
   })
 
+  it('sets a new table in the font most body characters have, headings left out', () => {
+    const cellFont = (source: HwpDocument, para: number) => {
+      const table = tableIn(source, para)
+      const chars = JSON.parse(
+        source.getCellCharPropertiesAt(0, para, table.control, table.cols, 0, 0),
+      ) as { fontSize: number; fontFamily: string }
+      return `${chars.fontFamily} ${chars.fontSize / 100}`
+    }
+    // bold headings of 15 pt, and body lines of 12 pt in two indents of a look each
+    const lines = [
+      '1. 추진 배경',
+      '○ 첫째 내용을 적는다.',
+      '- 세부 하나를 적는다.',
+      '2. 추진 내용',
+      '○ 둘째 내용을 적는다.',
+      '- 세부 둘을 적는다.',
+    ]
+    const { plugin, doc } = open(blank(lines))
+    plugin.styleParagraphs({
+      styles: [
+        { name: '장제목', format: { size: 15, bold: true, font: '함초롬돋움' } },
+        { name: '본문하나', format: { size: 12, marginLeft: 5 } },
+        { name: '본문둘', format: { size: 12, marginLeft: 10 } },
+      ],
+      apply: [
+        { style: '장제목', startsWith: '1.' },
+        { style: '장제목', startsWith: '2.' },
+        { style: '본문하나', startsWith: '○' },
+        { style: '본문둘', startsWith: '-' },
+      ],
+    })
+    plugin.insertTable(
+      '- 세부 하나',
+      null,
+      'after',
+      [
+        ['구분', '내용'],
+        ['1주', '공통 과정'],
+      ],
+      true,
+    )
+    expect(cellFont(doc(), 3)).toBe('함초롬바탕 12')
+    // a form of Hangul whose body is 10 pt under big headings and boxes
+    const form = open(
+      new HwpDocument(readFileSync(join(__dirname, 'fixtures', 'title-table-zone-fill.hwpx'))),
+    )
+    expect(
+      form.plugin.insertTable(
+        '가나다라마 사아 차카타파하',
+        null,
+        'after',
+        [
+          ['구분', '내용'],
+          ['1주', '공통'],
+        ],
+        true,
+      ),
+    ).toMatchObject({ ok: true })
+    const found = JSON.parse(form.doc().getControls()) as {
+      ctrlId: string
+      para: number
+      list: number
+    }[]
+    const paras = found
+      .filter((one) => one.ctrlId === 'tbl' && one.list === 0)
+      .map((one) => one.para)
+    expect(cellFont(form.doc(), Math.max(...paras))).toBe('나눔스퀘어 10')
+  })
+
   it('keeps the outline at the edge of an open table and the header line under the header when rows are added', () => {
     /** The line under each row of column 1, and the line over the table, as widths. */
     const lines = (source: HwpDocument) => {
