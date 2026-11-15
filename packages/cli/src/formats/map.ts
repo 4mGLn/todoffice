@@ -832,7 +832,7 @@ const MAP_OP_NOTES: Readonly<Record<string, string>> = {
 export function mapGuideText(catalog: OpCatalog, group?: string): string {
   return [
     'Map ops (ieumoffice map apply --ops, ieumoffice create from an outline with map create): a JSON array; every entry is { "op": "<name>", ...fields }. They are the tools the in-app AI uses on a mind map, checked by the same rules.',
-    'Topics are named by the ids `ieumoffice map read <file> --json` lists; the same id on another sheet is another topic, so keep one sheet per batch. Later ops run against the map as the earlier ops left it, but can only name ids the map already had: a new topic id comes back in detail.results[].created, and no later op can name it.',
+    'Topics are named by the ids `ieumoffice map read <file> --json` lists; the same id on another sheet is another topic, so keep one sheet per batch. Later ops run against the map as the earlier ops left it, but can only name ids the map already had: a new topic id comes back in detail.results[].created, and no later op in the same batch can name it (a later `map apply` run can).',
     'delete_topic is refused when the topic would take elements the map preserves (boundaries, floating topics, callouts, the branches under a summary topic): the refusal reports how many. Everything the editor does not show goes back out on save as it came in.',
     'A batch is all or nothing by default: one refused op leaves the file as it was. --best-effort applies every op that can apply, --stop-on-error stops at the first refusal. An empty list (or one where nothing changed) writes nothing unless --out names another file.',
     'Field notation: bare = string, n = number, bool = boolean, ? = optional, a|b = one of.',
