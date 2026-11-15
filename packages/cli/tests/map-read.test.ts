@@ -41,10 +41,12 @@ describe('map read', () => {
     const sheet = r.json().detail.sheets[0]
     expect(sheet.title).toBe('Plan')
     expect(sheet.root).toBe(ids.root)
-    const byId = new Map(sheet.topics.map((t: { id: string }) => [t.id, t]))
+    const byId = new Map<string, Record<string, unknown>>(
+      sheet.topics.map((t: { id: string }): [string, Record<string, unknown>] => [t.id, t]),
+    )
     expect([...byId.keys()]).toEqual([ids.root, ids.a, ids.a1, ids.b])
-    expect(byId.get(ids.root).children).toEqual([ids.a, ids.b])
-    expect(byId.get(ids.a).children).toEqual([ids.a1])
+    expect(byId.get(ids.root)!.children).toEqual([ids.a, ids.b])
+    expect(byId.get(ids.a)!.children).toEqual([ids.a1])
     expect(byId.get(ids.b)).toMatchObject({
       title: 'B',
       note: 'B note',
