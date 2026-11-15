@@ -3,11 +3,14 @@ import {
   countPreservedWithTopics,
   createXmindDocumentFromOutline,
   isShownLink,
+  isWritableBranchLine,
   newXmindId,
   openXmind,
   reconcileSheet,
   sheetToView,
   sheetsToOutline,
+  type BranchLineKey,
+  type ViewBranchLine,
   type ViewSheet,
   type ViewSummary,
   type ViewTopic,
@@ -412,6 +415,63 @@ export interface MapOpOutcome {
   created?: string
 }
 
+const LINE_KEYS = ['shape', 'width', 'color', 'pattern'] as const satisfies readonly BranchLineKey[]
+const MAX_DEPTH = 1024
+
+/** Whether two sets of line values hold the same keys with the same values. */
+function sameLine(a: ViewBranchLine, b: ViewBranchLine): boolean {
+  return LINE_KEYS.every((key) => a[key] === b[key])
+}
+
+/**
+ * The line values written on a topic itself that the engine writes: what a
+ * topic arriving under it takes (decision 0102). Values the engine never
+ * writes (another program's width like `2.5pt`) are not taken.
+ */
+function writableLineOf(topic: ViewTopic): ViewBranchLine {
+  const out: ViewBranchLine = {}
+  for (const key of LINE_KEYS) {
+    const value = topic.line?.[key]
+    if (typeof value === 'string' && isWritableBranchLine(key, value)) out[key] = value
+  }
+  return out
+}
+
+/** Every topic of a branch, the topic first; stops at a depth no file reaches. */
+function branchTopics(topic: ViewTopic): ViewTopic[] {
+  const out: ViewTopic[] = []
+  const visit = (at: ViewTopic, depth: number): void => {
+    out.push(at)
+    if (depth > MAX_DEPTH) return
+    for (const child of at.children) visit(child, depth + 1)
+  }
+  visit(topic, 0)
+  return out
+}
+
+/**
+ * A topic arrived under `parent` (decision 0102): it and every topic below it
+ * take the line values the parent has written on itself (those the engine
+ * writes), over their own, key by key. Nothing changes when the parent has
+ * none. Returns the ids of the topics that changed — the ones the reconcile
+ * must write line values for, the way the app's controller names them
+ * (`restyledTopicLines`). The ops never set a line themselves, so no value
+ * set by the same op can lose here.
+ */
+function inheritLineArrival(parent: ViewTopic, topic: ViewTopic): string[] {
+  const line = writableLineOf(parent)
+  if (Object.keys(line).length === 0) return []
+  const changed: string[] = []
+  for (const at of branchTopics(topic)) {
+    const before = at.line ?? {}
+    const after: ViewBranchLine = { ...before, ...line }
+    if (sameLine(before, after)) continue
+    at.line = after
+    changed.push(at.id)
+  }
+  return changed
+}
+
 /**
  * One op on the document, through `reconcileSheet`: the sheet's view is edited
  * and reconciled back, so untouched keys of `content.json` and the other
@@ -442,11 +502,15 @@ export function applyMapOp(document: XmindDocument, op: MapOp, index: number): M
       children: [],
     }
     insertBranch(spot.topic, made, fields.after, op.op)
-    const out = reconcile(document, sheetIndex, state, op, index)
+    // the new topic arrives under its parent: it takes the line values the
+    // parent has written on itself (decision 0102)
+    const relined = inheritLineArrival(spot.topic, made)
+    const out = reconcile(document, sheetIndex, state, op, index, relined)
     return { created: out.ids.topics.get(id) ?? id }
   }
 
   const spot = inSheet(state, fields.id!, op.op)
+  let relined: string[] = []
   if (op.op === 'rename_topic') {
     if (spot.kind === 'summary') spot.summary.title = fields.title!
     else spot.topic.title = fields.title!
@@ -491,6 +555,12 @@ export function applyMapOp(document: XmindDocument, op: MapOp, index: number): M
     }
     moved.parent.children = moved.parent.children.filter((child) => child.id !== moved.topic.id)
     insertBranch(parent.topic, moved.topic, fields.after, op.op)
+    // the moved topic stands under another parent afterwards: it and its whole
+    // branch take that parent's line values (decision 0102). A reorder among
+    // the topic's own siblings is not an arrival and keeps every value.
+    if (parent.topic.id !== moved.parent.id) {
+      relined = inheritLineArrival(parent.topic, moved.topic)
+    }
   } else {
     // delete_topic: the guard first, on the sheet as it is — a deletion that
     // would take elements the map preserves (boundaries, floating topics,
@@ -523,7 +593,7 @@ export function applyMapOp(document: XmindDocument, op: MapOp, index: number): M
       spot.parent.children = spot.parent.children.filter((child) => child.id !== fields.id)
     }
   }
-  reconcile(document, sheetIndex, state, op, index)
+  reconcile(document, sheetIndex, state, op, index, relined)
   return {}
 }
 
@@ -533,8 +603,9 @@ function reconcile(
   state: ViewSheet,
   op: MapOp,
   index: number,
+  restyledTopicLines: readonly string[] = [],
 ) {
-  const out = reconcileSheet(document, sheetIndex, state)
+  const out = reconcileSheet(document, sheetIndex, state, { restyledTopicLines })
   if (!out.ok) {
     throw opFailure(index, op.op, `${op.op}: ${out.problem}`, 'op_rejected')
   }
