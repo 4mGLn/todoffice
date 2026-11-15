@@ -708,6 +708,12 @@ export const hi = {
   appSaveAs: 'इस रूप में सहेजें',
   appUndo: 'पूर्ववत करें',
   appRedo: 'फिर से करें',
+  appQuickAccessCustomize: 'त्वरित पहुँच टूलबार अनुकूलित करें',
+  appQuickAccessHint: 'Alt और कोई अंक दबाएँ, तो बाईं ओर से उस स्थान का बटन चलता है।',
+  appQuickAccessMoveEarlier: 'आगे ले जाएँ',
+  appQuickAccessMoveLater: 'पीछे ले जाएँ',
+  appQuickAccessReset: 'डिफ़ॉल्ट पर रीसेट करें',
+  appQuickAccessFull: 'टूलबार में अधिकतम 10 बटन रखे जा सकते हैं।',
   appUnsavedEditOne: '● {count} असहेजा संपादन',
   appUnsavedEditMany: '● {count} असहेजे संपादन',
   appSavedState: 'सहेजा गया',
@@ -1570,5 +1576,4 @@ export const hi = {
   // ── ODS import ──
   appOdsImportNotice: 'ODS को xlsx प्रति के रूप में खोला गया। सहेजने पर xlsx फ़ाइल लिखी जाएगी।',
   appOdsFormulasDropped: '{count} सूत्रों में केवल मान रखे गए।',
-  saveAsNeedsExtension: 'फ़ाइल नाम में एक्सटेंशन जोड़ें, जैसे report.xlsx या report.ods.',
 } satisfies Record<keyof typeof zh, string>

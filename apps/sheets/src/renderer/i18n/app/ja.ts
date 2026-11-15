@@ -745,6 +745,12 @@ export const ja = {
   appSaveAs: '名前を付けて保存',
   appUndo: '元に戻す',
   appRedo: 'やり直し',
+  appQuickAccessCustomize: 'クイック アクセス ツール バーのユーザー設定',
+  appQuickAccessHint: 'Alt キーと数字キーを押すと、左から数えてその位置にあるボタンを実行します。',
+  appQuickAccessMoveEarlier: '前へ移動',
+  appQuickAccessMoveLater: '後ろへ移動',
+  appQuickAccessReset: '既定に戻す',
+  appQuickAccessFull: 'ツール バーに置けるボタンは 10 個までです。',
   appUnsavedEditOne: '● 未保存の編集 {count} 件',
   appUnsavedEditMany: '● 未保存の編集 {count} 件',
   appSavedState: '保存済み',
@@ -1621,5 +1627,4 @@ export const ja = {
   // ── ODS import ──
   appOdsImportNotice: 'ODS を xlsx のコピーとして開きました。保存すると xlsx ファイルになります。',
   appOdsFormulasDropped: '数式 {count} 個は値のみ残しました。',
-  saveAsNeedsExtension: 'ファイル名に拡張子を付けてください。例: 報告書.xlsx、報告書.ods',
 } satisfies Record<keyof typeof zh, string>

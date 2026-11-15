@@ -12,10 +12,12 @@ Każdy edytor ma własne przypisania klawiszy i tylko kilka z nich działa wszę
 | Zwiń / rozwiń wstążkę — każdy edytor                        | ⌥⌘R   | Ctrl+F1         |
 | Kompaktowa wstążka — tylko Docs                             | ⌥⌘K   | Ctrl+Alt+K      |
 | Otwórz arkusz Skrótów klawiszowych — tylko Word             | ⌘/    | Ctrl+/          |
+| Otwórz ustawienia — każda karta oprócz Word                 | ⌘,    | Ctrl+,          |
 
 - **F1 otwiera ten podręcznik**, a nie arkusz skrótów. Należy do menu aplikacji, więc działa z poziomu Word, Sheets, Slides, PDF czy karty Home.
 - **Przełącznik wstążki to `Ctrl+F1`, albo `⌥⌘R` na macOS.** Samo `F1` nic nie robi — F1 to podręcznik, a klawisz wstążki celowo go nie współdzieli. `Ctrl+F1` jest akceptowany także na macOS, ale `⌥⌘R` to klawisz używany przez Office dla Maca.
 - **Arkusz Skrótów klawiszowych należy wyłącznie do Worda** (`⌘/`). Wypisuje dokładnie tabelę Worda poniżej. Żaden inny edytor go nie ma.
+- **`⌘,` otwiera ustawienia** (`Ctrl+,` w systemach Windows i Linux), jak w większości aplikacji na Maca. W karcie Word ten skrót pozostaje indeksem dolnym, więc tam otwórz ustawienia z menu aplikacji na Macu albo przez Menu (☰) ▸ Ustawienia… w systemach Windows i Linux.
 
 ![Arkusz Skrótów klawiszowych w Wordzie: czynność po lewej, skrót po prawej, pogrupowane według Plik, Edycja, Formatowanie tekstu, Formatowanie akapitu, Wstawianie, Sprawdzanie i narzędzia, Widok](img/word-shortcuts.png)
 
@@ -278,18 +280,19 @@ Skrót filtru Excela, Ctrl+Shift+L, nie działa w Windows ani Linux. Naciśnij �
 
 ### Okno
 
-| Czynność                                                        | macOS           | Windows / Linux    |
-| --------------------------------------------------------------- | --------------- | ------------------ |
-| Zapisz skoroszyt                                                | ⌘S              | Ctrl+S             |
-| Zapisz jako                                                     | ⇧⌘S             | Ctrl+Shift+S       |
-| Otwórz skoroszyt                                                | ⌘O              | Ctrl+O             |
-| Drukuj                                                          | ⌘P              | Ctrl+P             |
-| Zamknij skoroszyt (macOS) / Zakończ aplikację (Windows i Linux) | ⌘W              | Ctrl+Q             |
-| Otwórz Podręcznik użytkownika                                   | F1              | F1                 |
-| Powiększ                                                        | ⌘=              | Ctrl+=             |
-| Zoom kółkiem myszy                                              | ⌘ + przewijanie | Ctrl + przewijanie |
-| Pokaż lub ukryj formuły w komórkach                             | ⌘`              | Ctrl+`             |
-| Rozwiń lub zwiń pasek formuły                                   | ⌘⇧U             | Ctrl+Shift+U       |
+| Czynność                                                           | macOS           | Windows / Linux    |
+| ------------------------------------------------------------------ | --------------- | ------------------ |
+| Zapisz skoroszyt                                                   | ⌘S              | Ctrl+S             |
+| Zapisz jako                                                        | ⇧⌘S             | Ctrl+Shift+S       |
+| Otwórz skoroszyt                                                   | ⌘O              | Ctrl+O             |
+| Drukuj                                                             | ⌘P              | Ctrl+P             |
+| Zamknij skoroszyt (macOS) / Zakończ aplikację (Windows i Linux)    | ⌘W              | Ctrl+Q             |
+| Otwórz Podręcznik użytkownika                                      | F1              | F1                 |
+| Powiększ                                                           | ⌘=              | Ctrl+=             |
+| Zoom kółkiem myszy                                                 | ⌘ + przewijanie | Ctrl + przewijanie |
+| Pokaż lub ukryj formuły w komórkach                                | ⌘`              | Ctrl+`             |
+| Rozwiń lub zwiń pasek formuły                                      | ⌘⇧U             | Ctrl+Shift+U       |
+| Uruchom przycisk paska Szybki dostęp według pozycji (od 1. do 10.) |                 | Alt+1 … Alt+0      |
 
 ## Slides
 

@@ -726,6 +726,12 @@ export const ru = {
   appSaveAs: 'Сохранить как',
   appUndo: 'Отменить',
   appRedo: 'Вернуть',
+  appQuickAccessCustomize: 'Настроить панель быстрого доступа',
+  appQuickAccessHint: 'Нажмите Alt и цифру, чтобы выполнить кнопку на этой позиции, считая слева.',
+  appQuickAccessMoveEarlier: 'Переместить ближе к началу',
+  appQuickAccessMoveLater: 'Переместить ближе к концу',
+  appQuickAccessReset: 'Вернуть по умолчанию',
+  appQuickAccessFull: 'На панели помещается не более 10 кнопок.',
   appUnsavedEditOne: '● Несохранённых изменений: {count}',
   appUnsavedEditMany: '● Несохранённых изменений: {count}',
   appSavedState: 'Сохранено',
@@ -1589,5 +1595,4 @@ export const ru = {
   // ── ODS import ──
   appOdsImportNotice: 'Файл ODS открыт как копия xlsx. При сохранении будет записан файл xlsx.',
   appOdsFormulasDropped: 'В {count} формулах остались только значения.',
-  saveAsNeedsExtension: 'Добавьте расширение к имени файла, например отчёт.xlsx или отчёт.ods.',
 } satisfies Record<keyof typeof zh, string>

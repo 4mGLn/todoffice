@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type {
   DragEvent as ReactDragEvent,
   PointerEvent as ReactPointerEvent,
@@ -31,11 +31,13 @@ import type {
 import type { IntegrationsApi } from '../../shared/integrations-api'
 import { markText } from '../../shared/text-marks'
 import {
-  AiMark,
   aiProviderDisplayName,
   aiSubscriptionCardView,
   aiSubscriptionText,
+  useAppChoice,
   useDismissablePopover,
+  useEscapeToClose,
+  type AppChoiceSource,
 } from '@genoffice/ui'
 import { isSubscriptionProvider } from '@genoffice/ai-provider/browser'
 import type { AiSettings } from '@genoffice/ai-provider/browser'
@@ -52,11 +54,14 @@ import {
 import { SettingsModal } from './SettingsModal'
 import { HOME_KIND_LABEL, useHomeKinds } from './SettingsHomeKinds'
 import { visibleHomeKinds, type HomeKind } from '../../shared/home-kinds'
+import { hiddenNewDocumentKinds, isEditorItemId } from '../../shared/editor-choice'
 import type { SettingsTarget } from './SettingsModal'
 import { skillUpdateDue } from './IntegrationsPane'
 import { onFilesChanged } from './file-events'
 import { FirstConnectionDialog } from './FirstConnectionNotice'
+import { firstConnectionNoticeShown, useAiFeaturesOn } from './ai-features'
 import { LaunchRecoveryList } from './RecoveryList'
+import { OneTimeEditorPick } from './editor-choice/OneTimeEditorPick'
 import type { SubscriptionConnection } from './subscription-client'
 import { homeAiEntry } from './subscription-status'
 import './pdf-tools/globals'
@@ -70,6 +75,7 @@ import { DriveNavIcon, DrivePanel, useDriveState } from './DrivePanel'
 import { driveUiText } from './i18n/strings-drive'
 import { ProjectsPanel, subscribeProjectScreen, type ProjectScreenRequest } from './ProjectsPanel'
 import { projectsText } from './i18n/strings-projects'
+import { skillsText } from './i18n/strings-skills'
 
 declare global {
   interface Window {
@@ -124,7 +130,7 @@ const FILE_ICONS: Record<string, string> = {
    width, so it ellipsizes and a hover ScreenTip carries the full list. Keep in
    sync with the main-process open-dialog filter (OPEN_DIALOG_EXTENSIONS). */
 const OPEN_LOCAL_EXTENSIONS =
-  '.docx / .odt / .xlsx / .xlsm / .xls / .csv / .tsv / .ods / .pptx / .pdf / .md / .html / .xmind / .mm / .hwp / .hwpx / .epub / .drawio / .dio / .drawio.svg / .drawio.png / .vsdx'
+  '.docx / .doc / .odt / .xlsx / .xlsm / .xls / .csv / .tsv / .ods / .pptx / .ppt / .pdf / .md / .html / .xmind / .mm / .hwp / .hwpx / .epub / .drawio / .dio / .drawio.svg / .drawio.png / .vsdx'
 
 /** drag payload of home file/folder rows (JSON array of absolute paths) */
 const DRAG_PATHS_MIME = 'application/x-genoffice-paths'
@@ -324,7 +330,7 @@ const FILTERS: { key: string; label: StringKey }[] = [
 
 /** sidebar filter keys that stand for a family of extensions (mirrors recent-files.ts) */
 const FILTER_FAMILY: Record<string, readonly string[]> = {
-  docx: ['docx', 'doc', 'odt'],
+  docx: ['docx', 'doc', 'dot', 'odt'],
   xlsx: ['xlsx', 'xlsm', 'xls', 'csv', 'tsv', 'ods'],
   pptx: ['pptx', 'ppt'],
   md: ['md', 'markdown', 'txt', 'json'],
@@ -502,13 +508,7 @@ function FolderPicker({
     for (const dir of expanded) load(dir)
   }, [expanded, load])
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onCancel])
+  useEscapeToClose(true, onCancel)
 
   const disabledDir = (dir: string) =>
     currentDirs.has(dir) ||
@@ -722,13 +722,7 @@ interface ConflictPromptProps {
 
 function ConflictPrompt({ names, onChoose }: ConflictPromptProps) {
   const { t } = useI18n()
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onChoose('skip')
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onChoose])
+  useEscapeToClose(true, () => onChoose('skip'))
   return (
     <div className="modal-overlay" onClick={() => onChoose('skip')}>
       <div
@@ -791,13 +785,7 @@ function GroupPicker({ groups, count, onCancel, onPick, onCreate, onRemove }: Gr
   const { t } = useI18n()
   const [name, setName] = useState('')
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onCancel])
+  useEscapeToClose(true, onCancel)
 
   const create = () => {
     const trimmed = name.trim()
@@ -865,10 +853,13 @@ function GroupPicker({ groups, count, onCancel, onPick, onCreate, onRemove }: Gr
 }
 
 // ── Settings entry (bottom-left) ─────────────────────────
-// Shows the AI that requests run on (homeAiEntry). Clicking it opens the
-// settings modal (SettingsModal.tsx) on its AI section, where the connect
-// cards live; the other preferences (language, theme, save location, update
-// channel) are one click away in the same dialog.
+// Reads "Settings", with the state of the AI that requests run on (homeAiEntry)
+// on the line below. The AI's name stays in the tooltip only: in large type it
+// made the entry look like a Claude or ChatGPT account and left out every
+// other kind of AI. Clicking it
+// opens the settings modal (SettingsModal.tsx) on its AI section, where the
+// connect cards live; the other preferences (language, theme, save location,
+// update channel) are one click away in the same dialog.
 
 function AccountEntry({
   connection,
@@ -876,6 +867,8 @@ function AccountEntry({
   onOpenChange,
   onFileSearchSettingsChange,
   openRequest,
+  overWelcome = false,
+  aiOn = true,
 }: {
   connection: SubscriptionConnection
   /** the AI settings as last read; null until the first read answers */
@@ -885,6 +878,10 @@ function AccountEntry({
   onFileSearchSettingsChange?: () => void
   /** a fresh object per request: the home list asks to open the modal on a given block */
   openRequest?: SettingsTarget | null
+  /** the first-run welcome window is up: the modal opens above it */
+  overWelcome?: boolean
+  /** AI features are on: the entry shows the connection; off, it is the way into Settings alone */
+  aiOn?: boolean
 }) {
   const { t, lang } = useI18n()
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -912,7 +909,7 @@ function AccountEntry({
     setTarget(to)
     setSettingsOpen(true)
   }, [])
-  const handleClick = () => openSettings({ section: 'aiModel' })
+  const handleClick = () => openSettings(aiOn ? { section: 'aiModel' } : null)
   useEffect(() => {
     if (openRequest) openSettings(openRequest)
   }, [openRequest, openSettings])
@@ -944,12 +941,21 @@ function AccountEntry({
           ? aiSubscriptionText(lang, 'cardOff')
           : null
   const named =
-    summary.state === 'connected' || summary.state === 'needs-connection' || summary.state === 'off'
-  const label = named
-    ? names
-    : summary.state === 'checking'
-      ? aiSubscriptionText(lang, 'cardChecking')
-      : aiSubscriptionText(lang, 'pickerNotConnected')
+    aiOn &&
+    (summary.state === 'connected' ||
+      summary.state === 'needs-connection' ||
+      summary.state === 'off')
+  const aiLineId = useId()
+  // the line under "Settings": the AI's state without its name
+  const aiLine = !aiOn
+    ? null
+    : t('homeEntryAiState', {
+        state:
+          stateText ??
+          (summary.state === 'checking'
+            ? aiSubscriptionText(lang, 'cardChecking')
+            : t('freeStatusNotConnected')),
+      })
 
   return (
     <div className="account-entry">
@@ -960,6 +966,7 @@ function AccountEntry({
           skillUpdateDue={skillUpdate}
           onSkillUpdateDue={setSkillUpdate}
           target={target}
+          overWelcome={overWelcome}
         />
       )}
       <button
@@ -967,25 +974,32 @@ function AccountEntry({
         onClick={handleClick}
         aria-haspopup="dialog"
         aria-expanded={settingsOpen}
-        data-subscription={summary.state}
+        data-subscription={aiOn ? summary.state : undefined}
         data-tip={
           named
             ? `${names} · ${stateText}`
-            : summary.state === 'checking'
+            : !aiOn || summary.state === 'checking'
               ? t('settings')
               : aiSubscriptionText(lang, 'connectTitle')
         }
         aria-label={t('settings')}
+        aria-describedby={aiLine ? aiLineId : undefined}
       >
-        <span className={`account-avatar${summary.state === 'connected' ? ' logged-in' : ''}`}>
-          <AiMark size={16} />
+        <span
+          className={`account-avatar${aiOn && summary.state === 'connected' ? ' logged-in' : ''}`}
+        >
+          <SettingsGlyph />
           {skillUpdate && (
             <span className="account-badge" role="img" aria-label={t('intgUpdateDue')} />
           )}
         </span>
         <span className="account-text">
-          <span className="account-name">{label}</span>
-          {stateText && <span className="account-sub">{stateText}</span>}
+          <span className="account-name">{t('settings')}</span>
+          {aiLine && (
+            <span className="account-sub" id={aiLineId}>
+              {aiLine}
+            </span>
+          )}
         </span>
         <svg
           className="account-chevron"
@@ -1019,7 +1033,7 @@ function AccountEntry({
  * hide the overlay mid-drag. Enter fires before the matching leave when
  * moving between elements, so the depth never dips to zero inside the window.
  */
-function DropToOpenOverlay(): ReactElement | null {
+export function DropToOpenOverlay(): ReactElement | null {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     let depth = 0
@@ -1054,7 +1068,7 @@ function DropToOpenOverlay(): ReactElement | null {
       window.removeEventListener('blur', onHide)
     }
   }, [])
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   if (!visible) return null
   return (
     <div className="home-drop-overlay" aria-hidden="true">
@@ -1076,8 +1090,24 @@ function DropToOpenOverlay(): ReactElement | null {
         </svg>
         <h2>{t('dropToOpenTitle')}</h2>
         <p>{OPEN_LOCAL_EXTENSIONS}</p>
+        <p className="home-drop-skills">{skillsText(lang, 'dropOverlaySkills')}</p>
       </div>
     </div>
+  )
+}
+
+/** the settings entry's mark while AI features are off (a gear in place of the AI mark) */
+function SettingsGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
   )
 }
 
@@ -1088,6 +1118,8 @@ export function Home({
   aiSettings,
   noticeDue,
   onNoticeAcknowledge,
+  welcomeOpen = false,
+  onSettingsOpenChange,
 }: {
   /** the live subscription connection (AppFrame owns the one instance) */
   connection: SubscriptionConnection
@@ -1096,11 +1128,26 @@ export function Home({
   /** a subscription can be used and the first-connection notice was not acknowledged yet */
   noticeDue: boolean
   onNoticeAcknowledge: () => void
+  /**
+   * The first-run welcome window is up, over this screen. A request to open
+   * Settings (a dropped skill file asks for one) opens at once and above that
+   * window, which is still there to finish when Settings closes.
+   */
+  welcomeOpen?: boolean
+  /** Settings opened or closed (the welcome window stands down while it is open) */
+  onSettingsOpenChange?: (open: boolean) => void
 }) {
   const i18n = useI18n()
   const { t, lang } = i18n
   const [homeKinds] = useHomeKinds()
-  const shownKinds = visibleHomeKinds(homeKinds)
+  // the shell preload's bridge, read once so the subscription stays put
+  const [choiceSource] = useState(
+    () => (window as unknown as { aiOfficeEditorChoice?: AppChoiceSource }).aiOfficeEditorChoice,
+  )
+  const appChoice = useAppChoice(choiceSource)
+  // a turned-off editor's kind leaves the cards too (Settings → Editors and AI)
+  const offKinds = hiddenNewDocumentKinds(homeKinds, { off: appChoice.off.filter(isEditorItemId) })
+  const shownKinds = visibleHomeKinds(homeKinds).filter((kind) => !offKinds.includes(kind))
   // ── Paged list state (rows loaded for the current view + filter) ──
   const [entries, setEntries] = useState<RecentEntry[]>([])
   /** total count under the current view + filter (not just the loaded rows) */
@@ -1113,6 +1160,11 @@ export function Home({
   const [view, setView] = useState<'recent' | 'starred'>('recent')
   // the knowledge-base ask panel takes over the content area the same way
   const [askMode, setAskMode] = useState(false)
+  // AI features off (editor choice spec 8.1): no ask panel, agent entry or other AI part
+  const aiOn = useAiFeaturesOn()
+  useEffect(() => {
+    if (!aiOn) setAskMode(false)
+  }, [aiOn])
   // a project chat the project screen handed to the ask panel; cleared when the panel goes
   const [askOpenChat, setAskOpenChat] = useState<{
     projectId: string
@@ -1162,9 +1214,13 @@ export function Home({
   // latched once Settings was opened: a connection made there may only be seen
   // here after the dialog closed, and its notice is still owed then
   const [settingsVisited, setSettingsVisited] = useState(false)
-  const handleSettingsOpenChange = useCallback((open: boolean) => {
-    if (open) setSettingsVisited(true)
-  }, [])
+  const handleSettingsOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) setSettingsVisited(true)
+      onSettingsOpenChange?.(open)
+    },
+    [onSettingsOpenChange],
+  )
   useEffect(
     () =>
       window.aiOffice.onOpenSettings?.((target) =>
@@ -1399,7 +1455,7 @@ export function Home({
       ? [q, filter, ...searchPage.hits.slice(0, 20).map((h) => h.path)].join('\n')
       : ''
   useEffect(() => {
-    if (!rerankKey) return
+    if (!rerankKey || !aiOn) return
     const key = rerankKey
     const paths = key.split('\n').slice(2)
     const timer = window.setTimeout(() => {
@@ -1409,7 +1465,7 @@ export function Home({
       })
     }, 600)
     return () => window.clearTimeout(timer)
-  }, [q, filter, rerankKey, rerankSettingsTick])
+  }, [q, filter, rerankKey, rerankSettingsTick, aiOn])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1508,27 +1564,20 @@ export function Home({
   }, [folderMenu])
 
   // Escape closes the row menu and the confirm dialogs
-  useEffect(() => {
-    if (
-      rowMenu === null &&
-      folderMenu === null &&
-      confirmDelete === null &&
-      confirmMissing === null &&
-      confirmDeleteFolder === null
-    )
-      return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setRowMenu(null)
-        setFolderMenu(null)
-        setConfirmDelete(null)
-        setConfirmMissing(null)
-        setConfirmDeleteFolder(null)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [rowMenu, folderMenu, confirmDelete, confirmMissing, confirmDeleteFolder])
+  useEscapeToClose(
+    rowMenu !== null ||
+      folderMenu !== null ||
+      confirmDelete !== null ||
+      confirmMissing !== null ||
+      confirmDeleteFolder !== null,
+    () => {
+      setRowMenu(null)
+      setFolderMenu(null)
+      setConfirmDelete(null)
+      setConfirmMissing(null)
+      setConfirmDeleteFolder(null)
+    },
+  )
 
   // WPS-style sortable "modified" column header, shared by both file tables
   const renderModifiedHeader = () => (
@@ -1953,7 +2002,10 @@ export function Home({
               <span className="quick-text">
                 <span className="quick-title-row">
                   <span className="quick-title">{t(HOME_KIND_LABEL[kind].title)}</span>
-                  <span className="ai-chip">AI</span>
+                  {/* "AI Docs" already says it; the chip is for titles that do not */}
+                  {!/\bAI\b/.test(t(HOME_KIND_LABEL[kind].title)) && (
+                    <span className="ai-chip">AI</span>
+                  )}
                 </span>
                 <span className="quick-sub">{HOME_KIND_LABEL[kind].sub}</span>
               </span>
@@ -2837,7 +2889,7 @@ export function Home({
     )
   }
 
-  const rerankApplied = rerank && rerank.key === rerankKey ? rerank.result : null
+  const rerankApplied = aiOn && rerank && rerank.key === rerankKey ? rerank.result : null
 
   /** judged hits in Jev's order, then the rest in local order */
   const orderedSearchHits = (hits: readonly FileSearchHit[]): FileSearchHit[] => {
@@ -3049,7 +3101,7 @@ export function Home({
             )}
             <div className="file-search-group">
               {renderSearchBox()}
-              {renderSearchSettingsButton()}
+              {aiOn && renderSearchSettingsButton()}
             </div>
             {searchActive ? (
               renderSearchHeading()
@@ -3220,7 +3272,7 @@ export function Home({
             )}
             <div className="file-search-group">
               {renderSearchBox()}
-              {renderSearchSettingsButton()}
+              {aiOn && renderSearchSettingsButton()}
             </div>
             {searchActive ? (
               renderSearchHeading()
@@ -3366,34 +3418,36 @@ export function Home({
             <span className="nav-label">{t('navStarred')}</span>
             <span className="nav-count">{navCounts.starred}</span>
           </button>
-          <button
-            className={`nav-item${activeNav === 'ask' ? ' active' : ''}`}
-            aria-current={activeNav === 'ask' ? 'page' : undefined}
-            onClick={() => {
-              setAskMode(true)
-              setDriveMode(false)
-              setProjectsMode(false)
-              setSelectedFolder(null)
-              setSelected(new Set())
-              setRowMenu(null)
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M14 10.5c0 .9-.7 1.6-1.6 1.6H5.4L2 14.5V3.6C2 2.7 2.7 2 3.6 2h8.8c.9 0 1.6.7 1.6 1.6z"
-                stroke="currentColor"
-                strokeWidth="1.3"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M5 6.2h6M5 8.6h4"
-                stroke="currentColor"
-                strokeWidth="1.3"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className="nav-label">{t('navAsk')}</span>
-          </button>
+          {aiOn && (
+            <button
+              className={`nav-item${activeNav === 'ask' ? ' active' : ''}`}
+              aria-current={activeNav === 'ask' ? 'page' : undefined}
+              onClick={() => {
+                setAskMode(true)
+                setDriveMode(false)
+                setProjectsMode(false)
+                setSelectedFolder(null)
+                setSelected(new Set())
+                setRowMenu(null)
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M14 10.5c0 .9-.7 1.6-1.6 1.6H5.4L2 14.5V3.6C2 2.7 2.7 2 3.6 2h8.8c.9 0 1.6.7 1.6 1.6z"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M5 6.2h6M5 8.6h4"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="nav-label">{t('navAsk')}</span>
+            </button>
+          )}
           {projectsOffered && (
             <button
               className={`nav-item${activeNav === 'projects' ? ' active' : ''}`}
@@ -3426,7 +3480,7 @@ export function Home({
             </button>
           )}
           {/* decision 0032: the agent opens a window of its own, hence the mark on the right */}
-          {window.aiOfficeAgent ? (
+          {aiOn && window.aiOfficeAgent ? (
             <button
               className="nav-item"
               title={agentText(lang, 'homeCardSub')}
@@ -3484,6 +3538,8 @@ export function Home({
           onOpenChange={handleSettingsOpenChange}
           onFileSearchSettingsChange={() => setRerankSettingsTick((n) => n + 1)}
           openRequest={settingsRequest}
+          overWelcome={welcomeOpen}
+          aiOn={aiOn}
         />
       </aside>
       <div className="sidebar-resizer" onPointerDown={onSidebarResizeStart} />
@@ -3503,13 +3559,15 @@ export function Home({
           noticeDue={noticeDue}
           onNoticeNeeded={() => setProjectsNoticeAsked(true)}
           onOpenAiSettings={() => setSettingsRequest({ section: 'aiModel' })}
+          aiOn={aiOn}
           onOpenHomeAsk={(chat) => {
+            if (!aiOn) return
             setProjectsMode(false)
             setAskMode(true)
             setAskOpenChat((prev) => ({ ...chat, seq: (prev?.seq ?? 0) + 1 }))
           }}
         />
-      ) : askMode ? (
+      ) : askMode && aiOn ? (
         <KbAskPanel
           connection={connection}
           aiSettings={aiSettings}
@@ -3704,12 +3762,20 @@ export function Home({
       {/* the first-connection notice comes up where a connection is made or first
           used from this screen: in Settings and on the ask panel (an editor's AI
           panel shows it for itself) */}
-      {noticeDue && (settingsVisited || askMode || (projectsMode && projectsNoticeAsked)) && (
-        <FirstConnectionDialog onAcknowledge={onNoticeAcknowledge} />
-      )}
+      {firstConnectionNoticeShown({
+        aiOn,
+        noticeDue,
+        settingsVisited,
+        askMode,
+        projectsMode,
+        projectsNoticeAsked,
+      }) && <FirstConnectionDialog onAcknowledge={onNoticeAcknowledge} />}
       {/* documents with unsaved content left in recovery copies, asked about
           once at launch; the main process keeps Home in front meanwhile */}
       <LaunchRecoveryList />
+      {/* the one-time editor picker for people who passed the first-run guide
+          before it had a pick step: after the launch, on the home tab only */}
+      <OneTimeEditorPick />
       <DropToOpenOverlay />
     </div>
   )

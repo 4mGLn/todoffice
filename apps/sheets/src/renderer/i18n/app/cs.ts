@@ -708,6 +708,13 @@ export const cs = {
   appSaveAs: 'Uložit jako',
   appUndo: 'Zpět',
   appRedo: 'Znovu',
+  appQuickAccessCustomize: 'Přizpůsobit panel nástrojů Rychlý přístup',
+  appQuickAccessHint:
+    'Stisknutím klávesy Alt a číslice spustíte tlačítko na dané pozici počítáno zleva.',
+  appQuickAccessMoveEarlier: 'Přesunout blíž k začátku',
+  appQuickAccessMoveLater: 'Přesunout blíž ke konci',
+  appQuickAccessReset: 'Obnovit výchozí',
+  appQuickAccessFull: 'Na panel se vejde nejvýše 10 tlačítek.',
   appUnsavedEditOne: '● {count} neuložená úprava',
   appUnsavedEditMany: '● {count} neuložených úprav',
   appSavedState: 'Uloženo',
@@ -1571,6 +1578,4 @@ export const cs = {
   // ── ODS import ──
   appOdsImportNotice: 'Soubor ODS byl otevřen jako kopie xlsx. Uložením se zapíše soubor xlsx.',
   appOdsFormulasDropped: 'U {count} vzorců byly ponechány pouze hodnoty.',
-  saveAsNeedsExtension:
-    'Přidejte k názvu souboru příponu, například sestava.xlsx nebo sestava.ods.',
 } satisfies Record<keyof typeof zh, string>

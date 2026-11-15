@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { XMLParser } from 'fast-xml-parser'
 import { assertZipInflatesWithinLimits, assertZipWithinLimits } from '@genoffice/docx-engine'
 import { resolveTarget } from './opc'
 
@@ -17,6 +18,7 @@ export interface DocxTextOptions {
  * 19 MB report cost a gigabyte of RSS to index six thousand characters.
  */
 export async function docxToText(bytes: Uint8Array, opts: DocxTextOptions = {}): Promise<string> {
+  if (opts.maxChars !== undefined && opts.maxChars <= 0) return ''
   await assertZipInflatesWithinLimits(bytes)
   const zip = await JSZip.loadAsync(bytes)
   assertZipWithinLimits(zip)
@@ -24,15 +26,42 @@ export async function docxToText(bytes: Uint8Array, opts: DocxTextOptions = {}):
   const documentXml = docPath ? await zip.file(docPath)?.async('string') : undefined
   if (!documentXml) throw new Error('docx: main document part not found')
   const dir = docPath!.slice(0, docPath!.lastIndexOf('/') + 1)
-  const styleFacts = paragraphStyleFacts(await zip.file(`${dir}styles.xml`)?.async('string'))
+  const parts = new Map<string, string>([
+    ['styles', `${dir}styles.xml`],
+    ['footnotes', `${dir}footnotes.xml`],
+    ['endnotes', `${dir}endnotes.xml`],
+  ])
+  const relsPath = `${dir}_rels/${docPath!.slice(dir.length)}.rels`
+  const relsXml = await zip.file(relsPath)?.async('string')
+  if (relsXml) {
+    const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true })
+    const rels = parser.parse(relsXml).Relationships?.Relationship ?? []
+    for (const rel of Array.isArray(rels) ? rels : [rels]) {
+      const kind = String(rel['@_Type'] ?? '')
+        .split('/')
+        .at(-1)!
+      if (!parts.has(kind) || String(rel['@_TargetMode'] ?? '').toLowerCase() === 'external')
+        continue
+      const target = String(rel['@_Target'] ?? '').trim()
+      if (!target) continue
+      const path = resolveTarget(docPath!, target)
+      if (path) parts.set(kind, path)
+    }
+  }
+  const styleFacts = paragraphStyleFacts(await zip.file(parts.get('styles')!)?.async('string'))
   const out = new TextSink(opts.maxChars ?? Infinity)
   scanBody(documentXml, styleFacts, out)
+  if (!out.lines.some((line) => line.trim()) && out.pictures > 0) {
+    const n = out.pictures
+    out.lines.length = 0
+    out.push(`[image-only document: ${n} image${n === 1 ? '' : 's'}, no extractable text]`)
+  }
   for (const [part, title] of [
-    ['footnotes.xml', 'Footnotes'],
-    ['endnotes.xml', 'Endnotes'],
+    ['footnotes', 'Footnotes'],
+    ['endnotes', 'Endnotes'],
   ] as const) {
     if (out.full) break
-    const xml = await zip.file(`${dir}${part}`)?.async('string')
+    const xml = await zip.file(parts.get(part)!)?.async('string')
     if (!xml) continue
     appendStory(out, title, xml, styleFacts, true)
   }
@@ -95,11 +124,20 @@ async function mainDocumentPath(zip: JSZip): Promise<string | null> {
   if (zip.file('word/document.xml')) return 'word/document.xml'
   const rels = await zip.file('_rels/.rels')?.async('string')
   if (!rels) return null
-  for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
-    const tag = m[0]
-    if (!/Type="[^"]*\/officeDocument"/.test(tag) || /TargetMode="External"/.test(tag)) continue
-    const target = /Target="([^"]+)"/.exec(tag)?.[1]
+  const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true })
+  const relationships = parser.parse(rels).Relationships?.Relationship ?? []
+  for (const rel of Array.isArray(relationships) ? relationships : [relationships]) {
+    if (
+      !String(rel['@_Type'] ?? '').endsWith('/officeDocument') ||
+      String(rel['@_TargetMode'] ?? '').toLowerCase() === 'external'
+    )
+      continue
+    const target = String(rel['@_Target'] ?? '').trim()
     if (!target) continue
+    // OPC targets are percent-encoded; the zip entry name is the decoded path.
+    const resolved = resolveTarget('', target)
+    if (resolved && zip.file(resolved)) return resolved
+    // resolveTarget rejects malformed escapes (a literal `%`); keep the raw lookup for those.
     const path = target.replace(/^\//, '')
     if (zip.file(path)) return path
   }
@@ -129,14 +167,14 @@ function paragraphStyleFacts(stylesXml: string | undefined): Map<string, StyleFa
     const name = /<w:name\b[^>]*w:val="([^"]*)"/.exec(body)?.[1] ?? ''
     const byName = /^heading\s*(\d)$/i.exec(name)
     const outline = /<w:outlineLvl\b[^>]*w:val="(\d)"/.exec(body)
-    const heading = byName
-      ? Number(byName[1])
-      : /^title$/i.test(name)
-        ? 1
-        : outline
-          ? Number(outline[1]) === 9
-            ? 0
-            : Number(outline[1]) + 1
+    const heading = outline
+      ? Number(outline[1]) === 9
+        ? 0
+        : Number(outline[1]) + 1
+      : byName
+        ? Number(byName[1])
+        : /^title$/i.test(name)
+          ? 1
           : undefined
     const numId = /<w:numId\b[^>]*w:val="([^"]+)"/.exec(body)?.[1]
     raw.set(id, {
@@ -166,6 +204,7 @@ class TextSink {
   readonly lines: string[] = []
   private chars = 0
   full = false
+  pictures = 0
   constructor(private readonly maxChars: number) {}
   push(line: string): void {
     if (this.full) return
@@ -201,6 +240,8 @@ const SKIP_SUBTREES = new Set([
   'w:instrText',
   'w:delInstrText',
   'w:delText',
+  // ruby guide text (furigana, pinyin); the base text is read, as parseDocx does
+  'w:rt',
   'w:rPrChange',
   'w:pPrChange',
   'w:tabs',
@@ -331,7 +372,7 @@ function scanBody(
         if (opening) runHidden = false
         break
       case 'w:vanish':
-        if (opening && !/w:val="(0|false)"/.test(attrs!)) runHidden = true
+        if (opening && !/w:val="(0|false|off)"/.test(attrs!)) runHidden = true
         break
       case 'w:t':
         inText = opening && !selfClose
@@ -353,6 +394,20 @@ function scanBody(
           const code = /w:char="([0-9A-Fa-f]{4})"/.exec(attrs!)?.[1]
           if (code) appendText(String.fromCharCode(parseInt(code, 16)))
         }
+        break
+      case 'wp:docPr':
+        // hidden="1"/"true" is the drawing's own flag, same intent as a run's w:vanish
+        if (opening && !runHidden && !/(?:^|\s)hidden="(?:1|true)"/.test(attrs!)) {
+          const descr = /(?:^|\s)descr="([^"]*)"/.exec(attrs!)?.[1]
+          const title = /(?:^|\s)title="([^"]*)"/.exec(attrs!)?.[1]
+          const alt = decodeEntities(descr || title || '')
+          // bracketed so it never runs into the words around it ("See figure[image: …]below.")
+          if (alt) appendText(`[image: ${alt}]`)
+        }
+        break
+      case 'w:drawing':
+      case 'w:pict':
+        if (opening) out.pictures += 1
         break
       case 'w:tbl':
         if (opening) tables.push({ rows: [], cell: null, row: null })

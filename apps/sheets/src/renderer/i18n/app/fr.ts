@@ -773,6 +773,13 @@ export const fr = {
   appSaveAs: 'Enregistrer sous',
   appUndo: 'Annuler',
   appRedo: 'Rétablir',
+  appQuickAccessCustomize: 'Personnaliser la barre d’outils Accès rapide',
+  appQuickAccessHint:
+    'Appuyez sur Alt et un chiffre pour exécuter le bouton situé à cette position en partant de la gauche.',
+  appQuickAccessMoveEarlier: 'Déplacer vers le début',
+  appQuickAccessMoveLater: 'Déplacer vers la fin',
+  appQuickAccessReset: 'Rétablir les valeurs par défaut',
+  appQuickAccessFull: 'La barre d’outils contient au maximum 10 boutons.',
   appUnsavedEditOne: '● {count} modification non enregistrée',
   appUnsavedEditMany: '● {count} modifications non enregistrées',
   appSavedState: 'Enregistré',
@@ -1644,6 +1651,4 @@ export const fr = {
   appOdsImportNotice:
     "L'ODS a été ouvert en tant que copie xlsx. L'enregistrement écrira un fichier xlsx.",
   appOdsFormulasDropped: 'Seules les valeurs de {count} formules ont été conservées.',
-  saveAsNeedsExtension:
-    'Ajoutez une extension au nom du fichier, par exemple rapport.xlsx ou rapport.ods.',
 } satisfies Record<keyof typeof zh, string>

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  AUTO_SKILLS_HEADING,
   AUTO_SKILLS_MAX,
   AUTO_SKILL_DESCRIPTION_MAX,
+  EDITOR_SKILLS_HEADING,
   PROPOSE_SKILL_TOOL,
   READ_SKILL_FILE_TOOL,
   USE_SKILL_TOOL,
@@ -111,6 +113,23 @@ describe('autoSkillsSection', () => {
     expect(autoSkillsSection([LIST[2]!, LIST[3]!])).toBe('')
   })
 
+  it('lists a skill that lost its name in an editor its winner is not used in', () => {
+    const list = [
+      entry({ id: 'app:home-letter', editors: ['slides'] }),
+      entry({ id: 'user:home-letter', shadowedBy: 'app:home-letter' }),
+    ]
+    const inSlides = autoSkillsSection(list, { editor: 'slides' })
+    expect(inSlides).toContain('app:home-letter')
+    expect(inSlides).not.toContain('user:home-letter')
+    const inDocs = autoSkillsSection(list, { editor: 'docs' })
+    expect(inDocs).toContain('user:home-letter')
+    expect(inDocs).not.toContain('app:home-letter')
+    // no editor (home ask): the winner alone
+    const anywhere = autoSkillsSection(list)
+    expect(anywhere).toContain('app:home-letter')
+    expect(anywhere).not.toContain('user:home-letter')
+  })
+
   it('cuts each description at the limit', () => {
     const long = 'x'.repeat(AUTO_SKILL_DESCRIPTION_MAX + 50)
     const text = autoSkillsSection([entry({ id: 'app:long', description: long })])
@@ -139,6 +158,68 @@ describe('autoSkillsSection', () => {
     expect(text).toContain('app:s99 | s99 | About s99')
     expect(text).toContain('app:s100 | s100')
     expect(text).not.toContain('About s100')
+  })
+
+  it('puts the skills set for the panel’s editor first, under the line that asks for them', () => {
+    const list = [
+      entry({ id: 'builtin:minutes', description: 'Writes minutes.' }),
+      entry({ id: 'builtin:mindmap', description: 'Builds a map.', editors: ['mindmap'] }),
+      entry({ id: 'app:deck', description: 'Builds a deck.', editors: ['slides'] }),
+      entry({ id: 'app:both', description: 'Maps and decks.', editors: ['mindmap', 'slides'] }),
+    ]
+    const text = autoSkillsSection(list, { editor: 'mindmap' })
+    expect(text).toBe(
+      `${EDITOR_SKILLS_HEADING}\n` +
+        '- builtin:mindmap | mindmap | Builds a map.\n' +
+        '- app:both | both | Maps and decks.\n\n' +
+        `${AUTO_SKILLS_HEADING}\n` +
+        '- builtin:minutes | minutes | Writes minutes.',
+    )
+    // the line asks for whole new work only, and names what it is not for
+    expect(EDITOR_SKILLS_HEADING).toMatch(/whole new piece of work/)
+    expect(EDITOR_SKILLS_HEADING).toMatch(/your first tool call is use_skill/)
+    expect(EDITOR_SKILLS_HEADING).toMatch(
+      /does not apply to a change to work that is already there/,
+    )
+  })
+
+  it('keeps one plain list where no skill is set for the editor, and outside an editor', () => {
+    const list = [
+      entry({ id: 'builtin:minutes', description: 'Writes minutes.' }),
+      entry({ id: 'builtin:mindmap', description: 'Builds a map.', editors: ['mindmap'] }),
+    ]
+    // another editor: the map skill is not listed at all, and nothing is singled out
+    expect(autoSkillsSection(list, { editor: 'docs' })).toBe(
+      `${AUTO_SKILLS_HEADING}\n- builtin:minutes | minutes | Writes minutes.`,
+    )
+    // no editor (home ask, the agent window): every skill, one list
+    const anywhere = autoSkillsSection(list)
+    expect(anywhere.startsWith(AUTO_SKILLS_HEADING)).toBe(true)
+    expect(anywhere).not.toContain(EDITOR_SKILLS_HEADING)
+    expect(anywhere).toContain('builtin:mindmap')
+  })
+
+  it('lists only the editor’s own skills when there is no other', () => {
+    const text = autoSkillsSection([entry({ id: 'builtin:mindmap', editors: ['mindmap'] })], {
+      editor: 'mindmap',
+    })
+    expect(text).toBe(`${EDITOR_SKILLS_HEADING}\n- builtin:mindmap | mindmap | About mindmap`)
+  })
+
+  it('counts both groups together against the limits', () => {
+    const many = [
+      ...Array.from({ length: 3 }, (_, i) => entry({ id: `app:g${i}`, description: `g ${i}` })),
+      ...Array.from({ length: 3 }, (_, i) =>
+        entry({ id: `app:e${i}`, description: `e ${i}`, editors: ['hwp'] }),
+      ),
+    ]
+    const text = autoSkillsSection(many, { editor: 'hwp', max: 4, namesMax: 1 })
+    // the editor's three come first with their descriptions, then one general with, one without
+    expect(text).toContain('app:e2 | e2 | e 2')
+    expect(text).toContain('app:g0 | g0 | g 0')
+    expect(text).toContain('- app:g1 | g1\n')
+    expect(text).not.toContain('app:g2')
+    expect(text).toMatch(/1 more skills/)
   })
 })
 
@@ -337,9 +418,9 @@ describe('createUserSkillsSkill', () => {
     expect(result.mutated).toBeFalsy()
     expect(result.output).toMatch(/card/i)
     expect(result.output).toMatch(/not saved|nothing is saved/i)
-    // the result and the tool row name the proposal by its name
-    expect(proposedTitleOf(result.output)).toBe('minutes')
-    expect(result.summary).toBe('Skill proposal: minutes')
+    // the result and the tool row name the proposal by its title
+    expect(proposedTitleOf(result.output)).toBe('Minutes')
+    expect(result.summary).toBe('Skill proposal: Minutes')
     expect(proposedTitleOf('other')).toBe('')
     expect(proposals).toEqual([
       {
@@ -395,12 +476,15 @@ describe('createUserSkillsSkill', () => {
     expect(proposals.map((p) => p.wantsTemplate)).toEqual([false, false])
   })
 
-  it('propose_skill asks for a name, not a title', () => {
+  it('propose_skill asks for a name and takes a title in the person’s language beside it', () => {
     const { deps } = makeDeps()
     const tool = createUserSkillsSkill(deps).tools.find((t) => t.name === PROPOSE_SKILL_TOOL)!
-    const schema = tool.inputSchema as { properties: Record<string, unknown>; required: string[] }
-    expect(schema.properties).not.toHaveProperty('title')
+    const schema = tool.inputSchema as {
+      properties: Record<string, { description?: string }>
+      required: string[]
+    }
     expect(schema.properties).toHaveProperty('name')
+    expect(schema.properties.title?.description).toMatch(/language the person writes in/)
     expect(schema.required).toEqual(['name', 'description', 'body'])
   })
 

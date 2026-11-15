@@ -11,11 +11,13 @@ import type {
   AiSubscriptionStatus,
   SubscriptionStatusMap,
 } from '@genoffice/ai-provider/browser'
+import { LANGS } from '@genoffice/i18n'
 import { aiSubscriptionText } from '@genoffice/ui'
 import type { HomeApi } from '../src/shared/home-api'
 import type { SubscriptionApi } from '../src/shared/subscription-api'
 import { Home } from '../src/renderer/src/Home'
 import { LocaleProvider } from '../src/renderer/src/locale'
+import { strings } from '../src/renderer/src/strings'
 import type { SubscriptionConnection } from '../src/renderer/src/subscription-client'
 
 const actEnvironment = globalThis as typeof globalThis & {
@@ -25,6 +27,8 @@ actEnvironment.IS_REACT_ACT_ENVIRONMENT = true
 
 let host: HTMLDivElement
 let root: Root
+/** the listener Home gave `onOpenSettings`: the main process asking for Settings */
+let askForSettings: ((target: { section: string }) => void) | undefined
 
 /** every home call answers with something harmless; the calls this file cares about are named */
 function installHome(): void {
@@ -48,6 +52,10 @@ function installHome(): void {
     getUpdateChannel: async () => 'stable',
     getAppVersion: async () => '1.0.0',
     getCodexModels: async () => ({ models: [], defaultModel: '' }),
+    onOpenSettings: (handler: (target: { section: string }) => void) => {
+      askForSettings = handler
+      return () => undefined
+    },
   }
   window.aiOffice = new Proxy(known, {
     get: (target, name: string) =>
@@ -94,6 +102,8 @@ function statuses(
 }
 
 interface RenderOptions {
+  welcomeOpen?: boolean
+  onSettingsOpenChange?: (open: boolean) => void
   noticeDue?: boolean
   onNoticeAcknowledge?: () => void
   aiSettings?: AiSettings | null
@@ -126,6 +136,10 @@ async function renderHome(map: SubscriptionStatusMap, options: RenderOptions = {
           aiSettings: options.aiSettings === undefined ? defaultAiSettings() : options.aiSettings,
           noticeDue: options.noticeDue ?? false,
           onNoticeAcknowledge: options.onNoticeAcknowledge ?? vi.fn(),
+          ...(options.welcomeOpen === undefined ? {} : { welcomeOpen: options.welcomeOpen }),
+          ...(options.onSettingsOpenChange
+            ? { onSettingsOpenChange: options.onSettingsOpenChange }
+            : {}),
         }),
       ),
     )
@@ -146,17 +160,28 @@ const entryText = (selector: string): string | null =>
   entry().querySelector(selector)?.textContent ?? null
 
 describe('home settings entry', () => {
-  it('names the connected subscription and its state', async () => {
+  const name = () => entryText('.account-name')
+  const sub = () => entryText('.account-sub')
+  const tip = () => entry().dataset.tip
+
+  it('reads Settings, with the connected subscription state below and its name in the tooltip', async () => {
     await renderHome(statuses({ state: 'ready', planName: 'max' }, { state: 'signed-out' }))
     expect(entry().dataset.subscription).toBe('connected')
-    expect(entryText('.account-name')).toBe('Claude')
-    expect(entryText('.account-sub')).toBe('Connected · max')
+    expect(name()).toBe('Settings')
+    expect(sub()).toBe('AI: Connected · max')
+    expect(tip()).toBe('Claude · Connected · max')
+    expect(entry().textContent).not.toContain('Claude')
+    // the button's name stays Settings; the state line describes it
+    expect(entry().getAttribute('aria-label')).toBe('Settings')
+    const described = entry().getAttribute('aria-describedby')
+    expect(described && document.getElementById(described)?.textContent).toBe('AI: Connected · max')
   })
 
-  it('lists both when both are connected', async () => {
+  it('names both in the tooltip when both are connected', async () => {
     await renderHome(statuses({ state: 'ready' }, { state: 'ready' }))
-    expect(entryText('.account-name')).toBe('Claude · Codex')
-    expect(entryText('.account-sub')).toBe(aiSubscriptionText('en', 'cardReady'))
+    expect(name()).toBe('Settings')
+    expect(sub()).toBe(`AI: ${aiSubscriptionText('en', 'cardReady')}`)
+    expect(tip()).toBe(`Claude · Codex · ${aiSubscriptionText('en', 'cardReady')}`)
   })
 
   it('keeps the cost in sight for an accepted metered login that is selected', async () => {
@@ -164,18 +189,18 @@ describe('home settings entry', () => {
     await renderHome(map, {
       aiSettings: { ...defaultAiSettings(), provider: 'codex', meteredAccepted: { codex: true } },
     })
-    expect(entryText('.account-name')).toBe('Codex')
-    expect(entryText('.account-sub')).toBe(aiSubscriptionText('en', 'cardMeteredAccepted'))
+    expect(sub()).toBe(`AI: ${aiSubscriptionText('en', 'cardMeteredAccepted')}`)
+    expect(tip()).toContain('Codex')
 
     // under auto the metered login does not run, so it is not shown as in use
     await renderHome(map, {
       aiSettings: { ...defaultAiSettings(), meteredAccepted: { codex: true } },
     })
     expect(entry().dataset.subscription).toBe('disconnected')
-    expect(entryText('.account-name')).toBe(aiSubscriptionText('en', 'pickerNotConnected'))
+    expect(sub()).toBe('AI: Not connected')
   })
 
-  it('names the selected key provider in use over the subscriptions', async () => {
+  it('shows the selected key provider in use over the subscriptions', async () => {
     await renderHome(statuses({ state: 'ready', planName: 'max' }, { state: 'ready' }), {
       aiSettings: {
         ...defaultAiSettings(),
@@ -184,8 +209,9 @@ describe('home settings entry', () => {
       },
     })
     expect(entry().dataset.subscription).toBe('connected')
-    expect(entryText('.account-name')).toBe('Gemini')
-    expect(entryText('.account-sub')).toBe('Connected · in use')
+    expect(name()).toBe('Settings')
+    expect(sub()).toBe('AI: Connected · in use')
+    expect(tip()).toBe('Gemini · Connected · in use')
   })
 
   it('shows the selected key provider as needing a connection when its key is missing', async () => {
@@ -193,8 +219,8 @@ describe('home settings entry', () => {
       aiSettings: { ...defaultAiSettings(), provider: 'gemini' },
     })
     expect(entry().dataset.subscription).toBe('needs-connection')
-    expect(entryText('.account-name')).toBe('Gemini')
-    expect(entryText('.account-sub')).toBe('Needs connecting')
+    expect(sub()).toBe('AI: Needs connecting')
+    expect(tip()).toBe('Gemini · Needs connecting')
     expect(entry().querySelector('.account-avatar')?.classList.contains('logged-in')).toBe(false)
   })
 
@@ -207,9 +233,8 @@ describe('home settings entry', () => {
       },
     })
     expect(entry().dataset.subscription).toBe('off')
-    expect(entryText('.account-name')).toBe('Claude')
-    expect(entryText('.account-sub')).toBe('Off in this app')
-    expect(entry().dataset.tip).toBe('Claude · Off in this app')
+    expect(sub()).toBe('AI: Off in this app')
+    expect(tip()).toBe('Claude · Off in this app')
     expect(entry().querySelector('.account-avatar')?.classList.contains('logged-in')).toBe(false)
     await click(entry())
     expect(host.querySelector('.set-nav-item.active')?.textContent).toContain('AI')
@@ -217,18 +242,19 @@ describe('home settings entry', () => {
 
   it('reads the statuses alone while the settings are not read', async () => {
     await renderHome(statuses({ state: 'ready' }, { state: 'ready' }), { aiSettings: null })
-    expect(entryText('.account-name')).toBe('Claude · Codex')
+    expect(tip()).toContain('Claude · Codex')
   })
 
-  it('invites to connect when nothing is, and waits while still checking', async () => {
+  it('says nothing is connected, and waits while still checking', async () => {
     await renderHome(statuses({ state: 'not-installed' }, { state: 'signed-out' }))
     expect(entry().dataset.subscription).toBe('disconnected')
-    expect(entryText('.account-name')).toBe(aiSubscriptionText('en', 'pickerNotConnected'))
-    expect(entryText('.account-sub')).toBeNull()
+    expect(name()).toBe('Settings')
+    expect(sub()).toBe('AI: Not connected')
+    expect(tip()).toBe(aiSubscriptionText('en', 'connectTitle'))
 
     await renderHome(statuses({ state: 'checking' }, { state: 'checking' }))
     expect(entry().dataset.subscription).toBe('checking')
-    expect(entryText('.account-name')).toBe(aiSubscriptionText('en', 'cardChecking'))
+    expect(sub()).toBe(`AI: ${aiSubscriptionText('en', 'cardChecking')}`)
   })
 
   it('opens Settings on the AI section and re-reads the connection when it closes', async () => {
@@ -242,6 +268,48 @@ describe('home settings entry', () => {
     await click(host.querySelector('.set-close'))
     expect(host.querySelector('.set-sub-cards')).toBeNull()
     expect(refresh).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the words on the home entry', () => {
+  it('has Settings in every language', () => {
+    for (const lang of LANGS) {
+      // read from the dictionary itself: the lookup falls back to English for a missing word
+      const word = strings[lang].settings
+      expect(word.trim(), lang).not.toBe('')
+      if (lang !== 'en') expect(word, lang).not.toBe('Settings')
+    }
+  })
+
+  it('has the AI state line in every language, with a place for the state', () => {
+    for (const lang of LANGS) {
+      expect(strings[lang].homeEntryAiState, lang).toContain('{state}')
+    }
+  })
+})
+
+describe('a request for Settings while the welcome window is up', () => {
+  const none = statuses({ state: 'signed-out' }, { state: 'signed-out' })
+  const dialog = () => host.querySelector('.set-dialog')
+  const overlay = () => host.querySelector('.set-overlay')
+
+  it('opens at once where it was asked, marked to stack above that window', async () => {
+    const onSettingsOpenChange = vi.fn()
+    await renderHome(none, { welcomeOpen: true, onSettingsOpenChange })
+    // a skill file dropped on the window: the main process asks for Settings → Skills
+    await act(async () => askForSettings!({ section: 'skills' }))
+    expect(dialog()).not.toBeNull()
+    expect(host.querySelector('.set-nav-item.active')?.textContent).toContain('Skills')
+    expect(overlay()!.classList.contains('over-welcome')).toBe(true)
+    // the welcome window is told, so it leaves the keyboard alone meanwhile
+    expect(onSettingsOpenChange).toHaveBeenLastCalledWith(true)
+  })
+
+  it('is not marked when no welcome window is up', async () => {
+    await renderHome(none)
+    await act(async () => askForSettings!({ section: 'skills' }))
+    expect(dialog()).not.toBeNull()
+    expect(overlay()!.classList.contains('over-welcome')).toBe(false)
   })
 })
 

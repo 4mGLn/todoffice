@@ -707,6 +707,13 @@ export const ms = {
   appSaveAs: 'Simpan Sebagai',
   appUndo: 'Buat Asal',
   appRedo: 'Buat Semula',
+  appQuickAccessCustomize: 'Sesuaikan Bar Alat Capaian Pantas',
+  appQuickAccessHint:
+    'Tekan Alt dan nombor untuk menjalankan butang pada kedudukan itu, dikira dari kiri.',
+  appQuickAccessMoveEarlier: 'Alih ke depan',
+  appQuickAccessMoveLater: 'Alih ke belakang',
+  appQuickAccessReset: 'Tetapkan semula kepada lalai',
+  appQuickAccessFull: 'Bar alat memuatkan paling banyak 10 butang.',
   appUnsavedEditOne: '● {count} suntingan belum disimpan',
   appUnsavedEditMany: '● {count} suntingan belum disimpan',
   appSavedState: 'Disimpan',
@@ -1572,6 +1579,4 @@ export const ms = {
   // ── ODS import ──
   appOdsImportNotice: 'ODS dibuka sebagai salinan xlsx. Menyimpan akan menulis fail xlsx.',
   appOdsFormulasDropped: 'Pada {count} formula, hanya nilainya dikekalkan.',
-  saveAsNeedsExtension:
-    'Tambahkan sambungan pada nama fail, contohnya laporan.xlsx atau laporan.ods.',
 } satisfies Record<keyof typeof zh, string>

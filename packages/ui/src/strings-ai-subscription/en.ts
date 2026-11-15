@@ -64,7 +64,8 @@ export const en = {
   errHeadlessLimit: 'The hourly limit for automatic requests has been reached.',
   errHeadlessLimitReset:
     'The hourly limit for automatic requests has been reached. Requests are possible again at {time}.',
-  connectFreeHint: 'No subscription? You can connect a free AI in Settings in about a minute.',
+  connectFreeHint:
+    'Without a subscription, you can connect a free AI in Settings in about a minute.',
   actionConnectFree: 'Connect a free AI',
   errFreeLimit:
     "Today's free allowance is used up. Try again tomorrow, or choose another AI in Settings.",
@@ -117,7 +118,7 @@ export const en = {
   stepLogin: 'Sign in',
   stepReady: 'Connected',
   installReturnNote:
-    'When the install has finished in that window, come back here. The app checks again by itself.',
+    'That window may show nothing for a few minutes while it downloads. Leave it open. When the install has finished, come back here. The app checks again by itself.',
   loginHowNote:
     'A browser opens when you press it. Sign in with your {vendor} account and press Allow; the connection finishes by itself.',
   signingInStalledNote:

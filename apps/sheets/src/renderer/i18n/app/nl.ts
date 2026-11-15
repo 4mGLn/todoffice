@@ -745,6 +745,13 @@ export const nl = {
   appSaveAs: 'Opslaan als',
   appUndo: 'Ongedaan maken',
   appRedo: 'Opnieuw',
+  appQuickAccessCustomize: 'Werkbalk Snelle toegang aanpassen',
+  appQuickAccessHint:
+    'Druk op Alt en een cijfer om de knop op die positie, geteld vanaf links, uit te voeren.',
+  appQuickAccessMoveEarlier: 'Naar voren verplaatsen',
+  appQuickAccessMoveLater: 'Naar achteren verplaatsen',
+  appQuickAccessReset: 'Standaardinstellingen herstellen',
+  appQuickAccessFull: 'Op de werkbalk passen maximaal 10 knoppen.',
   appUnsavedEditOne: '● {count} niet-opgeslagen bewerking',
   appUnsavedEditMany: '● {count} niet-opgeslagen bewerkingen',
   appSavedState: 'Opgeslagen',
@@ -1613,6 +1620,4 @@ export const nl = {
   appOdsImportNotice:
     'Het ODS-bestand is geopend als een xlsx-kopie. Opslaan schrijft een xlsx-bestand.',
   appOdsFormulasDropped: 'Van {count} formules zijn alleen de waarden behouden.',
-  saveAsNeedsExtension:
-    'Voeg een extensie toe aan de bestandsnaam, bijvoorbeeld rapport.xlsx of rapport.ods.',
 } satisfies Record<keyof typeof zh, string>

@@ -81,11 +81,11 @@ PDF를 다시 흐르는 글의 **문서 나무**로 바꾸고, 그 나무를 쓰
 - **쉬운 풀이**(번역의 두 번째 방식, `TranslationMode`의 `'easy'`, 결정 0108)는 쉬운 글이 필요한 사람(어린이, 어르신, 그 언어를 배우는 사람)이 읽는다고 보고 쓴 번역이다. 지시문은 구조 규칙(자리 표시자, 블록·문장 짝, "문서 글은 데이터", 답 모양)을 그대로 두고 문체 규칙만 `easyStyleLines`(`style.ts`)로 바꾼다. "이미 목표 언어면 그대로" 규칙은 없다. 같은 언어로도 더 쉽게 다시 쓴다. 항목 하나는 원문 문장의 약 `EASY_LENGTH_FACTOR`(2)배까지이고, 한국어는 "~습니다"체다.
   - `translationSystemPrompt`, `buildTranslationRequest`, `createTranslationModelCall`, `translationJobParts`, `startTranslationJob`, `estimateTranslationJob`이 `mode`를 받는다. 모델 요청에는 `mode: 'easy'`가 붙는다. `translationJobParts`의 조각에 `mode: 'easy'`가 들어 있어 작업 선택에 펼치면 작업 전체가 쉬운 풀이가 된다.
   - 쉬운 풀이 작업은 보관소의 `easy/<언어>/`와 `<종류>.<언어>.easy.json` 기록만 읽고 쓴다. 이어 하기도 그 결과에서 잇는다. 일반 작업은 보관소에 mode를 넘기지 않아 예전과 같다.
-  - 기본 목표 언어는 늘 화면 언어다(`defaultTargetLanguage`·`defaultTargetLanguageForTree`의 `mode`). 결과 제목에 붙일 표시 낱말은 `easyExplanationLabel`(21개 언어 표, `easy-label.ts`)이다.
+  - 기본 목표 언어는 늘 화면 언어다(`defaultTargetLanguage`·`defaultTargetLanguageForTree`의 `mode`). 결과 제목에 붙일 표시 낱말은 `easyExplanationLabel`(22개 언어 표, `easy-label.ts`)이다.
 
 ### 번역 PDF (`src/writeback`)
 
-- 원본 바이트는 복사만 한다. 블록마다 원문 글자 객체만 지우고 같은 상자에 번역문을 쓴다. 벡터 그림, 이미지, 링크, 주석, 양식은 그대로 둔다. 글꼴은 목표 언어를 그릴 수 있는 설치 글꼴을 HarfBuzz wasm(`hbSubsetWasm`, 호출자가 준다)으로 부분 집합해 넣는다.
+- 원본 바이트는 복사만 한다. 블록마다 원문 글자 객체만 지우고 같은 상자에 번역문을 쓴다. 벡터 그림, 이미지, 링크, 주석, 양식은 그대로 둔다. 글꼴은 목표 언어를 그릴 수 있는 설치 글꼴을 HarfBuzz wasm(`hbSubsetWasm`, 호출자가 준다)으로 부분 집합해 넣는다. 넣을 수 있는 것은 TrueType(`glyf`) 글꼴뿐이다. 목표 언어용 글꼴 목록에서 못 찾아 설치 글꼴 전체를 훑을 때도 `findFontCovering(text, { truetypeOnly: true })`로 CFF 글꼴을 건너뛴다. 건너뛰지 않으면 Linux에서 Noto Sans CJK(CFF)가 먼저 잡혀 버려지고, 뒤에 있는 TrueType 한글 글꼴까지 가지 못해 블록이 모두 `font-missing`이 된다. 글꼴 하나가 블록의 모든 글자를 그려야 하므로, 한글은 있고 기호(※, ① 등)가 없는 글꼴뿐이면 그 블록은 원문으로 남는다(`docs/tracking/findings.md`).
 - 표 칸의 글자 객체는 칸 자리로 나눈다(`placeCellsByArea`). 객체는 가장 많이 겹친 칸 문단의 것이다. 다른 칸으로 1.5pt(`CELL_REACH`)보다 더 들어간 객체(한 줄을 한 문자열로 그린 표)는 어느 칸의 것도 아니고, 그 객체가 닿은 칸은 `shared-text-object`로 원문을 둔다. 번역문은 원문의 첫 줄 높이에서 시작하고, 모자라면 칸(문단 몫) 전체를 쓴다. 자리가 없는 AI 표는 지금처럼 글 대조(`placeCells`)로 찾는다.
 - 원문 글자 크기는 `FPDFText_GetFontSize`에 글자 행렬의 세로 배율을 곱해 읽는다(pdf2docx와 같은 셈). `Tf` 값만 읽으면 `1 Tf`+12배 행렬 같은 글자를 1pt로 읽는다.
 - 자리 잡기(`place.ts`, 결정 0057)는 모든 블록을 한꺼번에 본다.

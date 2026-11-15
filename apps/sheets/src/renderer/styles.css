@@ -88,7 +88,7 @@
   --sheets-shadow-badge: 0 2px 6px rgb(74 92 255 / 25%);
   --sheets-shadow-slicer: 0 6px 18px rgb(15 40 30 / 14%);
   --sheets-shadow-toast: 0 4px 16px rgb(0 0 0 / 18%);
-  --sheets-shadow-composer: 0 6px 30px rgb(0 0 0 / 8%);
+  --sheets-shadow-composer: 0 1px 3px rgb(0 0 0 / 8%);
 
   /* Same stack as docs/slides — an Inter fallback here made ribbon labels
      render in a different face than the other apps on machines with Inter */
@@ -1948,6 +1948,96 @@ button.check-item:hover {
 
 .status-stats-menu button:hover {
   background: var(--hover);
+}
+
+/* the quick-access row's customize trigger: a caret, narrower than a button */
+.ribbon-tabs .qa-btn.qa-customize {
+  width: 18px;
+}
+
+/* With more buttons than the default four, a window near the 720px minimum
+   cannot hold the row, the auto-save label and every tab: the last tab (and a
+   contextual one after it) slid past the edge. The label goes and the tabs
+   tighten, so ten buttons and a contextual tab fit at the minimum width. */
+@media (max-width: 840px) {
+  .ribbon-tabs.qa-crowded .autosave-text {
+    display: none;
+  }
+
+  .ribbon-tabs.qa-crowded > button:not(.qa-btn) {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
+.quick-access-menu {
+  width: 290px;
+  overflow-y: auto;
+}
+
+.quick-access-menu hr {
+  width: 100%;
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.quick-access-hint {
+  margin: 0;
+  padding: 4px 8px 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.quick-access-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.quick-access-row > button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-access-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-access-menu kbd {
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+}
+
+.quick-access-menu button:disabled {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.quick-access-menu button:disabled:hover {
+  background: transparent;
+}
+
+.quick-access-menu .quick-access-move {
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+.quick-access-menu .quick-access-move svg {
+  width: 14px;
+  height: 14px;
+}
+
+.quick-access-menu .quick-access-reset {
+  padding-left: 29px;
 }
 
 .zoom-dialog .zoom-choices {
@@ -6698,7 +6788,9 @@ body > div:has([data-u-comp='find-replace-dialog']) {
 }
 
 .print-settings {
+  display: grid;
   align-content: start;
+  gap: 14px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -6752,6 +6844,19 @@ body > div:has([data-u-comp='find-replace-dialog']) {
   display: grid;
   place-items: center;
   padding: 12px;
+}
+
+/* The shared layout diagram in place of the pages (both rows of the preview) */
+.print-preview-schematic {
+  grid-row: 1 / -1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.print-preview-bar[hidden],
+.print-preview-pane[hidden] {
+  display: none;
 }
 
 .print-preview-page {
@@ -7161,12 +7266,14 @@ body:has(.note-pictures-pane) .threaded-comments-pane {
   color: var(--accent);
 }
 
-.note-pictures-pane .np-author {
+.note-pictures-pane .np-author,
+.note-hover-card .np-author {
   color: var(--text-muted);
   font-size: 12px;
 }
 
-.note-pictures-pane .np-remove {
+.note-pictures-pane .np-remove,
+.note-hover-card .np-remove {
   margin-left: auto;
   border: 0;
   background: transparent;
@@ -7178,19 +7285,22 @@ body:has(.note-pictures-pane) .threaded-comments-pane {
   cursor: pointer;
 }
 
-.note-pictures-pane .np-remove:hover {
+.note-pictures-pane .np-remove:hover,
+.note-hover-card .np-remove:hover {
   background: var(--hover);
   color: var(--text);
 }
 
-.note-pictures-pane .np-image {
+.note-pictures-pane .np-image,
+.note-hover-card .np-image {
   display: block;
   width: 100%;
   height: auto;
   border-radius: 6px;
 }
 
-.note-pictures-pane .np-image-missing {
+.note-pictures-pane .np-image-missing,
+.note-hover-card .np-image-missing {
   margin: 0;
   padding: 10px;
   border: 1px dashed var(--border);
@@ -7200,10 +7310,36 @@ body:has(.note-pictures-pane) .threaded-comments-pane {
   text-align: center;
 }
 
-.note-pictures-pane .np-text {
+.note-pictures-pane .np-text,
+.note-hover-card .np-text {
   margin: 0;
   color: var(--text-muted);
   font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* The card under Univer's note popup for a note that carries a picture: it
+   hangs below the popup's own box so author, picture and text read as one
+   note. Reuses the pane's np-* pieces above. */
+.note-hover-card {
+  position: fixed;
+  z-index: 130;
+  width: 260px;
+  max-height: 50vh;
+  overflow: hidden;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-modal);
+}
+
+.note-hover-card > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }

@@ -21,6 +21,7 @@ import { installDropOpenBridge } from '@genoffice/electron-utils/drop-open'
 import { mcpToolsBridge } from '@genoffice/electron-utils/mcp-tools-bridge'
 import { outboundBridge } from '@genoffice/electron-utils/outbound-bridge'
 import { userSkillsBridge } from '@genoffice/electron-utils/user-skills-bridge'
+import { APP_CHOICE_BRIDGE_KEY, appChoiceBridge } from '@genoffice/electron-utils/app-choice-bridge'
 import {
   PROJECT_FOLDER_BRIDGE_KEY,
   projectFolderBridge,
@@ -45,6 +46,7 @@ import type {
   HwpDefaultFormat,
 } from '../shared/home-api'
 import { HOME_CHANNELS } from '../shared/home-api'
+import { createInbox } from './inbox'
 import { normalizeSlidesAiFonts } from '@genoffice/ui/slides-ai-fonts'
 import { RECOVERY_LIST_CHANNELS } from '../shared/recovery-list-api'
 import type {
@@ -94,6 +96,16 @@ import {
   subscriptionStatusMapOf,
 } from '../shared/subscription-api'
 
+// listened to from the start: Home subscribes only once it has mounted, and a
+// request sent before that (a skill file dropped right after launch) must
+// still open Settings
+const openSettingsInbox = createInbox<{ section: string; field?: string }>()
+ipcRenderer.on(
+  HOME_CHANNELS.openSettings,
+  (_event: IpcRendererEvent, target: { section: string; field?: string }) =>
+    openSettingsInbox.push(target),
+)
+
 const UI_LANGUAGES: readonly UiLanguage[] = [
   'zh',
   'en',
@@ -116,6 +128,7 @@ const UI_LANGUAGES: readonly UiLanguage[] = [
   'hi',
   'zh-TW',
   'vi',
+  'tr',
 ]
 
 function isUiLanguage(value: unknown): value is UiLanguage {
@@ -385,10 +398,7 @@ const homeApi: HomeApi = {
     await ipcRenderer.invoke(HOME_CHANNELS.setAutoUpdateCheck, on)
   },
   onOpenSettings(handler) {
-    const listener = (_event: IpcRendererEvent, target: { section: string; field?: string }) =>
-      handler(target)
-    ipcRenderer.on(HOME_CHANNELS.openSettings, listener)
-    return () => ipcRenderer.removeListener(HOME_CHANNELS.openSettings, listener)
+    return openSettingsInbox.subscribe(handler)
   },
   async getAppVersion() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.getAppVersion)
@@ -634,6 +644,13 @@ const homeApi: HomeApi = {
     return raw.ok === true
       ? { ok: true }
       : { ok: false, error: typeof raw.error === 'string' ? raw.error : 'Connection failed' }
+  },
+  async aiToolCapabilities() {
+    const raw: unknown = await ipcRenderer.invoke('ai:tool-capabilities')
+    const image = (raw as { imageGeneration?: { available?: unknown } } | null)?.imageGeneration
+    return typeof image?.available === 'boolean'
+      ? { imageGeneration: { available: image.available } }
+      : null
   },
   getAiMediaProviders() {
     return AI_MEDIA_PROVIDERS
@@ -1054,6 +1071,10 @@ const homeKindsApi: HomeKindsApi = {
   },
 }
 contextBridge.exposeInMainWorld('aiOfficeHomeKinds', homeKindsApi)
+
+// Which editors are on and whether AI is on; the running AI job count and "stop all"
+// (EditorChoiceApi in ../shared/editor-choice)
+contextBridge.exposeInMainWorld(APP_CHOICE_BRIDGE_KEY, appChoiceBridge())
 
 // Home's launch recovery list (crash recovery spec 6): the rows the main
 // process asks about at launch, and the user's choices back

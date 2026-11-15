@@ -5,6 +5,7 @@ import { PdfLoadError } from '@genoffice/pdf2docx'
 import { assertOptionValues, flagBool, flagString, type ParsedArgs } from '../args'
 import { csvToXlsx, sheetNameFromStem } from '../formats/csv'
 import { convertLegacyDoc } from '../formats/legacy-doc'
+import { convertLegacyPpt } from '../formats/legacy-ppt'
 import { convertPdf, type PdfTarget } from '../formats/pdf'
 import { convertLegacyWorkbook, convertToOds, sheetToCsv } from '../formats/xlsx'
 import { exportViaApp, type AppExportTarget } from '../formats/app-export'
@@ -51,8 +52,9 @@ const NODE_ROUTES: Record<string, readonly string[]> = {
   ods: ['xlsx'],
   doc: ['docx'],
   dot: ['docx'],
-  md: ['docx', 'html'],
-  markdown: ['docx', 'html'],
+  ppt: ['pptx'],
+  md: ['docx', 'html', 'hwp', 'hwpx'],
+  markdown: ['docx', 'html', 'hwp', 'hwpx'],
   docx: ['md', 'hwp', 'hwpx'],
   xlsx: ['csv', 'ods'],
   xlsm: ['csv', 'ods'],
@@ -250,7 +252,14 @@ async function run(
     if (to === 'html') {
       return { bytes: Buffer.from(await markdownToHtml(text, title), 'utf-8'), detail: { title } }
     }
-    return { bytes: await markdownToDocx(text, { file: input, ctx }), detail: { title } }
+    const docx = await markdownToDocx(text, { file: input, ctx })
+    if (to === 'hwp' || to === 'hwpx') {
+      // Markdown reaches Hangul through the Word document the docx route writes;
+      // that document has no layout of its own to keep, so the tables get Hangul's
+      const { bytes, hwp_report } = await docxToHangul(docx, to, ctx, 'hangul')
+      return { bytes, detail: { title, hwp_report } }
+    }
+    return { bytes: docx, detail: { title } }
   }
   if (from === 'csv') {
     const sheet = sheetNameFromStem(basename(input, extname(input)))
@@ -271,6 +280,10 @@ async function run(
     const r = await convertLegacyDoc(readInput(input))
     return { bytes: r.bytes, detail: r.detail }
   }
+  if (from === 'ppt') {
+    const r = await convertLegacyPpt(readInput(input))
+    return { bytes: r.bytes, detail: r.detail }
+  }
   const r = await convertLegacyWorkbook(input, output)
   return { detail: { sheets: r.sheets, cells: r.cells } }
 }
@@ -288,6 +301,10 @@ async function workbookToOds(
     validations: result.dropped.validations,
     pivots: result.dropped.pivots,
     comments: result.dropped.comments,
+    macros: result.dropped.macros,
+    shapes: result.dropped.shapes,
+    slicers: result.dropped.slicers,
+    sparklines: result.dropped.sparklines,
   }
   const lost = [
     ...(result.formulasDropped > 0 ? [`${result.formulasDropped} formula(s) kept as values`] : []),
@@ -320,6 +337,14 @@ function odsDroppedLabel(kind: string): string {
       return 'data validation rule(s)'
     case 'pivots':
       return 'pivot table(s)'
+    case 'macros':
+      return 'macro project'
+    case 'shapes':
+      return 'shape(s) and text box(es)'
+    case 'slicers':
+      return 'slicer(s)'
+    case 'sparklines':
+      return 'sparkline(s)'
     default:
       return kind
   }

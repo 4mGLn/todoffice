@@ -16,6 +16,7 @@
  * ribbon, the menu and the AI panel, and locks editing while it runs.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { EpubTocEntry } from '@genoffice/epub-engine'
 import type { Params } from '@genoffice/i18n'
 import { useAutoSavePref } from '@genoffice/ui'
@@ -33,6 +34,7 @@ import type {
 } from '../shared/ipc'
 import { openableLink } from '../shared/links'
 import { EpubAiDock, useEpubAi } from './ai/AiDock'
+import { useAiOn } from './ai/ai-choice'
 import type { StartBookTranslation } from './ai/book-tools'
 import { BookPreview, type BookPreviewHandle, type PreviewPlace } from './components/BookPreview'
 import { ChapterFrame, type FrameWheel } from './components/ChapterFrame'
@@ -40,6 +42,7 @@ import { EditHomeTools, EditQuickTools, ReplaceRow } from './components/EditTool
 import { Ribbon } from './components/Ribbon'
 import { IconBlockedBook, IconNext, IconPrev } from './components/icons'
 import { SearchPane, TocPane, type SearchView } from './components/SidePanes'
+import { SideResizer, useSideWidth } from './components/SideResizer'
 import { useI18n, type StringKey } from './i18n/locale'
 import { EpubEditController, type EditState, type ReplaceAllOutcome } from './edit/controller'
 import { belongsToField, shortcutOf, type EditCommand } from './edit/shortcuts'
@@ -171,6 +174,7 @@ export default function App(): React.JSX.Element {
   const [shown, setShown] = useState<ShownChapter | null>(null)
   const [chapterFailed, setChapterFailed] = useState<number | null>(null)
   const [side, setSide] = useState<'toc' | 'search' | null>('toc')
+  const sideWidth = useSideWidth()
   const [notice, setNotice] = useState<Notice | null>(null)
   const [closeMenus, setCloseMenus] = useState(0)
   const [search, setSearch] = useState<SearchView>(SEARCH_IDLE)
@@ -250,6 +254,11 @@ export default function App(): React.JSX.Element {
 
   const book = phase.kind === 'open' ? phase.book : null
   const translateRef = useRef<BookTranslationHandle>(null)
+  // AI features on (Settings): while off, the AI panel and book translation are
+  // gone, and turning AI on brings them back without reopening the tab
+  const aiOn = useAiOn()
+  const aiOnRef = useRef(aiOn)
+  aiOnRef.current = aiOn
 
   const readChapterForAi = useCallback((spineIndex: number) => api.readChapter(spineIndex), [api])
   // the AI panel's start_book_translation only opens the translation window
@@ -693,6 +702,8 @@ export default function App(): React.JSX.Element {
 
   /** the ribbon's button and the menu: open the window, or say why not */
   const openTranslation = useCallback(() => {
+    // the menu's "Translate book" too: book translation is AI work
+    if (!aiOnRef.current) return
     const answer = translateRef.current?.requestOpen({ lang: null, chapters: null })
     if (!answer) return
     if ('running' in answer) flash({ key: 'btBusy', params: answer.running })
@@ -1031,12 +1042,14 @@ export default function App(): React.JSX.Element {
           />
         }
         translateTools={
-          <TranslateButton
-            t={t}
-            hasBook
-            fixedLayout={phase.book.fixedLayout}
-            onClick={openTranslation}
-          />
+          aiOn ? (
+            <TranslateButton
+              t={t}
+              hasBook
+              fixedLayout={phase.book.fixedLayout}
+              onClick={openTranslation}
+            />
+          ) : undefined
         }
         onSave={() => void save('save')}
         onSaveAs={() => void save('saveAs')}
@@ -1048,7 +1061,10 @@ export default function App(): React.JSX.Element {
         onToggleToc={() => setSide((s) => (s === 'toc' ? null : 'toc'))}
         onTogglePreview={togglePreview}
       />
-      <div className="epub-main">
+      <div
+        className={`epub-main${sideWidth.resizing ? ' epub-side-resizing' : ''}`}
+        style={{ '--epub-side-width': `${sideWidth.width}px` } as CSSProperties}
+      >
         {side === 'toc' && (
           <TocPane
             entries={tocEntries}
@@ -1087,6 +1103,14 @@ export default function App(): React.JSX.Element {
             )}
           </SearchPane>
         )}
+        {side !== null && (
+          <SideResizer
+            width={sideWidth.width}
+            label={t('sideResize')}
+            choose={sideWidth.choose}
+            setResizing={sideWidth.setResizing}
+          />
+        )}
         <section className="epub-reader">
           <BookTranslation
             ref={translateRef}
@@ -1099,6 +1123,7 @@ export default function App(): React.JSX.Element {
             save={saveForTranslation}
             lock={lockForTranslation}
             onWindowOpen={translationWindowChanged}
+            hidden={!aiOn}
           />
           {preview && (
             <BookPreview
@@ -1161,7 +1186,7 @@ export default function App(): React.JSX.Element {
             </button>
           </div>
         </section>
-        <EpubAiDock ai={ai} filePath={filePath} />
+        {aiOn && <EpubAiDock ai={ai} filePath={filePath} />}
       </div>
       <footer className="epub-status" aria-live="polite">
         <span className="epub-status-chapter">

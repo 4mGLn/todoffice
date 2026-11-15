@@ -12,10 +12,12 @@ Cada editor tiene sus propias combinaciones de teclas, y solo unas cuantas funci
 | Plegar / desplegar la cinta — todos los editores           | ⌥⌘R   | Ctrl+F1         |
 | Cinta compacta — solo Docs                                 | ⌥⌘K   | Ctrl+Alt+K      |
 | Abrir la hoja de atajos de teclado — solo Word             | ⌘/    | Ctrl+/          |
+| Abrir la configuración — todas las pestañas salvo Word     | ⌘,    | Ctrl+,          |
 
 - **F1 abre este manual**, no la hoja de atajos. La tecla pertenece al menú de la aplicación, así que funciona igual desde Word, Sheets, Slides, PDF o la pestaña Home.
 - **El conmutador de la cinta es `Ctrl+F1`, o `⌥⌘R` en macOS.** Pulsar `F1` a secas no hace nada — F1 es el manual, y la tecla de la cinta deliberadamente no la comparte. `Ctrl+F1` también se acepta en macOS, aunque `⌥⌘R` es la tecla que usa Office para Mac.
 - **La hoja de atajos de teclado es solo de Word** (`⌘/`). Contiene exactamente la tabla de Word de abajo. Ningún otro editor tiene una.
+- **`⌘,` abre la configuración** (`Ctrl+,` en Windows y Linux), como en la mayoría de las apps de Mac. En una pestaña de Word la combinación sigue siendo subíndice; ábrala allí desde el menú de la aplicación en un Mac, o desde Menú (☰) ▸ Configuración… en Windows y Linux.
 
 ![La hoja de atajos de teclado propia de Word: la acción a la izquierda, el atajo a la derecha, agrupados por Archivo, Edición, Formato de texto, Formato de párrafo, Insertar, Revisión y herramientas, Vista](img/word-shortcuts.png)
 
@@ -278,18 +280,19 @@ El atajo de filtro de Excel, Ctrl+Shift+L, no hace nada en Windows ni en Linux. 
 
 ### Ventana
 
-| Acción                                                             | macOS     | Windows / Linux |
-| ------------------------------------------------------------------ | --------- | --------------- |
-| Guardar el libro                                                   | ⌘S        | Ctrl+S          |
-| Guardar como                                                       | ⇧⌘S       | Ctrl+Shift+S    |
-| Abrir un libro                                                     | ⌘O        | Ctrl+O          |
-| Imprimir                                                           | ⌘P        | Ctrl+P          |
-| Cerrar el libro (macOS) / Salir de la aplicación (Windows y Linux) | ⌘W        | Ctrl+Q          |
-| Abrir la guía del usuario                                          | F1        | F1              |
-| Acercar                                                            | ⌘=        | Ctrl+=          |
-| Zoom con la rueda del ratón                                        | ⌘ + rueda | Ctrl + rueda    |
-| Mostrar u ocultar las fórmulas en las celdas                       | ⌘`        | Ctrl+`          |
-| Ampliar o reducir la barra de fórmulas                             | ⌘⇧U       | Ctrl+Shift+U    |
+| Acción                                                                        | macOS     | Windows / Linux |
+| ----------------------------------------------------------------------------- | --------- | --------------- |
+| Guardar el libro                                                              | ⌘S        | Ctrl+S          |
+| Guardar como                                                                  | ⇧⌘S       | Ctrl+Shift+S    |
+| Abrir un libro                                                                | ⌘O        | Ctrl+O          |
+| Imprimir                                                                      | ⌘P        | Ctrl+P          |
+| Cerrar el libro (macOS) / Salir de la aplicación (Windows y Linux)            | ⌘W        | Ctrl+Q          |
+| Abrir la guía del usuario                                                     | F1        | F1              |
+| Acercar                                                                       | ⌘=        | Ctrl+=          |
+| Zoom con la rueda del ratón                                                   | ⌘ + rueda | Ctrl + rueda    |
+| Mostrar u ocultar las fórmulas en las celdas                                  | ⌘`        | Ctrl+`          |
+| Ampliar o reducir la barra de fórmulas                                        | ⌘⇧U       | Ctrl+Shift+U    |
+| Ejecutar un botón de la barra de acceso rápido según su posición (1.º a 10.º) |           | Alt+1 … Alt+0   |
 
 ## Slides
 

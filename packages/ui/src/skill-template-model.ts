@@ -116,7 +116,7 @@ export function chipRefOf(chip: SkillChipRef): SkillChipRef {
 /** The chip of a skill the model used on its own (its identifier starts with the source) */
 export function chipRefForSkill(skill: { id: string; name: string; title: string }): SkillChipRef {
   const source = skill.id.slice(0, Math.max(0, skill.id.indexOf(':'))) || 'app'
-  const title = skillDisplayName(source === 'builtin' ? { name: skill.name } : skill)
+  const title = skillDisplayName({ name: skill.name, title: skill.title, source })
   return { id: skill.id, source, title }
 }
 
@@ -272,6 +272,8 @@ export interface HandedRequest {
   preview?: HandedPreview | undefined
   /** the asking tab's saved document, attached before the request is sent */
   attach?: string[] | undefined
+  /** the app's note for the model, sent with the request and not shown in the bubble */
+  note?: string | undefined
 }
 
 /** A taken hand-off as the panel reads it; null for none or a malformed one */
@@ -322,6 +324,7 @@ export function handedRequestOf(raw: unknown, target: TemplateEditor): HandedReq
     chips,
     ...(preview ? { preview } : {}),
     ...(attach.length > 0 ? { attach } : {}),
+    ...(typeof raw.note === 'string' && raw.note ? { note: raw.note } : {}),
   }
 }
 

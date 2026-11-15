@@ -1,5 +1,6 @@
 import type { AiSettings, AiStreamChunk, AiStreamRequest } from '@genoffice/ai-provider'
 import type { AiToolCapabilities, MediaToolErrorCode } from '@genoffice/ai-search'
+import type { PrintLayoutBridge } from '@genoffice/electron-utils/print-layout-bridge'
 import type { Lang } from '@genoffice/i18n'
 import type { AiPanelPrefs, AutoSaveDefault } from '@genoffice/ui'
 import type { SubscriptionApi } from './subscription-api'
@@ -55,7 +56,11 @@ export const HWP_CHANNELS = {
   filesReadImage: 'hwp:files-read-image',
   /** invoke(path) → `AttachmentDocumentResult`: an attached .hwp / .hwpx, for read_formatting */
   filesReadDocument: 'hwp:files-read-document',
-  /** invoke({prompt, aspectRatio}) �� `{url?, error?, errorCode?}`: one AI picture */
+  /** send(stop): the AI panel's run was stopped by the app's own rule; kept in the crash record */
+  aiRunStop: 'hwp:ai-run-stop',
+  /** invoke(path, request?) → `AttachmentImportResult`: an attached Markdown file as a new Hangul tab */
+  filesImportDocument: 'hwp:files-import-document',
+  /** invoke({prompt, aspectRatio, model?}) → `{url?, error?, errorCode?}`: one AI picture */
   aiGenerateImage: 'hwp:ai-generate-image',
   /** invoke(url) �� `{base64, mime} | null`: a web image or a generated-store file */
   fetchImage: 'hwp:fetch-image',
@@ -88,6 +93,7 @@ export const AI_CHANNELS = {
   streamChunk: 'ai:stream-chunk',
   streamCancel: 'ai:stream-cancel',
   readUrl: 'ai:read-url',
+  webSearch: 'ai:web-search',
   imageSearch: 'ai:image-search',
   /** () �� `AiToolCapabilities | null`, registered by the docs main (shell mode only) */
   toolCapabilities: 'ai:tool-capabilities',
@@ -195,6 +201,20 @@ export interface CommitSaveOptions {
   auto?: boolean
   /** the editor's memo list, or null when it could not be listed */
   memos?: MemoSnapshot[] | null
+  /**
+   * The preview of the document as it is now, written over the one the engine carried
+   * from the opened file (decision 0146). null: the editor could not make one, and a blank
+   * preview is written rather than the stale one.
+   */
+  preview?: SavePreview | null
+}
+
+/** What other programs show of a file without opening it: its first lines and first page. */
+export interface SavePreview {
+  /** the text, lines ended by CR LF, table rows as `<cell><cell>` as Hangul writes them */
+  text: string
+  /** the first page as PNG, or null when it could not be drawn */
+  image: Uint8Array | null
 }
 
 export type CommitSaveResult =
@@ -286,12 +306,29 @@ export interface AttachmentImageResult {
 /** An attached HWP / HWPX document's bytes, for the editor's engine to read its formatting. */
 export type AttachmentDocumentResult = { ok: true; base64: string } | { ok: false; error: string }
 
+/**
+ * An attached Markdown file opened as a new, untitled Hangul document in a tab
+ * of its own. `handed`: the person's request went along for that tab's panel.
+ */
+export type AttachmentImportResult =
+  { ok: true; title: string; handed: boolean } | { ok: false; error: string }
+
 /** What the configured picture reader says about one picture of the document. */
 export interface MediaAnalysisResult {
   text?: string
   error?: string
   errorCode?: MediaToolErrorCode
   resetsAt?: number
+}
+
+/** Web search results (the shared ai:web-search handler) */
+export interface WebSearchResult {
+  /** a direct answer some services give before their results */
+  answer?: string
+  results: Array<{ title: string; url: string; snippet: string }>
+  method: string
+  /** failure reason when method === 'error' */
+  error?: string
 }
 
 /** Image search results (the shared ai:image-search handler) */
@@ -361,6 +398,12 @@ export interface HwpApi {
    * the print dialog for these pages
    */
   printPages(job: PrintJob, options?: { path: string }): Promise<PrintResult>
+  /**
+   * The advanced print layout (decision 0141): the same pages as `printPages`, sent as
+   * the request's `editor`, made into the PDF export's PDF, then arranged and previewed,
+   * printed or saved by the shared print layout
+   */
+  printLayout: PrintLayoutBridge<PrintJob>
   /** Headless export mode: the PDF path this hidden window must write, null in normal use */
   consumeHeadlessExport(): Promise<string | null>
   /** Headless export mode: report the outcome so the main process can exit */
@@ -407,6 +450,16 @@ export interface HwpApi {
   readAttachmentImage(path: string): Promise<AttachmentImageResult>
   /** read an attached .hwp / .hwpx whole, as base64, to read its formatting */
   readAttachmentDocument(path: string): Promise<AttachmentDocumentResult>
+  /**
+   * convert an attached Markdown file and open it as a new, untitled Hangul document in a
+   * tab of its own; with `request` the person's words go along for that tab's AI panel
+   */
+  importAttachmentAsDocument(path: string, request?: string): Promise<AttachmentImportResult>
+  /**
+   * note that the app stopped an AI run by its own rule: the rule, fault counts and
+   * tool names only (an AgentRunStop), for the crash record on this PC
+   */
+  noteAiRunStop?(stop: unknown): void
   /** let the model look at one picture of the document (a data URL) and answer about it */
   analyzeMedia(op: { mediaUrls: string[]; requirements: string }): Promise<MediaAnalysisResult>
   /** the local path of a dropped or pasted file; empty for one that has none (a screenshot) */
@@ -440,13 +493,17 @@ export interface HwpApi {
   aiStreamCancel(requestId: string): Promise<void>
   /** Read one web page as text (the shared ai:read-url handler), paged by character offset */
   readUrl(url: string, offset?: number): Promise<ReadUrlResult>
+  /** Web search for text (the shared ai:web-search handler) */
+  webSearch(query: string, maxResults?: number): Promise<WebSearchResult>
   /** Image search (the shared ai:image-search handler) */
   imageSearch(query: string, maxResults?: number): Promise<ImageSearchResult>
   /** AI image generation (hwp-owned channel; the main process picks the backend) */
-  generateImage(op: { prompt: string; aspectRatio?: string }): Promise<{
+  generateImage(op: { prompt: string; aspectRatio?: string; model?: string }): Promise<{
     url?: string
     error?: string
     errorCode?: string
+    /** the shared tool's remark for the model (e.g. Codex picked the image model) */
+    note?: string
   }>
   /** Download an image URL (or a generated-store file) in the main process */
   fetchImage(url: string): Promise<{ base64: string; mime: string } | null>

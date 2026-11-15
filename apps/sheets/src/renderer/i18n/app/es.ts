@@ -749,6 +749,13 @@ export const es = {
   appSaveAs: 'Guardar como',
   appUndo: 'Deshacer',
   appRedo: 'Rehacer',
+  appQuickAccessCustomize: 'Personalizar la barra de herramientas de acceso rápido',
+  appQuickAccessHint:
+    'Pulse Alt y un número para ejecutar el botón que ocupa esa posición contando desde la izquierda.',
+  appQuickAccessMoveEarlier: 'Mover hacia delante',
+  appQuickAccessMoveLater: 'Mover hacia atrás',
+  appQuickAccessReset: 'Restablecer valores predeterminados',
+  appQuickAccessFull: 'La barra admite hasta 10 botones.',
   appUnsavedEditOne: '● {count} edición sin guardar',
   appUnsavedEditMany: '● {count} ediciones sin guardar',
   appSavedState: 'Guardado',
@@ -1619,6 +1626,4 @@ export const es = {
   appOdsImportNotice:
     'El ODS se abrió como una copia xlsx. Al guardar se escribirá un archivo xlsx.',
   appOdsFormulasDropped: 'En {count} fórmulas solo se conservaron los valores.',
-  saveAsNeedsExtension:
-    'Añada una extensión al nombre del archivo, por ejemplo informe.xlsx o informe.ods.',
 } satisfies Record<keyof typeof zh, string>

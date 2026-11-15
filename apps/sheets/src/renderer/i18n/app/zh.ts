@@ -635,6 +635,12 @@ export const zh = {
   appSaveAs: '另存为',
   appUndo: '撤销',
   appRedo: '重做',
+  appQuickAccessCustomize: '自定义快速访问工具栏',
+  appQuickAccessHint: '按 Alt 加数字键，可执行从左数相应位置的按钮。',
+  appQuickAccessMoveEarlier: '前移',
+  appQuickAccessMoveLater: '后移',
+  appQuickAccessReset: '恢复默认',
+  appQuickAccessFull: '工具栏最多可放 10 个按钮。',
   appUnsavedEditOne: '● {count} 处未保存的编辑',
   appUnsavedEditMany: '● {count} 处未保存的编辑',
   appSavedState: '已保存',
@@ -1502,5 +1508,4 @@ export const zh = {
   // ── ODS import ──
   appOdsImportNotice: '已将 ODS 作为 xlsx 副本打开。保存时将保存为 xlsx 文件。',
   appOdsFormulasDropped: '有 {count} 个公式仅保留了值。',
-  saveAsNeedsExtension: '请在文件名后加上扩展名，例如 报告.xlsx、报告.ods。',
 }

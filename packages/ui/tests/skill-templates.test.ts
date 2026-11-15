@@ -405,6 +405,26 @@ describe('a template copy that brought the asking document', () => {
     expect(use.text).toContain('earlier document is attached')
   })
 
+  it('sends a request without chips together with the app note, which is not the person text', async () => {
+    const noted = {
+      id: 'h9',
+      mode: 'skill',
+      target: 'hwp',
+      text: 'tidy it up',
+      chips: [],
+      note: 'The file is already in this document.',
+    }
+    const { bridge } = templateBridge({ takeHandoff: vi.fn(async (): Promise<unknown> => noted) })
+    const send = vi.fn((_text: string, _use: SkillUse): boolean => true)
+    renderPanel({ editor: 'hwp', bridge, send })
+    await flush()
+    expect(send).toHaveBeenCalledTimes(1)
+    const [text, use] = send.mock.calls[0]!
+    expect(text).toBe('tidy it up')
+    expect(use.chips).toEqual([])
+    expect(use.text).toBe('\n\nThe file is already in this document.')
+  })
+
   it('sends nothing without it and leaves the request in the composer', async () => {
     const { bridge } = templateBridge({ takeHandoff: vi.fn(async (): Promise<unknown> => handoff) })
     const send = vi.fn()
@@ -444,8 +464,8 @@ describe('a template skill the model used on its own (spec 5.7)', () => {
     expect(bridge.openTemplate).toHaveBeenCalledWith({
       skillId: 'app:letter',
       text: 'write the letter for the trip',
-      // the chip shows the skill by its name
-      chips: [{ id: 'app:letter', source: 'app', title: 'letter' }],
+      // the chip shows the skill as lists do: by the title its file carries
+      chips: [{ id: 'app:letter', source: 'app', title: 'Letter' }],
     })
     expect(text()).toContain('새 탭에서 양식으로 작업합니다')
   })
@@ -741,8 +761,10 @@ describe('the template preview tab (spec 5.6 steps 2-4, 9.11)', () => {
     expect(button('이 탭을 양식으로 저장')).toBeDefined()
     expect(button('원래 문서 그대로 저장')).toBeDefined()
     expect(button('취소')).toBeDefined()
-    // the pending card's fields came along (the name is the first field)
-    const name = host.querySelector<HTMLInputElement>('input[type="text"]')!
+    // the pending card's fields came along
+    const title = host.querySelector<HTMLInputElement>('input[data-field="title"]')!
+    const name = host.querySelector<HTMLInputElement>('input[data-field="name"]')!
+    expect(title.value).toBe('Family letter')
     expect(name.value).toBe('family-letter')
   })
 
@@ -803,10 +825,10 @@ describe('the template preview tab (spec 5.6 steps 2-4, 9.11)', () => {
         template: { bytes: new Uint8Array([7]), fileName: 'letter.docx' },
       }),
     )
-    // the preview tab is told the saved skill's name
+    // the preview tab is told what the saved skill is called
     expect(bridge.finishPreview).toHaveBeenCalledWith('p1', 'saved', {
       skillId: 'app:letter',
-      title: 'family-letter',
+      title: 'Family letter',
     })
   })
 
