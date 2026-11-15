@@ -502,6 +502,54 @@ export const TOOLS: ToolSpec[] = [
     ],
   },
   {
+    name: 'map_read',
+    command: 'map',
+    verb: 'read',
+    readOnly: true,
+    description:
+      'Outline of an .xmind mind map, one `# ` heading per sheet; detail.sheets[].topics[] gives every topic (id, title, note, link, children ids) for map_apply. No app process.',
+    positionals: [{ key: 'file', description: 'path of the .xmind' }],
+  },
+  {
+    name: 'map_apply',
+    command: 'map',
+    verb: 'apply',
+    description:
+      'Edit an .xmind mind map with the map ops (guide map): add_topic, rename_topic, move_topic, delete_topic, set_note, set_link, on the ids map_read lists; new ids come back in detail.results[].created. Local, untouched parts of the file kept byte for byte; delete_topic refuses when it would take preserved elements and reports how many. Atomic by default. ' +
+      GUI_OPEN,
+    positionals: [{ key: 'file', description: 'path of the .xmind' }],
+    options: [
+      {
+        key: 'ops',
+        kind: OPS_JSON,
+        typed: 'map-ops',
+        description: 'JSON array of ops, every entry with "op"',
+        required: true,
+      },
+      { key: 'best-effort', description: 'apply what can apply; report the rest' },
+      { key: 'stop-on-error', description: 'apply in order up to the first refusal' },
+      { key: 'out', description: 'write here instead of in place' },
+      { key: 'force', description: 'overwrite an existing --out' },
+    ],
+  },
+  {
+    name: 'map_create',
+    command: 'map',
+    verb: 'create',
+    description:
+      "Create an .xmind mind map from a markdown outline (`# ` heading per sheet, `- ` item per topic; labels, links and notes come back). out is required: the outline text becomes a file in this server's scratch directory, which is deleted with the call, so a map written beside it would not survive.",
+    options: [
+      {
+        key: 'outline',
+        kind: 'inline-md',
+        description: 'the outline text',
+        required: true,
+      },
+      { key: 'out', description: 'output .xmind path (required)', required: true },
+      { key: 'force', description: 'overwrite an existing output' },
+    ],
+  },
+  {
     name: 'sheet_read',
     command: 'sheet',
     verb: 'read',
@@ -670,9 +718,9 @@ export const TOOLS: ToolSpec[] = [
     readOnly: true,
     plainText: true,
     description:
-      'The op reference an agent reads before writing ops: guide("docs"), guide("sheets"), guide("slides"), guide("hwp") or guide("diagram") list the groups; topic narrows to one group or one op. guide("slides", "design") is the staged deck workflow and guide("slides", "spec") the outline and page spec format (deck_start returns both). guide("slides", "templates") lists the built-in design templates; guide("slides", "templates", "<id>") prints one as a ready-made style sheet to save as style.md. Also available as ieumoffice://guide/* resources.',
+      'The op reference an agent reads before writing ops: guide("docs"), guide("sheets"), guide("slides"), guide("hwp"), guide("diagram") or guide("map") list the groups; topic narrows to one group or one op. guide("slides", "design") is the staged deck workflow and guide("slides", "spec") the outline and page spec format (deck_start returns both). guide("slides", "templates") lists the built-in design templates; guide("slides", "templates", "<id>") prints one as a ready-made style sheet to save as style.md. Also available as ieumoffice://guide/* resources.',
     positionals: [
-      { key: 'domain', description: 'slides | docs | sheets | hwp | diagram' },
+      { key: 'domain', description: 'slides | docs | sheets | hwp | diagram | map' },
       {
         key: 'topic',
         description: 'a group, an op name, or for slides: design | spec | templates',
