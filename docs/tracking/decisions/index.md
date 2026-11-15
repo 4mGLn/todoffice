@@ -141,3 +141,4 @@
 | [0143](0143-editor-choice-and-ai-off.md)                      | 쓸 편집기와 AI 사용 여부를 사용자가 고르고, 끈 것은 화면에서 뺀다(1단계, 디스크에서 지우기는 2단계)  | 2026-11-14 |
 | [0144](0144-hwp-print-draws-screen-fonts.md)                  | 한글의 화면은 문서의 글꼴로, 인쇄와 PDF는 화면이 보여 주는 글꼴과 줄 나눔으로 그린다                 | 2026-11-14 |
 | [0145](0145-codex-image-app-server-thread.md)                 | Codex 그림은 app-server의 일회용 스레드로 만들고 응답의 `result`로 받는다                            | 2026-11-15 |
+| [0146](0146-hwp-save-writes-fresh-preview.md)                 | 한글 문서를 저장할 때 미리보기 글과 첫 쪽 그림을 지금 문서로 다시 쓴다                               | 2026-11-15 |

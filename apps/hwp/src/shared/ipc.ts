@@ -200,6 +200,20 @@ export interface CommitSaveOptions {
   auto?: boolean
   /** the editor's memo list, or null when it could not be listed */
   memos?: MemoSnapshot[] | null
+  /**
+   * The preview of the document as it is now, written over the one the engine carried
+   * from the opened file (decision 0146). null: the editor could not make one, and a blank
+   * preview is written rather than the stale one.
+   */
+  preview?: SavePreview | null
+}
+
+/** What other programs show of a file without opening it: its first lines and first page. */
+export interface SavePreview {
+  /** the text, lines ended by CR LF, table rows as `<cell><cell>` as Hangul writes them */
+  text: string
+  /** the first page as PNG, or null when it could not be drawn */
+  image: Uint8Array | null
 }
 
 export type CommitSaveResult =

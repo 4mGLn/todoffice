@@ -148,6 +148,7 @@
 | 필드 여는 글자 종류              | 결정 0026: rhwp가 여는 글자를 `%unk`로 다시 써서 메모가 메모로 읽히지 않는다                     | 고침(제어 기록의 종류로 되돌림)                     | `apps/hwp/tests/field-kinds.test.ts`          |
 | 수식 캡션                        | 결정 0028: 엔진이 수식 제어 기록 아래의 캡션 목록을 쓰지 않는다                                  | 고침(저장 때 다시 붙임)                             | `apps/hwp/tests/section-tails.test.ts`        |
 | 변경 추적 두 번째 본문           | 결정 0027: 두 번째 본문(ViewText)을 그대로 읽고 쓰면 한컴이 열지 못한다                          | 처리(지금의 내용으로 열고, 저장하면 추적 기록 없이) | `apps/hwp/tests/tracked-changes.test.ts`      |
+| 미리보기 글·그림                 | 결정 0146: rhwp가 연 파일의 `PrvText`·`PrvImage`를 저장마다 그대로 다시 써서 지운 글이 남는다    | 고침(저장 때 지금 문서로 다시 씀)                   | `apps/hwp/tests/save-preview.test.ts`         |
 
 ### 한글 엔진 빌드(`vendor/rhwp-core`, 결정 0050)
 

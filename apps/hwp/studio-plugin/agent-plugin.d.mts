@@ -1540,6 +1540,12 @@ export interface AgentPluginSurface {
     options?: AgentChangeOptions,
   ): AgentFormatLookResult
   measureTabs(spots: AgentTabSpot[]): { tabs: (AgentTabMeasure | null)[] }
+  /**
+   * The preview a save writes (decision 0146): the first lines of the document the way
+   * Hangul writes `PrvText` (CR LF lines, a table row as `<cell><cell>`), and the first
+   * page as base64 PNG 1024 pixels high, or null where it cannot be drawn.
+   */
+  savePreview(): { text: string; png: string | null }
   listStyles(): AgentStyleNames
   readStyle(name: string): AgentReadStyleResult
   createStyle(spec: AgentNewStyle, options?: AgentChangeOptions): AgentStyleResult
