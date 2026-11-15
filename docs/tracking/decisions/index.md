@@ -146,3 +146,4 @@
 | [0147](0147-home-entry-reads-settings.md)                     | 홈 왼쪽 아래 칸은 "설정"을 크게 적고, 아래 줄에 AI 상태를 이름 없이 보인다. 이름은 풍선 도움말로     | 2026-11-15 |
 | [0148](0148-openrouter-free-picker-lists-new-free-models.md)  | OpenRouter 무료 연결의 선택기는 시험된 모델 뒤에 OpenRouter가 새로 내놓은 무료 모델도 보인다         | 2026-11-15 |
 | [0149](0149-settings-in-app-menu-and-comma-key.md)            | 설정과 업데이트 확인을 Mac 앱 이름 메뉴에 두고, ⌘,·Ctrl+,로 설정을 연다(워드 탭 빼고)                | 2026-11-15 |
+| [0150](0150-map-edit-from-command-line.md)                    | 터미널 명령어로 마인드맵을 읽고 고치고 만든다. 고치기는 앱 편집과 같은 길을 탄다                     | 2026-11-15 |
