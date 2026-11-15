@@ -5093,10 +5093,9 @@ describe('what an edit did to the pages and tables, in its answer', () => {
 
   describe('one more turn when the run leaves more cells cut off than it found', () => {
     const at = (table: number, row: number, col: number) => ({ table, row, col })
-    /** cutCells answers these lists in turn: the measure at the run's first edit, then at its end */
-    const counted = (...lists: ReturnType<typeof at>[][]) => {
+    const counted = (atFirstEdit: ReturnType<typeof at>[], atEnd: ReturnType<typeof at>[]) => {
       const { call, skill, beginRun, bridge } = setup({
-        cutCells: vi.fn(async () => lists.shift() ?? []),
+        cutCells: vi.fn().mockResolvedValueOnce(atFirstEdit).mockResolvedValue(atEnd),
       })
       beginRun()
       const verify = (names: string[]) =>

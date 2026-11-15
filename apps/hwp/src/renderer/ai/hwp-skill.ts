@@ -2228,19 +2228,19 @@ function pageMapLines(map: AgentPageMap): string[] {
   const alone = map.alone.map((line) => {
     const where = line.column === undefined ? '' : ` of column ${line.column}`
     const after = line.kind === 'caption' ? 'its table' : 'the text after it'
-    const it = `Page ${line.page}: the ${line.kind} “${line.text}”${line.style ? ` (style ${line.style})` : ''}`
+    const named = `Page ${line.page}: the ${line.kind} “${line.text}”${line.style ? ` (style ${line.style})` : ''}`
     if (line.apart) {
       const anew =
         line.column === undefined
           ? 'on a new page with insert_break (kind page'
           : 'in the next column with insert_break (kind column'
-      return `${it} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}, and the empty line between keeps them apart in Hancom Hangul too${line.kept ? ', though it keeps with the next line' : ''}: to print it with ${after}, start it ${anew}, find with its words).`
+      return `${named} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}, and the empty line between keeps them apart in Hancom Hangul too${line.kept ? ', though it keeps with the next line' : ''}: to print it with ${after}, start it ${anew}, find with its words).`
     }
     if (line.kept) {
-      return `${it} stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it.`
+      return `${named} stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it.`
     }
     const style = line.style || 'its style'
-    return `${it} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: keep this line with ${after} by giving it a style of its own with style_paragraphs (a new name, ${line.style ? `based_on ${line.style}, ` : ''}keep_with_next true, applied with find to this line only). Do not give ${style} itself keep_with_next: every paragraph of that style would keep with the next one.`
+    return `${named} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: keep this line with ${after} by giving it a style of its own with style_paragraphs (a new name, ${line.style ? `based_on ${line.style}, ` : ''}keep_with_next true, applied with find to this line only). Do not give ${style} itself keep_with_next: every paragraph of that style would keep with the next one.`
   })
   const below = map.pages.flatMap((page) =>
     'pastFoot' in page && page.pastFoot
@@ -2957,11 +2957,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   let addedThisRun: string[] = []
   /** delete_paragraph calls (find, occurrence) refused for hitting one of those, this run */
   let refusedDeletes = new Set<string>()
-  /**
-   * The cut-off cells of the document before the run's first edit, null when they could not
-   * be measured; absent until that edit.
-   */
-  let runStart: { cut: number | null } | null = null
+  let cutAtStart: number | 'unmeasured' | 'unknown' = 'unmeasured'
   const cutCellsNow = async (): Promise<AgentCutCell[] | null> => {
     try {
       return await bridge.cutCells()
@@ -5694,8 +5690,8 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
       },
       buildContext: () => [context, selectionContext()].filter(Boolean).join('\n\n'),
       verifyResponse: async (_text, executed) => {
-        const before = runStart?.cut ?? null
-        if (before === null) return null
+        const before = cutAtStart
+        if (typeof before !== 'number') return null
         if (!executed.some((done) => done.ok && TOOL_BY_NAME.get(done.name)?.edits)) return null
         const now = await cutCellsNow()
         if (now === null || now.length <= before) return null
@@ -5712,8 +5708,8 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const refusal = refusalOf(tool, prepared)
         if (refusal) return bad(call, refusal)
         try {
-          if (tool.edits && runStart === null) {
-            runStart = { cut: (await cutCellsNow())?.length ?? null }
+          if (tool.edits && cutAtStart === 'unmeasured') {
+            cutAtStart = (await cutCellsNow())?.length ?? 'unknown'
           }
           const pagesBefore = tool.edits ? await pagesNow() : null
           const done = await run(withDoubledEscapesUndone(call), signal)
@@ -5738,7 +5734,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     beginRun: () => {
       addedThisRun = []
       refusedDeletes = new Set()
-      runStart = null
+      cutAtStart = 'unmeasured'
     },
     refreshContext: async () => {
       try {

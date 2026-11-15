@@ -34,8 +34,7 @@ export interface AgentSkill {
    * instruction to force one more model turn (e.g. the text claims "I
    * selected/located ..." but no matching tool call succeeded), or null to
    * accept the reply. The loop applies the correction at most once per run,
-   * so a detector false-positive costs one extra turn and cannot loop. It may answer later,
-   * when the check has to measure the document.
+   * so a detector false-positive costs one extra turn and cannot loop.
    */
   verifyResponse?(
     finalText: string,

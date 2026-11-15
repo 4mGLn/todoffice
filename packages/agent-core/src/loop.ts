@@ -1224,14 +1224,14 @@ export class AgentLoop<TSnapshot = unknown> {
     // A returned correction forces one more model turn (tools stay available,
     // so the model can perform the missing action or reword its claim).
     if (toolCalls.length === 0 && !this.cancelled && !this.finalizing) {
+      const generation = this.generation
       // snapshot copy: the live array keeps growing if the corrective turn
       // runs more tools, and the hook must see the state at check time
-      const generation = this.generation
       const correction =
         !this.verifyRetryUsed && this.turnText && skill.verifyResponse
           ? await skill.verifyResponse(this.turnText, [...this.executedCalls])
           : null
-      if (generation !== this.generation) return // reset while the check ran
+      if (generation !== this.generation) return
       if (correction && !this.cancelled) {
         this.verifyRetryUsed = true
         this.history.push({ role: 'assistant', text: this.turnText })

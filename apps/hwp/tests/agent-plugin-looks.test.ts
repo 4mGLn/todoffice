@@ -2255,8 +2255,8 @@ describe('what a change leaves on the pages', () => {
 
   it('takes a paragraph that starts with spaces for one that starts on its page', () => {
     const fixtureMap = (name: string) =>
-      open(new HwpDocument(readFileSync(join(__dirname, 'fixtures', name)))).plugin.pageLayout()
-        .map.pages as Extract<AgentMapPage, { first: unknown }>[]
+      open(new HwpDocument(readFileSync(join(__dirname, 'fixtures', name)))).plugin.pageLayout().map
+        .pages as Extract<AgentMapPage, { first: unknown }>[]
     expect(fixtureMap('page-number-cell-position.hwpx')[0]).toMatchObject({
       first: { text: 'Cover' },
       last: { text: 'Cover' },

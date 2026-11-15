@@ -3990,16 +3990,17 @@ function overflowIn(runs, box, paragraphs) {
 /** Hangul and other CJK script: text written in it breaks between any two characters. */
 const BREAKS_ANYWHERE = /[ᄀ-ᇿ぀-ヿ㄰-㆏一-鿿가-힯]/
 
+const CLOSING_BRACKET = /\p{Pe}/u
+const OPENING_BRACKET = /\p{Ps}/u
+
 /**
- * Whether a line break between the characters `before` and `after` splits a word: no space on
- * either side, no closing bracket before it and no opening bracket after it, and neither side
- * in a script that breaks between any two characters (Korean text breaks per syllable when its
- * paragraph says so, as Hangul's default does), except a number cut from the Hangul word it
- * goes with (2026|년). Other marks hold a word together: 36.5|℃, 1,|234, example.|org.
+ * Whether a line break between the characters `before` and `after` splits a word. A Korean
+ * paragraph breaks per syllable by Hangul's default, so a break beside Hangul is no broken
+ * word, except a number cut from the Hangul word it goes with (2026|년).
  */
 export function splitsWord(before, after) {
   if (!/\S/.test(before) || !/\S/.test(after)) return false
-  if (/\p{Pe}/u.test(before) || /\p{Ps}/u.test(after)) return false
+  if (CLOSING_BRACKET.test(before) || OPENING_BRACKET.test(after)) return false
   const anywhere = [before, after].filter((char) => BREAKS_ANYWHERE.test(char)).length
   if (anywhere === 0) return true
   return anywhere === 1 && (/\d/.test(before) || /\d/.test(after))
@@ -4124,8 +4125,7 @@ function pageMapOf(doc) {
   const slots = []
   const spans = new Map()
   const past = []
-  /** body paragraphs drawn on a page before the one being mapped */
-  const earlier = new Set()
+  const drawnBefore = new Set()
   const total = doc.pageCount()
   for (let page = 0; page < total; page++) {
     const { top, foot, columns } = bodyAreaOf(doc, page)
@@ -4200,7 +4200,7 @@ function pageMapOf(doc) {
     const sorted = [...items].sort(order)
     const ends = (item) => {
       const key = `${item.sec}/${item.para}`
-      const continues = earlier.has(key) && starts.has(key)
+      const continues = drawnBefore.has(key) && starts.has(key)
       const from = continues ? textOffsetOf(doc, item.sec, item.para, starts.get(key)) : 0
       const text = paragraphText(doc, item.sec, item.para, from)
       if (item.table !== null && !text) return { table: item.table }
@@ -4212,7 +4212,7 @@ function pageMapOf(doc) {
       last: ends(sorted.at(-1)),
       ...(lowLines.size > 0 ? { pastFoot: lowLines.size } : {}),
     })
-    for (const key of starts.keys()) earlier.add(key)
+    for (const key of starts.keys()) drawnBefore.add(key)
     for (let column = 0; column < Math.max(1, columns.length); column++) {
       const mine = items.filter((item) => item.column === column).sort(order)
       if (mine.length === 0) continue
@@ -4436,7 +4436,6 @@ function overflowsOf(doc, fromTable, fromRow, toRow = null) {
   }
 }
 
-/** Every cut cell of the document (overflowsOf from the first table to the last). */
 function cutCellsOf(doc) {
   const cells = []
   let from = { table: 1, row: 1 }
@@ -7647,10 +7646,6 @@ export const agentPlugin = {
         ),
       ),
 
-      /**
-       * Every table cell of the document whose text is cut off, as checkLayout measures it,
-       * measured to the end in one call. Reads only.
-       */
       cutCells: guarded(() => host.read((doc) => withPortableWidths(doc, () => cutCellsOf(doc)))),
 
       /**
