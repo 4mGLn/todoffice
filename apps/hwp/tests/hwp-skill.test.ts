@@ -157,10 +157,14 @@ function setup(
     replaceFont: vi.fn(async () => ({ ok: true as const, ranges: 3, paragraphs: 2 })),
     formatParagraph: vi.fn(async () => ({ ok: true as const, inTable: false })),
     listTables: vi.fn(async () => ({ count: 0, partial: false, tables: [] })),
+    pageCount: vi.fn(async () => 1),
+    cutCells: vi.fn(async () => []),
     checkLayout: vi.fn(async () => ({
       tables: 2,
       from: { table: 1, row: 1 },
       cells: [],
+      wrapped: [],
+      past: [],
       measured: 12,
     })),
     readTable: vi.fn(async () => ({
@@ -339,6 +343,7 @@ function setup(
       pageNumber: null,
       header: { exists: false as const },
       footer: { exists: false as const },
+      map: { pages: [], alone: [], spans: [], past: [] },
     })),
     setPageBorder: vi.fn(async (spec: { line: string }) => ({
       ok: true as const,
@@ -846,7 +851,7 @@ describe('insert_paragraphs', () => {
       paragraphs: ['x'],
     })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain('a table, a picture or a form field')
+    expect(result.output).toContain('a table, a picture, an equation or a form field')
     expect(result.summary).toBe('aiToolNotDone:{"what":"제목"}')
     expect(changes).toEqual([])
   })
@@ -1516,6 +1521,34 @@ describe('format_cells', () => {
     expect(changes).toEqual([])
   })
 
+  it('sets the column widths of a table and says how wide they came out', async () => {
+    const { call, changes, bridge } = setup({
+      formatCells: vi.fn(async () => ({
+        ok: true as const,
+        count: 6,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+        columnWidthsMm: [25.1, 25.1, 100.6],
+      })),
+    })
+    const result = await call('format_cells', { table: 2, column_widths: [1, 1, 4] })
+    expect(bridge.formatCells).toHaveBeenCalledWith(2, null, { columnWidths: [1, 1, 4] })
+    expect(result.output).toMatch(
+      /^Set the column widths of table 2\. Its columns are now 25\.1, 25\.1, 100\.6 mm wide, from the left\./,
+    )
+    expect(changes[0]).toMatchObject({ kind: 'format', to: 'aiFmtColumnWidths' })
+  })
+
+  it('says how many widths a table takes', async () => {
+    const { call } = setup({
+      formatCells: async () => ({ ok: false as const, reason: 'column_count' as const, cols: 3 }),
+    })
+    const result = await call('format_cells', { table: 2, column_widths: [1, 2] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: table 2 has 3 column(s), so column_widths takes 3 number(s), one for each.',
+    )
+  })
+
   it('refuses a call without cells before asking the editor', async () => {
     const { call, bridge } = setup()
     const result = await call('format_cells', { table: 1, cells: [], background: '#000000' })
@@ -1679,6 +1712,8 @@ describe('tables that are already in the document', () => {
         tables: 4,
         from: { table: 2, row: 30 },
         cells: [{ table: 2, row: 31, col: 2, page: 3, over: 2.5, text: '서울시 종로구' }],
+        wrapped: [],
+        past: [],
         measured: 400,
         next: { table: 3, row: 1 },
       })),
@@ -1699,6 +1734,8 @@ describe('tables that are already in the document', () => {
         tables: 1,
         from: { table: 1, row: 1 },
         cells: [],
+        wrapped: [],
+        past: [],
         measured: 120,
         next: { table: 1, row: 41 },
       })),
@@ -2265,6 +2302,86 @@ describe('a table of contents', () => {
     expect(changes[0]).toMatchObject({ kind: 'cells', from: '차 례', count: 1 })
   })
 
+  it('takes no entries for refresh_toc: it writes page numbers only', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'refresh_toc')
+    expect(Object.keys(tool?.inputSchema.properties ?? {})).toEqual(['title', 'occurrence'])
+    expect(tool?.description).toContain('delete_table the table and call insert_toc again')
+  })
+
+  it('refuses a second table of contents and says how to make it anew', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+        title: '차 례',
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1, under the line "차 례"), made by insert_toc. refresh_toc with that line writes its page numbers again. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc with anchor "차 례", where after and no title, so that the line stays above it.',
+    )
+  })
+
+  it('refuses a second table of contents at the start of the document', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc again where it was.',
+    )
+  })
+
+  it('says that an empty first line stays when the contents are made anew at the start', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        table: 1,
+        first: true,
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.output).toBe(
+      'Nothing was changed: the document has a table of contents already (table 1), made by insert_toc. For headings added, renamed or removed, and only when the user wants that: delete_table 1, then call insert_toc again where it was. Table 1 is the first paragraph of the document: delete_table leaves an empty first line, which stays above the new contents. No tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor.',
+    )
+  })
+
+  it('says that contents made before the document was opened are not known', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'insert_toc')
+    expect(tool?.description).toContain(
+      'Contents made before the document was last opened are not known',
+    )
+  })
+
+  it('refuses contents next to the lines of contents Hangul made', async () => {
+    const { call } = setup({
+      insertToc: async () => ({
+        ok: false as const,
+        reason: 'toc_exists' as const,
+        count: 1,
+        lines: true as const,
+        title: '목 차',
+      }),
+    })
+    const result = await call('insert_toc', { where: 'end', entries: [{ find: '현황', level: 1 }] })
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe(
+      'Nothing was changed: the document has contents already, made in Hangul as lines ending in a tab and a page number, under the line "목 차". They cannot be written again here; tell the user, who updates them in Hangul.',
+    )
+  })
+
   it('says when no table of contents follows the line', async () => {
     const { call } = setup({
       refreshToc: async () => ({ ok: false as const, reason: 'no_toc' as const, count: 0 }),
@@ -2272,6 +2389,82 @@ describe('a table of contents', () => {
     const result = await call('refresh_toc', { title: '차 례' })
     expect(result.isError).toBe(true)
     expect(result.output).toContain('no table of contents follows')
+  })
+})
+
+describe('equations', () => {
+  it('names in list_equations which lines count as questions and which as choices', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'list_equations')
+    expect(tool?.description).toContain('(1., 1), (1), 가., (가), 문 1), whatever it holds after')
+    expect(tool?.description).toContain(
+      '(1) after 1), (1) after (1), 1. after 1.) is the next question',
+    )
+    expect(tool?.description).toContain('A line that begins with Ⅰ. or Ⅱ. starts a part')
+  })
+
+  it('lists the equations with the words round them', async () => {
+    const { call } = setup({
+      listEquations: vi.fn(async () => ({
+        count: 3,
+        elsewhere: 1,
+        equations: [
+          { equation: 1, before: '넓이는 ', after: ' 이다.', script: 'x^2' },
+          { equation: 2, before: '비는\t', after: ' 이다.', script: '{a} over {b}' },
+          { equation: 3, before: '① ', after: '', previous: '1. 다음 중 근은?', script: 'x=1' },
+        ],
+      })),
+    })
+    const result = await call('list_equations', {})
+    expect(result.output).toBe(
+      [
+        '1. (in "넓이는 … 이다.") x^2',
+        '2. (in "비는 … 이다.") {a} over {b}',
+        '3. (in "① …", under "1. 다음 중 근은?") x=1',
+        '1 more equation(s) sit inside table cells, notes or text boxes, which these tools cannot reach.',
+      ].join('\n'),
+    )
+    expect(result.summary).toBe('aiToolEquations:{"count":3}')
+  })
+
+  it('changes the script of an equation, or removes it', async () => {
+    const editEquation = vi.fn(async (_number: number, script: string | null) => ({
+      ok: true as const,
+      removed: script === null,
+      was: '{a} over {b}',
+      place: PLACE,
+    }))
+    const { call, changes } = setup({ editEquation })
+    const changed = await call('edit_equation', { equation: 2, script: '{1} over {2}' })
+    expect(editEquation).toHaveBeenCalledWith(2, '{1} over {2}')
+    expect(changed.output).toBe('Changed equation 2 from {a} over {b} to {1} over {2}.')
+    expect(changed.mutated).toBe(true)
+    const removed = await call('edit_equation', { equation: 2, remove: true })
+    expect(editEquation).toHaveBeenLastCalledWith(2, null)
+    expect(removed.output).toBe(
+      'Removed equation 2 ({a} over {b}). Equations after it are numbered one lower.',
+    )
+    expect(changes.map((change) => change.kind)).toEqual(['replace', 'delete'])
+  })
+
+  it('refuses LaTeX, a script with remove, and a number the body has not', async () => {
+    const { call, bridge } = setup({
+      editEquation: vi.fn(async () => ({
+        ok: false as const,
+        reason: 'no_such_equation' as const,
+        count: 3,
+      })),
+    })
+    const latex = await call('edit_equation', { equation: 1, script: String.raw`\frac{1}{2}` })
+    expect(latex.isError).toBe(true)
+    expect(latex.output).toContain('LaTeX')
+    const both = await call('edit_equation', { equation: 1, script: 'x', remove: true })
+    expect(both.isError).toBe(true)
+    expect(bridge.editEquation).not.toHaveBeenCalled()
+    const missing = await call('edit_equation', { equation: 7, script: 'x' })
+    expect(missing.output).toBe(
+      'There is no equation 7: the body text has 3. Call list_equations for the numbers.',
+    )
   })
 })
 
@@ -2984,17 +3177,28 @@ describe('the look of a document', () => {
     ).toContain('The text colour was left as it was')
   })
 
-  it('says why a title box could not be made', async () => {
+  it('says why a title box could not be made, naming the table and the way to change it', async () => {
     const { call } = setup({
       insertTitleBox: vi.fn(async () => ({
         ok: false as const,
         reason: 'in_table' as const,
         count: 1,
+        table: 3,
       })),
     })
     const result = await call('insert_title_box', { find: '운영 계획' })
     expect(result.isError).toBe(true)
-    expect(result.output).toContain('inside a table cell')
+    expect(result.output).toBe(
+      'Nothing was changed: that text is inside table 3, which is kept as it is. A title box is made only from a paragraph of the body text, and no table is drawn again as one: the document does not tell which tables insert_title_box made. To change the lines or fill of table 3, use format_cells. Only when you made this box with insert_title_box earlier in this conversation and the user asked for another look of it: delete_table 3 (its words go with it), put the title back as a new paragraph where the box was, and call insert_title_box on it. The new paragraph goes after the line above the box (insert_paragraphs where after, its anchor text of that line), or, when the box was the first paragraph of the document, before the line below it (where before). An anchor inside a table puts the paragraph into a cell of that table: when the line on that side is a table, tell the user instead. Where the box was the first paragraph, delete_table leaves an empty first line, which stays above the new box: no tool here removes it (delete_paragraph needs text to find), so tell the user, who can delete it in the editor. Anywhere else no line is left behind.',
+    )
+  })
+
+  it('lets delete_table go only where the user asked, a new look of a box made here included', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'delete_table')
+    expect(tool?.description).toContain(
+      'Use it only when the user asked for it, or asked for another look of a title box or table of contents you made in this conversation, which you then make again.',
+    )
   })
 
   it('numbers the pages and writes a footer', async () => {
@@ -3030,8 +3234,9 @@ describe('the look of a document', () => {
     const { call, bridge } = setup()
     const result = await call('read_page_layout')
     expect(bridge.pageLayout).toHaveBeenCalled()
-    expect(JSON.parse(result.output)).toMatchObject({ pageNumber: null, header: { exists: false } })
-    expect(JSON.parse(result.output).columns).toEqual({ count: 1, gap_mm: 0 })
+    const read = JSON.parse(result.output.split('\n')[0]!)
+    expect(read).toMatchObject({ pageNumber: null, header: { exists: false } })
+    expect(read.columns).toEqual({ count: 1, gap_mm: 0 })
   })
 
   it('takes a footer back as read_page_layout gave it, and refuses an alignment it does not write', async () => {
@@ -3050,9 +3255,10 @@ describe('the look of a document', () => {
           align: 'right' as const,
           size: 9,
         },
+        map: { pages: [], alone: [], spans: [], past: [] },
       })),
     })
-    const { footer } = JSON.parse((await call('read_page_layout')).output)
+    const { footer } = JSON.parse((await call('read_page_layout')).output.split('\n')[0]!)
     const written = await call('set_header_footer', { kind: 'footer', ...footer })
     expect(written.isError).toBeFalsy()
     expect(bridge.setHeaderFooter).toHaveBeenLastCalledWith('footer', {
@@ -3524,6 +3730,8 @@ describe('the skill as the model sees it', () => {
       'insert_break',
       'set_page_border',
       'insert_equations',
+      'list_equations',
+      'edit_equation',
       'set_page_number',
       'set_header_footer',
       'read_formatting',
@@ -4773,5 +4981,380 @@ describe('a number that counts from 1 or has a range', () => {
     setSelection(STRETCH)
     expect((await call('read_selection', { from: 2 })).output).toContain('Paragraphs 2–2 of 2')
     expect((await call('read_selection')).output).toContain('Paragraphs 1–2 of 2')
+  })
+})
+
+describe('what an edit did to the pages and tables, in its answer', () => {
+  const cut = (table: number, row: number, col: number, over = 5.9) => ({
+    table,
+    row,
+    col,
+    page: 1,
+    over,
+    text: '2026년 상반기 신규 직원 연수 운영 계획',
+  })
+  const measured = (
+    cells: ReturnType<typeof cut>[],
+    past: { table: number; page: number; row: number; taller?: true }[] = [],
+  ) => ({
+    tables: 1,
+    from: { table: 1, row: 1 },
+    cells,
+    wrapped: [],
+    past,
+    measured: 3,
+  })
+
+  it('ends an edit that changed the page count with the counts, and no other answer', async () => {
+    const counts = [1, 2]
+    const { call, bridge } = setup({ pageCount: vi.fn(async () => counts.shift() ?? 2) })
+    const grew = await call('insert_paragraphs', { where: 'end', paragraphs: ['가', '나'] })
+    expect(grew.output).toMatch(/ Pages 1 -> 2\.$/)
+    const same = await call('insert_paragraphs', { where: 'end', paragraphs: ['다'] })
+    expect(same.output).not.toContain('Pages')
+    const calls = vi.mocked(bridge.pageCount).mock.calls.length
+    expect((await call('read_page_layout')).output).not.toContain(' -> ')
+    expect((await call('find_text', { text: '가' })).output).not.toContain(' -> ')
+    expect(vi.mocked(bridge.pageCount).mock.calls.length).toBe(calls)
+  })
+
+  it('leaves the page count out of a refused edit', async () => {
+    const { call } = setup({
+      pageCount: vi.fn().mockResolvedValueOnce(1).mockResolvedValue(3),
+      fillCells: vi.fn(async () => ({
+        ok: false as const,
+        reason: 'no_such_table' as const,
+        count: 1,
+      })),
+    })
+    const result = await call('fill_cells', { table: 4, cells: [{ row: 1, col: 1, text: '가' }] })
+    expect(result.isError).toBe(true)
+    expect(result.output).not.toContain('Pages')
+  })
+
+  it('names the cells a write cut off, measuring only the rows it wrote', async () => {
+    const { call, bridge } = setup({ checkLayout: vi.fn(async () => measured([cut(1, 2, 1)])) })
+    const result = await call('fill_cells', {
+      table: 1,
+      cells: [
+        { row: 2, col: 1, text: '2026년 상반기 신규 직원 연수 운영 계획' },
+        { row: 4, col: 2, text: '가' },
+      ],
+      overwrite: true,
+    })
+    expect(bridge.checkLayout).toHaveBeenCalledWith(1, 2, 4)
+    expect(result.output).toBe(
+      'Filled 2 cell(s) of table 1. The text of 1 cell(s) of table 1 does not fit and is cut off: row 2, col 1 (5.9 mm past its bottom). Give the row more height (format_cells row_height_mm) or write a shorter text.',
+    )
+  })
+
+  it('says nothing more when what was written fits, and does not measure a fill of colour', async () => {
+    const { call, bridge } = setup()
+    const filled = await call('fill_cells', { table: 1, cells: [{ row: 1, col: 1, text: '가' }] })
+    expect(filled.output).toBe('Filled 2 cell(s) of table 1.')
+    vi.mocked(bridge.checkLayout).mockClear()
+    await call('format_cells', { table: 1, background: '#FFF2CC' })
+    expect(bridge.checkLayout).not.toHaveBeenCalled()
+  })
+
+  it('gives the number of a new table, and says that the tables after it moved up one', async () => {
+    const { call, bridge } = setup({
+      insertTable: vi.fn(async () => ({
+        ok: true as const,
+        rows: 3,
+        cols: 3,
+        inTable: false,
+        place: PLACE,
+        table: 2,
+        tables: 2,
+      })),
+      insertTitleBox: vi.fn(async () => ({
+        ok: true as const,
+        look: 'bands',
+        rows: 3,
+        place: PLACE,
+        table: 1,
+        tables: 3,
+      })),
+    })
+    const table = await call('insert_table', { where: 'end', rows: [['가', '나', '다']] })
+    expect(table.output).toMatch(/ It is table 2\.$/)
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(2, 1, 3)
+    const box = await call('insert_title_box', { find: '제목' })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 1, 3)
+    expect(box.output).toBe(
+      'Made the title a bands title box. It is table 1; tables after it are numbered one higher.',
+    )
+  })
+
+  it('tells a table that runs off the page after it is made', async () => {
+    const { call } = setup({
+      insertTable: vi.fn(async () => ({
+        ok: true as const,
+        rows: 70,
+        cols: 2,
+        inTable: false,
+        place: PLACE,
+        table: 1,
+        tables: 1,
+      })),
+      checkLayout: vi.fn(async () => measured([], [{ table: 1, page: 2, row: 35, taller: true }])),
+    })
+    const result = await call('insert_table', { where: 'end', rows: [['가', '나']] })
+    expect(result.output).toContain(
+      'Table 1 is drawn below the foot of page 2 from row 35 on, and that part is cut off in print: it is taller than a page and does not break across pages, so make it into two tables.',
+    )
+  })
+
+  it('measures the rows format_cells touched, and names what it cut off', async () => {
+    const { call, bridge } = setup({ checkLayout: vi.fn(async () => measured([cut(1, 3, 2)])) })
+    const block = await call('format_cells', {
+      table: 1,
+      range: { from_row: 2, from_col: 1, to_row: 3, to_col: 2 },
+      size: 16,
+    })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 2, 3)
+    expect(block.output).toContain(
+      'The text of 1 cell(s) of table 1 does not fit and is cut off: row 3, col 2 (5.9 mm past its bottom).',
+    )
+    await call('format_cells', {
+      table: 1,
+      cells: [
+        { row: 4, col: 1 },
+        { row: 2, col: 2 },
+      ],
+      bold: true,
+    })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 2, 4)
+    await call('format_cells', { table: 1, size: 9 })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 1, Number.MAX_SAFE_INTEGER)
+  })
+
+  it('measures the whole table after add_to_table, and names what it cut off', async () => {
+    const { call, bridge } = setup({ checkLayout: vi.fn(async () => measured([cut(1, 2, 1)])) })
+    const added = await call('add_to_table', { table: 1, what: 'columns', at: 1 })
+    expect(bridge.checkLayout).toHaveBeenLastCalledWith(1, 1, 5)
+    expect(added.output).toContain(
+      'The text of 1 cell(s) of table 1 does not fit and is cut off: row 2, col 1 (5.9 mm past its bottom).',
+    )
+  })
+
+  it('gives the number of a new table of contents', async () => {
+    const { call, bridge } = setup({
+      insertToc: vi.fn(async () => ({
+        ok: true as const,
+        count: 2,
+        pages: [1, 3],
+        place: PLACE,
+        table: 1,
+        tables: 2,
+      })),
+    })
+    const toc = await call('insert_toc', {
+      anchor: '□ 추진 배경',
+      where: 'before',
+      title: '차 례',
+      entries: [{ find: '□ 추진 배경', level: 1 }],
+    })
+    expect(toc.output).toMatch(/ It is table 1; tables after it are numbered one higher\.$/)
+    expect(bridge.checkLayout).not.toHaveBeenCalled()
+  })
+
+  it('tells on every write to a table that runs off the page where it does, and nothing on other calls', async () => {
+    let past = [{ table: 1, page: 2, row: 35, taller: true as const }]
+    const { call } = setup({
+      insertTable: vi.fn(async () => ({
+        ok: true as const,
+        rows: 70,
+        cols: 2,
+        inTable: false,
+        place: PLACE,
+        table: 1,
+        tables: 1,
+      })),
+      checkLayout: vi.fn(async () => measured([], past)),
+    })
+    const off = 'Table 1 is drawn below the foot of page 2 from row 35 on'
+    expect((await call('insert_table', { where: 'end', rows: [['가', '나']] })).output).toContain(
+      off,
+    )
+    const fill = { table: 1, cells: [{ row: 65, col: 1, text: '가' }] }
+    expect((await call('fill_cells', fill)).output).toContain(off)
+    expect((await call('fill_cells', fill)).output).toContain(off)
+    expect(
+      (await call('insert_paragraphs', { where: 'end', paragraphs: ['가'] })).output,
+    ).not.toContain('below the foot')
+    past = []
+    expect((await call('fill_cells', fill)).output).not.toContain('below the foot')
+  })
+
+  it('names the tables wider than a column when the text is set in columns', async () => {
+    const { call } = setup({
+      setColumns: vi.fn(async () => ({
+        ok: true as const,
+        count: 2,
+        gapMm: 8,
+        was: 1,
+        sections: 1,
+        wide: [1, 3],
+      })),
+    })
+    expect((await call('set_columns', { count: 2 })).output).toContain(
+      'Tables 1, 3 are wider than a column and lie over the text of the next one. No tool makes a table narrower: to fit one into a column, read it with read_table, delete it with delete_table and write it again with insert_table (its rows, merged cells and look are made anew), which makes it one column wide.',
+    )
+  })
+
+  it('counts the cells broken inside a word and a table off the page in check_layout', async () => {
+    const { call } = setup({
+      checkLayout: vi.fn(async () => ({
+        ...measured([], [{ table: 1, page: 2, row: 35 }]),
+        wrapped: [{ table: 2, row: 3, col: 2, page: 1, text: 'haneul.kim@example.org' }],
+      })),
+    })
+    expect((await call('check_layout')).output.split('\n')).toEqual([
+      "No cell's text runs past its cell (3 cell(s) of 1 table(s) measured), but a table runs off the page:",
+      'Table 1 is drawn below the foot of page 2 from row 35 on, and that part is cut off in print.',
+      '1 cell(s) wrap inside a word: table 2, row 3, col 2 (haneul.kim@example.org). A shorter text or a smaller size (format_cells size) keeps the word on one line.',
+    ])
+  })
+
+  it('reads the page map out after the settings', async () => {
+    const { call } = setup({
+      pageLayout: vi.fn(async () => ({
+        sections: 1,
+        pages: 3,
+        columns: { count: 1, gapMm: 0 },
+        pageBorder: null,
+        pageNumber: null,
+        header: { exists: false as const },
+        footer: { exists: false as const },
+        map: {
+          pages: [
+            { page: 1, first: { text: '보고서' }, last: { text: '<표 1> 이용자 수' } },
+            {
+              page: 2,
+              first: { text: '마디가 이어집니다', continues: true as const },
+              last: { text: '맺음' },
+              pastFoot: 4,
+            },
+            { page: 3, empty: true as const },
+          ],
+          alone: [
+            {
+              page: 1,
+              kind: 'caption' as const,
+              text: '<표 1> 이용자 수',
+              style: '바탕글',
+              nextPage: 2,
+            },
+            {
+              page: 2,
+              kind: 'line' as const,
+              text: '□ 소요 예산',
+              style: '소제목',
+              nextPage: 3,
+              kept: true as const,
+            },
+            {
+              page: 2,
+              column: 2,
+              kind: 'heading' as const,
+              text: '□ 추진 배경',
+              style: '소제목',
+              nextPage: 3,
+              kept: true as const,
+              apart: true as const,
+            },
+          ],
+          spans: [{ table: 2, from: 2, to: 3 }],
+          past: [],
+        },
+      })),
+    })
+    const lines = (await call('read_page_layout')).output.split('\n')
+    expect(JSON.parse(lines[0]!)).toMatchObject({ pages: 3 })
+    expect(JSON.parse(lines[0]!)).not.toHaveProperty('map')
+    expect(lines.slice(1)).toEqual([
+      'Page 1: the caption “<표 1> 이용자 수” (style 바탕글) is left alone at the foot, its table starts on page 2: keep this line with its table by giving it a style of its own with style_paragraphs (a new name, based_on 바탕글, keep_with_next true, applied with find to this line only). Do not give 바탕글 itself keep_with_next: every paragraph of that style would keep with the next one.',
+      'Page 2: the line “□ 소요 예산” (style 소제목) stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it.',
+      'Page 2: the heading “□ 추진 배경” (style 소제목) is left alone at the foot of column 2, the text after it starts on page 3, and the empty line between keeps them apart in Hancom Hangul too, though it keeps with the next line: to print it with the text after it, start it in the next column with insert_break (kind column, find with its words).',
+      'Page 2: 4 line(s) of text lie below the foot of the page and are cut off in print.',
+      'Table 2 runs over pages 2 to 3.',
+      'Page 3 is empty.',
+      'Pages as printed:',
+      'page 1: “보고서” to “<표 1> 이용자 수”',
+      'page 2: continues “마디가 이어집니다” to “맺음”',
+      'page 3: empty',
+    ])
+  })
+
+  describe('one more turn when the run leaves more cells cut off than it found', () => {
+    const at = (table: number, row: number, col: number) => ({ table, row, col })
+    const counted = (atFirstEdit: ReturnType<typeof at>[], atEnd: ReturnType<typeof at>[]) => {
+      const { call, skill, beginRun, bridge } = setup({
+        cutCells: vi.fn().mockResolvedValueOnce(atFirstEdit).mockResolvedValue(atEnd),
+      })
+      beginRun()
+      const verify = (names: string[]) =>
+        skill.verifyResponse!(
+          '다 했습니다.',
+          names.map((name) => ({ name, ok: true })),
+        )
+      return { call, verify, bridge }
+    }
+
+    it('leaves a cell that was cut off before the run alone after a call that only formats', async () => {
+      const { call, verify } = counted([at(1, 2, 1)], [at(1, 2, 1)])
+      await call('format_cells', { table: 1, vertical_align: 'middle' })
+      expect(await verify(['format_cells'])).toBeNull()
+    })
+
+    it('names the cell a merge left cut off', async () => {
+      const { call, verify } = counted([], [at(1, 2, 1)])
+      await call('merge_cells', { table: 1, from_row: 2, from_col: 1, to_row: 2, to_col: 2 })
+      expect(await verify(['merge_cells'])).toBe(
+        'More table cells are cut off now than before this request (0 -> 1): table 1, row 2, col 1. Make fit only the cells you wrote in this run (format_cells row_height_mm, or a shorter text) and leave the others as they are, call check_layout to see that they fit, then answer.',
+      )
+    })
+
+    it('names the cells a replace_all cut off, beside those cut before', async () => {
+      const { call, verify } = counted([at(1, 1, 1)], [at(1, 1, 1), at(2, 3, 2), at(2, 4, 2)])
+      await call('replace_all', { find: '행 1', replace: '아주 긴 글' })
+      expect(await verify(['replace_all'])).toContain(
+        '(1 -> 3): table 1, row 1, col 1; table 2, row 3, col 2; table 2, row 4, col 2. Some of them may have been cut off before this request.',
+      )
+    })
+
+    it('says how many cells are cut in all when it names only the first of them', async () => {
+      const many = Array.from({ length: 12 }, (_, k) => at(1, k + 1, 1))
+      const { call, verify } = counted([], many)
+      await call('fill_cells', { table: 1, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
+      expect(await verify(['fill_cells'])).toContain(
+        'table 1, row 10, col 1: the first 10 of the 12 cut cells; check_layout lists them all.',
+      )
+    })
+
+    it('gives no turn when the run fixed what it cut, or the count did not grow', async () => {
+      const fixed = counted([], [])
+      await fixed.call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '긴 제목' }] })
+      await fixed.call('format_cells', { table: 1, row_height_mm: 20 })
+      expect(await fixed.verify(['fill_cells', 'format_cells'])).toBeNull()
+      const same = counted([at(1, 2, 1)], [at(3, 1, 1)])
+      await same.call('fill_cells', { table: 3, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
+      expect(await same.verify(['fill_cells'])).toBeNull()
+    })
+
+    it('measures once before the first edit, and not at all for a run that only reads', async () => {
+      const reading = counted([at(1, 2, 1)], [at(1, 2, 1), at(1, 3, 1)])
+      await reading.call('check_layout')
+      expect(await reading.verify(['check_layout'])).toBeNull()
+      expect(reading.bridge.cutCells).not.toHaveBeenCalled()
+      const editing = counted([], [at(1, 2, 1)])
+      await editing.call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '가' }] })
+      await editing.call('fill_cells', { table: 1, cells: [{ row: 3, col: 1, text: '나' }] })
+      expect(editing.bridge.cutCells).toHaveBeenCalledTimes(1)
+      expect(await editing.verify(['fill_cells', 'fill_cells'])).toContain('table 1, row 2, col 1')
+      expect(editing.bridge.cutCells).toHaveBeenCalledTimes(2)
+    })
   })
 })

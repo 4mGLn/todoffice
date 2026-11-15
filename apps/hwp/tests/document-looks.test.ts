@@ -24,7 +24,27 @@ import {
   MIN_TEXT_CONTRAST,
   contrastRatio,
   textColorOnFill,
+  rowEdgesAfterAdding,
 } from '../studio-plugin/document-looks.mjs'
+
+describe('the lines new rows of a table get', () => {
+  const line = (type: number, width: number) => ({ type, width, color: '#000000' })
+  const edge = (one: ReturnType<typeof line>) => [one, one, one]
+  const heavy = line(1, 6)
+  const thin = line(1, 1)
+  const none = line(0, 0)
+  /** The line a row added after the last of two rows gets. */
+  const added = (edges: ReturnType<typeof line>[][], verticals: ReturnType<typeof line>[]) =>
+    rowEdgesAfterAdding(edges, [false, false], verticals, 2, 1)?.[2]
+
+  it('never draws the outline between rows of a table with no line between two body rows', () => {
+    const outlined = [edge(heavy), edge(thin), edge(heavy)]
+    expect(added(outlined, [line(1, 3)])).toEqual(edge(line(1, 3)))
+    expect(added(outlined, [none, none])).toEqual(edge(thin))
+    expect(added([edge(heavy), edge(none), edge(line(1, 4))], [none])).toEqual(edge(line(1, 4)))
+    expect(added([edge(none), edge(none), edge(none)], [none])).toBeUndefined()
+  })
+})
 
 describe('border rules', () => {
   it('takes the nearest of the widths Hangul has', () => {
