@@ -8310,7 +8310,9 @@ export const agentPlugin = {
         ),
       ),
 
-      cutCells: guarded(() => host.read((doc) => withPortableWidths(doc, () => cutCellsOf(doc)))),
+      cutCells: guarded(() =>
+        host.read((doc) => withPrintWidths(doc, screenFonts(), () => cutCellsOf(doc))),
+      ),
 
       /**
        * The tables of the document in reading order, numbered from 1; a table inside a cell
@@ -9358,7 +9360,7 @@ export const agentPlugin = {
             // an engine without the call: the page number is not known
           }
           const columns = columnsOf(doc, 0)
-          const { pages, map } = withPortableWidths(doc, () => ({
+          const { pages, map } = withPrintWidths(doc, screenFonts(), () => ({
             pages: doc.pageCount(),
             map: pageMapOf(doc),
           }))
