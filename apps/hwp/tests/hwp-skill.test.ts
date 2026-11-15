@@ -2394,6 +2394,15 @@ describe('a table of contents', () => {
 })
 
 describe('equations', () => {
+  it('names in list_equations which lines count as questions and which as choices', () => {
+    const { skill } = setup()
+    const tool = skill.tools.find((offered) => offered.name === 'list_equations')
+    expect(tool?.description).toContain(
+      '(1., 1), (1), 가., (가), Ⅰ., 문 1), whatever it holds after',
+    )
+    expect(tool?.description).toContain('with 1) or (1) right after a question or such a choice')
+  })
+
   it('lists the equations with the words round them', async () => {
     const { call } = setup({
       listEquations: vi.fn(async () => ({

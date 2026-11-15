@@ -1641,7 +1641,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'list_equations',
     edits: false,
     description:
-      'List the equations (수식) of the body text in reading order: their number in this list (what edit_equation takes), the words in front of each and after it, and its script. Where those words are only a choice number or a few letters, also the start of the nearest line above in the same section that begins with a question number (1., 2), (3), 문 4.) and holds no choice mark; none when the line of the equation begins with one, or no such line is above.',
+      'List the equations (수식) of the body text in reading order: their number in this list (what edit_equation takes), the words in front of each and after it, and its script. Where those words are only a choice number or a few letters, also the start of the nearest question line above in the same section: a line that begins with a question number (1., 1), (1), 가., (가), Ⅰ., 문 1), whatever it holds after. A line that begins with a circled number, or with 1) or (1) right after a question or such a choice, is a choice, not a question. None when the line of the equation is a question line, or no question line is above.',
     inputSchema: { type: 'object', properties: {} },
   },
   {

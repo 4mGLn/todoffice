@@ -5473,17 +5473,44 @@ function equationsOf(doc) {
 const MIN_EQUATION_LETTERS = 10
 const lettersOf = (text) => text.replace(/[\s①-⓿❶-➓]/g, '')
 
-const QUESTION_START = /^\s*(?:문\s*)?(?:\d+\s*[.)](?!\d)|\(\s*\d+\s*\))/
-const CHOICE_MARK = /[①-⑳❶-❿➀-➉]/
-const isQuestion = (text) => QUESTION_START.test(text) && !CHOICE_MARK.test(text)
+// 1. 1) (1) 가. (가) Ⅰ. 문 1, as questions of a test paper are numbered
+const QUESTION_START =
+  /^\s*(?:문\s*\d+|\d+\s*[.)](?!\d)|\(\s*\d+\s*\)|[가나다라마바사아자차카타파하]\s*\.|\(\s*[가나다라마바사아자차카타파하]\s*\)|[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ]+\s*\.)/
+const CHOICE_START = /^\s*[①-⑳❶-❿➀-➉]/
+const NUMBER_CHOICE_START = /^\s*(?:\d+\s*\)|\(\s*\d+\s*\))/
+
+/**
+ * What each body paragraph of a section is on a test paper: 'choice' when it starts with a
+ * circled number, or with 1) or (1) right after a question or after a choice that starts
+ * so; else 'question' when it starts with a question number; else null. Empty paragraphs
+ * are passed over.
+ */
+function lineKindsOf(doc, sec) {
+  const kinds = []
+  let last = null
+  for (let para = 0; para < doc.getParagraphCount(sec); para++) {
+    const text = bodyText(doc, sec, para)
+    if (!text.trim()) {
+      kinds.push(null)
+      continue
+    }
+    const numbered = NUMBER_CHOICE_START.test(text) && (last === 'question' || last === 'numbered')
+    const kind =
+      CHOICE_START.test(text) || numbered ? 'choice' : QUESTION_START.test(text) ? 'question' : null
+    kinds.push(kind)
+    last = numbered ? 'numbered' : kind
+  }
+  return kinds
+}
 
 /**
  * The words right in front of an equation and right after it, in its paragraph. Where
  * those are only a circled number or a few letters (a choice of a question), also
- * `previous`: the start of the nearest paragraph above in its section that starts with a
- * question number and holds no choice mark, unless its own paragraph starts with one.
+ * `previous`: the start of the nearest question line above it in its section
+ * (lineKindsOf), unless its own paragraph is a question line. `kinds` caches lineKindsOf
+ * per section.
  */
-function equationContext(doc, equation) {
+function equationContext(doc, equation, kinds) {
   const { sec, para, offset } = equation
   const length = doc.getParagraphLength(sec, para)
   const from = Math.max(0, offset - EQUATION_CONTEXT_CHARS)
@@ -5491,10 +5518,12 @@ function equationContext(doc, equation) {
   const before = offset > from ? doc.getTextRange(sec, para, from, offset - from) : ''
   const after = to > offset ? doc.getTextRange(sec, para, offset, to - offset) : ''
   if (lettersOf(before + after).length >= MIN_EQUATION_LETTERS) return { before, after }
-  if (isQuestion(bodyText(doc, sec, para))) return { before, after }
+  if (!kinds.has(sec)) kinds.set(sec, lineKindsOf(doc, sec))
+  const lines = kinds.get(sec)
+  if (lines[para] === 'question') return { before, after }
   for (let k = para - 1; k >= 0; k--) {
-    const text = squash(bodyText(doc, sec, k))
-    if (isQuestion(text)) return { before, after, previous: clip(text, EQUATION_CONTEXT_CHARS) }
+    if (lines[k] !== 'question') continue
+    return { before, after, previous: clip(squash(bodyText(doc, sec, k)), EQUATION_CONTEXT_CHARS) }
   }
   return { before, after }
 }
@@ -10985,12 +11014,13 @@ export const agentPlugin = {
       listEquations: guarded(() =>
         host.read((doc) => {
           const { equations, elsewhere } = equationsOf(doc)
+          const kinds = new Map()
           return {
             count: equations.length,
             elsewhere,
             equations: equations.slice(0, MAX_LISTED_EQUATIONS).map((equation, index) => ({
               equation: index + 1,
-              ...equationContext(doc, equation),
+              ...equationContext(doc, equation, kinds),
               script: equation.script,
             })),
           }

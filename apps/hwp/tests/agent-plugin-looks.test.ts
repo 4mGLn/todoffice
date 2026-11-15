@@ -2503,6 +2503,41 @@ describe('where an equation of a choice is', () => {
     plain.plugin.insertEquations([{ find: '[[1]]', script: 'x' }])
     expect(plain.plugin.listEquations().equations[0]).not.toHaveProperty('previous')
   })
+
+  it('takes 가. and Ⅰ. for questions, a question that names a circled mark, and 1) choices', () => {
+    const previousOf = (lines: string[], count: number) => {
+      const { plugin } = open(blank(lines))
+      plugin.insertEquations(
+        Array.from({ length: count }, (_, index) => ({ find: `[[${index + 1}]]`, script: 'x' })),
+      )
+      return plugin.listEquations().equations.map((equation) => equation.previous ?? null)
+    }
+    expect(
+      previousOf(
+        [
+          'Ⅰ. 선택형',
+          '1. 다음 식을 계산한 값은?',
+          '① [[1]]',
+          'Ⅱ. 서답형',
+          '가. 다음 방정식의 해를 구하시오.',
+          '① [[2]]',
+          '(나) 다음 부등식을 푸시오.',
+          '① [[3]]',
+        ],
+        3,
+      ),
+    ).toEqual([
+      '1. 다음 식을 계산한 값은?',
+      '가. 다음 방정식의 해를 구하시오.',
+      '(나) 다음 부등식을 푸시오.',
+    ])
+    expect(
+      previousOf(['1. 다음 식의 값은?', '① [[1]]', '2. 옳은 것을 ①~③에서 고르시오.', '① [[2]]'], 2),
+    ).toEqual(['1. 다음 식의 값은?', '2. 옳은 것을 ①~③에서 고르시오.'])
+    expect(
+      previousOf(['1. 다음 중 옳은 식을 고르시오.', '1) [[1]]  2) [[2]]', '3) [[3]]'], 3),
+    ).toEqual(Array(3).fill('1. 다음 중 옳은 식을 고르시오.'))
+  })
 })
 
 describe('a paragraph that holds an object of its line', () => {
