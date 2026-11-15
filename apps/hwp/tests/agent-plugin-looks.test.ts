@@ -503,7 +503,7 @@ describe('insertTable: looks', () => {
     merged.plugin.addTableLines(1, 'rows', 3, 'after', 1)
     expect(lines(merged.doc())).toEqual([heavy, header, inner, inner, heavy])
 
-    // a header and one row: no line between two body rows, so the lines between the columns
+    // a header and one row: no line between two body rows, so new rows take the line between the columns
     const short = open()
     short.plugin.insertTable('□ 세부 일정', null, 'after', ROWS.slice(0, 2), look)
     short.plugin.addTableLines(1, 'rows', 2, 'after', 2)

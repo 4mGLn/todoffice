@@ -222,7 +222,7 @@ function filledEdge(edge, fallback) {
   })
 }
 
-/** The thinnest of `lines` that is drawn (type not 0), null when none is. */
+/** The thinnest drawn line of `lines` (border type 0 is no line); null when none is. */
 function thinnestOf(lines) {
   let thin = null
   for (const line of lines) {
@@ -232,10 +232,8 @@ function thinnestOf(lines) {
 }
 
 /**
- * The line between two rows of a table that has none between two body rows, never its
- * outline: its thinnest inner vertical line, else its thinnest horizontal line that is not
- * the top or bottom edge, else a solid line as thin as its thinnest line. Null for a table
- * that draws no line.
+ * The line new rows get when the table has none between two body rows. Never the outline:
+ * forms draw it heavy, and it must not show up inside the table.
  */
 function innerLineOf(edges, verticals) {
   const any = thinnestOf([...edges.flat(), ...verticals])

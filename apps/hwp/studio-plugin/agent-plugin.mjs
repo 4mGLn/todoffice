@@ -2910,11 +2910,9 @@ function mostCharsOf(runs, key) {
 }
 
 /**
- * The font of the body text, for a new table or table of contents: the look of the body
- * paragraph `beside` ({ sec, para }) the table goes after when it is plain body text (no
- * heading, not bold) in the size most plain body text has; else the look most characters
- * of the plain body paragraphs have; else the look most text that is not bold has; else
- * `fallback()`, the look of the paragraph the table is anchored to, or the body style.
+ * The font of the body text, for a new table or table of contents. `beside` ({ sec, para })
+ * is the paragraph it goes after; `fallback()` is taken when the body has no text that is
+ * not bold.
  */
 function bodyFontOf(doc, beside = null, fallback = null) {
   const styles = new Map(parse(doc.getStyleList()).map((style) => [style.id, style.name]))
@@ -5480,10 +5478,8 @@ const CHOICE_START = /^\s*[①-⑳❶-❿➀-➉]/
 const NUMBER_CHOICE_START = /^\s*(?:\d+\s*\)|\(\s*\d+\s*\))/
 
 /**
- * What each body paragraph of a section is on a test paper: 'choice' when it starts with a
- * circled number, or with 1) or (1) right after a question or after a choice that starts
- * so; else 'question' when it starts with a question number; else null. Empty paragraphs
- * are passed over.
+ * On a test paper 1) and (1) number questions and choices alike: one right after a
+ * question, or after such a choice, is a choice.
  */
 function lineKindsOf(doc, sec) {
   const kinds = []
@@ -5770,7 +5766,6 @@ const TOC_TITLE_CHARS = 12
 
 const isTocTitle = (text) => TOC_TITLES.includes(text.replace(/\s/g, ''))
 
-/** The first-column texts of a two-column body table, squashed; null for any other table. */
 function headingColumnOf(doc, table) {
   if (table.path.length !== 1 || table.cols !== 2) return null
   const grid = gridOf(doc, table)
@@ -5783,10 +5778,7 @@ function headingColumnOf(doc, table) {
   return rows
 }
 
-/**
- * Whether a table is contents insertToc made (`made`: the heading rows each wrote,
- * squashed): its first column holds the rows of one of them and nothing else.
- */
+/** Whether `table` is contents insertToc made; `made` holds the squashed heading rows each call wrote. */
 function isMadeContents(doc, made, table) {
   const rows = headingColumnOf(doc, table)
   return (
@@ -5797,7 +5789,6 @@ function isMadeContents(doc, made, table) {
   )
 }
 
-/** The nearest line with text above body paragraph `para`, in its section; '' when none. */
 function lineAbove(doc, sec, para) {
   for (let k = para - 1; k >= 0; k--) {
     const text = bodyText(doc, sec, k).trim()
@@ -5839,9 +5830,8 @@ function contentsOf(doc, made) {
 }
 
 /**
- * The body paragraph a row of a table of contents names: looked up by the start of its
- * text (a long one was cut short in the table), a body paragraph that starts with it
- * preferred to a mention elsewhere. Null when the body has no such text.
+ * A long heading was cut short with … in the table, so a row is matched by the start of
+ * its text; a body paragraph that starts with it beats a mention elsewhere.
  */
 function headingHitOf(doc, heading) {
   const key = heading.replace(/…$/, '').slice(0, TOC_KEY_CHARS)
@@ -5855,7 +5845,7 @@ function headingHitOf(doc, heading) {
   )
 }
 
-/** The two-column table in body paragraph `para`, numbered as listTables numbers tables. */
+/** Its `number` is the one listTables shows. */
 function tableIn(doc, sec, para) {
   const { tables } = tablesOf(doc)
   const index = tables.findIndex(
@@ -5868,7 +5858,6 @@ function tableIn(doc, sec, para) {
   return index < 0 ? null : { table: tables[index], number: index + 1 }
 }
 
-/** The rows of a two-column table that hold one page number: their two cells and the number. */
 function pageRowsOf(doc, table) {
   const grid = gridOf(doc, table)
   const rows = []
@@ -10937,7 +10926,8 @@ export const agentPlugin = {
        * paragraph after the one `title` occurs in (for contents insertToc made here, after
        * empty lines too). Each row's heading is looked up by its text in the body; a row whose
        * heading is gone, or whose second cell is not a page number, is left alone. A table
-       * insertToc did not make here is refused when a row names no text of the body.
+       * insertToc did not make here is refused when a row that holds a page number names no
+       * text of the body.
        */
       refreshToc: guarded((title, occurrence, options) => {
         const find = (doc) => {
