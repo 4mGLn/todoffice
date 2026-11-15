@@ -4419,6 +4419,18 @@ function overflowsOf(doc, fromTable, fromRow, toRow = null) {
   }
 }
 
+/** Every cut cell of the document (overflowsOf from the first table to the last). */
+function cutCellsOf(doc) {
+  const cells = []
+  let from = { table: 1, row: 1 }
+  for (;;) {
+    const checked = overflowsOf(doc, from.table, from.row)
+    cells.push(...checked.cells.map(({ table, row, col }) => ({ table, row, col })))
+    if (!checked.next) return cells
+    from = checked.next
+  }
+}
+
 /**
  * Table `number` (as listTables numbers them) when it sits in a body paragraph, with its
  * cells; otherwise a refusal. The engine merges and splits cells by table and cell number,
@@ -7617,6 +7629,12 @@ export const agentPlugin = {
           withPortableWidths(doc, () => overflowsOf(doc, fromTable, fromRow, toRow ?? null)),
         ),
       ),
+
+      /**
+       * Every table cell of the document whose text is cut off, as checkLayout measures it,
+       * measured to the end in one call. Reads only.
+       */
+      cutCells: guarded(() => host.read((doc) => withPortableWidths(doc, () => cutCellsOf(doc)))),
 
       /**
        * The tables of the document in reading order, numbered from 1; a table inside a cell

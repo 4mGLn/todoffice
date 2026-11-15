@@ -724,6 +724,9 @@ export interface AgentLayoutOverflow {
   text: string
 }
 
+/** A cut-off cell as cutCells lists it: its table, as listTables numbers them, row and column. */
+export type AgentCutCell = Pick<AgentLayoutOverflow, 'table' | 'row' | 'col'>
+
 /** A place in the tables to measure from: 1-based table (as listTables) and row. */
 export interface AgentLayoutPlace {
   table: number
@@ -1567,6 +1570,8 @@ export interface AgentPluginSurface {
     fromRow?: number | null,
     toRow?: number | null,
   ): AgentLayoutCheck
+  /** every cut-off cell of the document, measured as checkLayout does, in one call; reads only */
+  cutCells(): AgentCutCell[]
   readTable(table: number, fromRow?: number | null): AgentReadTableResult
   fillCells(
     table: number,

@@ -17,6 +17,7 @@ import type {
   AgentCellLook,
   AgentCellText,
   AgentChangeOptions,
+  AgentCutCell,
   AgentEquation,
   AgentCheckBox,
   AgentLayoutCheck,
@@ -160,7 +161,7 @@ export interface HwpSkill {
   setSelection(scope: HwpSelection | null): void
   /**
    * A new run (one request of the user) starts: what the skill remembers about the run
-   * before, the paragraphs it added, is forgotten.
+   * before, the paragraphs it added and the cut-off cells counted at its start, is forgotten.
    */
   beginRun(): void
 }
@@ -2946,6 +2947,19 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   let addedThisRun: string[] = []
   /** delete_paragraph calls (find, occurrence) refused for hitting one of those, this run */
   let refusedDeletes = new Set<string>()
+  /**
+   * The cut-off cells of the document before the run's first edit, null when they could not
+   * be measured; absent until that edit.
+   */
+  let runStart: { cut: number | null } | null = null
+  const cutCellsNow = async (): Promise<AgentCutCell[] | null> => {
+    try {
+      return await bridge.cutCells()
+    } catch {
+      return null
+    }
+  }
+
   const pagesNow = async (): Promise<number | null> => {
     try {
       const pages = await bridge.pageCount()
@@ -5669,6 +5683,17 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         return offered
       },
       buildContext: () => [context, selectionContext()].filter(Boolean).join('\n\n'),
+      verifyResponse: async (_text, executed) => {
+        const before = runStart?.cut ?? null
+        if (before === null) return null
+        if (!executed.some((done) => done.ok && TOOL_BY_NAME.get(done.name)?.edits)) return null
+        const now = await cutCellsNow()
+        if (now === null || now.length <= before) return null
+        const cells = now
+          .slice(0, MAX_CUT_CELLS_NAMED)
+          .map((cell) => `table ${cell.table}, row ${cell.row}, col ${cell.col}`)
+        return `More table cells are cut off now than before this request (${before} -> ${now.length}): ${cells.join('; ')}${now.length > cells.length ? '; …' : ''}. Some of them may have been cut off before this request. Make fit only the cells you wrote in this run (format_cells row_height_mm, or a shorter text) and leave the others as they are, call check_layout to see that they fit, then answer.`
+      },
       executeTool: async (given, signal) => {
         const tool = TOOL_BY_NAME.get(given.name)
         if (!tool) return run(given, signal)
@@ -5677,6 +5702,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const refusal = refusalOf(tool, prepared)
         if (refusal) return bad(call, refusal)
         try {
+          if (tool.edits && runStart === null) {
+            runStart = { cut: (await cutCellsNow())?.length ?? null }
+          }
           const pagesBefore = tool.edits ? await pagesNow() : null
           const done = await run(withDoubledEscapesUndone(call), signal)
           if (done.isError) return done
@@ -5700,6 +5728,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     beginRun: () => {
       addedThisRun = []
       refusedDeletes = new Set()
+      runStart = null
     },
     refreshContext: async () => {
       try {

@@ -335,6 +335,9 @@ describe('checkLayout', () => {
     expect(calls).toBeGreaterThan(2)
     expect(measured).toBe(whole.measured)
     expect(found).toEqual(whole.cells)
+    expect(plugin.cutCells()).toEqual(
+      whole.cells.map(({ table, row, col }) => ({ table, row, col })),
+    )
   })
 
   it('measures a 900-cell table in one call with one layout read per page and per table', () => {

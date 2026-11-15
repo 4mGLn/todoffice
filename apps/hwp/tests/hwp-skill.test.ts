@@ -158,6 +158,7 @@ function setup(
     formatParagraph: vi.fn(async () => ({ ok: true as const, inTable: false })),
     listTables: vi.fn(async () => ({ count: 0, partial: false, tables: [] })),
     pageCount: vi.fn(async () => 1),
+    cutCells: vi.fn(async () => []),
     checkLayout: vi.fn(async () => ({
       tables: 2,
       from: { table: 1, row: 1 },
@@ -5070,5 +5071,67 @@ describe('what an edit did to the pages and tables, in its answer', () => {
       'page 2: continues “마디가 이어집니다” to “맺음”',
       'page 3: empty',
     ])
+  })
+
+  describe('one more turn when the run leaves more cells cut off than it found', () => {
+    const at = (table: number, row: number, col: number) => ({ table, row, col })
+    /** cutCells answers these lists in turn: the measure at the run's first edit, then at its end */
+    const counted = (...lists: ReturnType<typeof at>[][]) => {
+      const { call, skill, beginRun, bridge } = setup({
+        cutCells: vi.fn(async () => lists.shift() ?? []),
+      })
+      beginRun()
+      const verify = (names: string[]) =>
+        skill.verifyResponse!(
+          '다 했습니다.',
+          names.map((name) => ({ name, ok: true })),
+        )
+      return { call, verify, bridge }
+    }
+
+    it('leaves a cell that was cut off before the run alone after a call that only formats', async () => {
+      const { call, verify } = counted([at(1, 2, 1)], [at(1, 2, 1)])
+      await call('format_cells', { table: 1, vertical_align: 'middle' })
+      expect(await verify(['format_cells'])).toBeNull()
+    })
+
+    it('names the cell a merge left cut off', async () => {
+      const { call, verify } = counted([], [at(1, 2, 1)])
+      await call('merge_cells', { table: 1, from_row: 2, from_col: 1, to_row: 2, to_col: 2 })
+      expect(await verify(['merge_cells'])).toBe(
+        'More table cells are cut off now than before this request (0 -> 1): table 1, row 2, col 1. Some of them may have been cut off before this request. Make fit only the cells you wrote in this run (format_cells row_height_mm, or a shorter text) and leave the others as they are, call check_layout to see that they fit, then answer.',
+      )
+    })
+
+    it('names the cells a replace_all cut off, beside those cut before', async () => {
+      const { call, verify } = counted([at(1, 1, 1)], [at(1, 1, 1), at(2, 3, 2), at(2, 4, 2)])
+      await call('replace_all', { find: '행 1', replace: '아주 긴 글' })
+      expect(await verify(['replace_all'])).toContain(
+        '(1 -> 3): table 1, row 1, col 1; table 2, row 3, col 2; table 2, row 4, col 2.',
+      )
+    })
+
+    it('gives no turn when the run fixed what it cut, or the count did not grow', async () => {
+      const fixed = counted([], [])
+      await fixed.call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '긴 제목' }] })
+      await fixed.call('format_cells', { table: 1, row_height_mm: 20 })
+      expect(await fixed.verify(['fill_cells', 'format_cells'])).toBeNull()
+      const same = counted([at(1, 2, 1)], [at(3, 1, 1)])
+      await same.call('fill_cells', { table: 3, cells: [{ row: 1, col: 1, text: '긴 제목' }] })
+      expect(await same.verify(['fill_cells'])).toBeNull()
+    })
+
+    it('measures once before the first edit, and not at all for a run that only reads', async () => {
+      const reading = counted([at(1, 2, 1)], [at(1, 2, 1), at(1, 3, 1)])
+      await reading.call('check_layout')
+      expect(await reading.verify(['check_layout'])).toBeNull()
+      expect(reading.bridge.cutCells).not.toHaveBeenCalled()
+      const editing = counted([], [at(1, 2, 1)])
+      await editing.call('fill_cells', { table: 1, cells: [{ row: 2, col: 1, text: '가' }] })
+      await editing.call('fill_cells', { table: 1, cells: [{ row: 3, col: 1, text: '나' }] })
+      expect(editing.bridge.cutCells).toHaveBeenCalledTimes(1)
+      expect(await editing.verify(['fill_cells', 'fill_cells'])).toContain('table 1, row 2, col 1')
+      expect(editing.bridge.cutCells).toHaveBeenCalledTimes(2)
+    })
   })
 })

@@ -33,6 +33,7 @@ const METHODS = [
   'formatParagraph',
   'listTables',
   'checkLayout',
+  'cutCells',
   'readTable',
   'fillCells',
   'checkBoxes',
