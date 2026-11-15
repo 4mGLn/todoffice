@@ -198,7 +198,6 @@ export const ms = {
   aiTableRowsRemoved: '{count} baris dibuang',
   aiTableColsRemoved: '{count} lajur dibuang',
   aiTableRemoved: 'jadual dibuang',
-  aiShowChange: 'Tunjukkan tempat ini dalam dokumen',
   aiAttachTitle: 'Lampirkan fail setempat (atau seret ke panel)',
   aiRemoveAttachmentTitle: 'Alih keluar lampiran',
   aiSumReadAttachment: 'Baca lampiran',
@@ -214,12 +213,6 @@ export const ms = {
   aiUnfinishedSteps: 'Langkah yang belum selesai: {n}',
   aiUnfinishedNote:
     'Langkah-langkah ini tidak dikenakan pada dokumen. Semak bahagian ini walaupun balasan mengatakan ia sudah selesai.',
-  aiChangesTitle: 'Perubahan pada dokumen: {count}',
-  aiClearMarks: 'Sembunyikan tanda',
-  aiRevert: 'Buat asal perubahan ini',
-  aiReverted: 'Perubahan dibuat asal',
-  aiRevertRefused:
-    'Perubahan ini tidak dapat dibuat asal sekali gus. Jika dokumen disunting selepas itu, gunakan Buat Asal milik editor (Ctrl+Z).',
   memoTitle: 'Komen',
   memoOpen: 'Komen',
   memoAdd: 'Tambah komen',

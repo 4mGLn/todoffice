@@ -512,6 +512,15 @@ export {
   type RunStopNotice,
 } from './run-stop'
 export { AI_RUN_STOP_LABELS, type AiRunStopLabels } from './strings-run-stop'
+export {
+  AiChangesCard,
+  aiChangesLabels,
+  aiChangesNote,
+  aiChangesTitle,
+  type AiChangeLine,
+  type AiChangesState,
+} from './AiChangesCard'
+export { AI_CHANGES_LABELS, type AiChangesLabels } from './strings-ai-changes'
 export { AiSubscriptionUsageLine } from './AiSubscriptionUsageLine'
 export {
   AiCodexNotice,

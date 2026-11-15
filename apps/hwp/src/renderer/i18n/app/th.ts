@@ -197,7 +197,6 @@ export const th = {
   aiTableRowsRemoved: 'ลบ {count} แถว',
   aiTableColsRemoved: 'ลบ {count} คอลัมน์',
   aiTableRemoved: 'ลบตาราง',
-  aiShowChange: 'แสดงตำแหน่งนี้ในเอกสาร',
   aiAttachTitle: 'แนบไฟล์ในเครื่อง (หรือลากมาวางบนแผงก็ได้)',
   aiRemoveAttachmentTitle: 'เอาสิ่งที่แนบออก',
   aiSumReadAttachment: 'อ่านสิ่งที่แนบ',
@@ -212,12 +211,6 @@ export const th = {
   aiUnfinishedSteps: 'ขั้นตอนที่ยังไม่เสร็จ: {n}',
   aiUnfinishedNote:
     'ขั้นตอนเหล่านี้ไม่ได้ถูกนำไปใช้กับเอกสาร โปรดตรวจสอบส่วนเหล่านี้ แม้คำตอบจะบอกว่าเสร็จแล้ว',
-  aiChangesTitle: 'แก้ไขเอกสาร {count} แห่ง',
-  aiClearMarks: 'ซ่อนเครื่องหมาย',
-  aiRevert: 'ยกเลิกการแก้ไขเหล่านี้',
-  aiReverted: 'ยกเลิกการแก้ไขแล้ว',
-  aiRevertRefused:
-    'ไม่สามารถยกเลิกการแก้ไขเหล่านี้พร้อมกันได้ หากมีการแก้ไขเอกสารหลังจากนั้น ให้ใช้คำสั่งเลิกทำของตัวแก้ไข (Ctrl+Z)',
   memoTitle: 'ความคิดเห็น',
   memoOpen: 'ความคิดเห็น',
   memoAdd: 'เพิ่มความคิดเห็น',

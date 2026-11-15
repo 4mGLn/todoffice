@@ -198,7 +198,6 @@ export const pl = {
   aiTableRowsRemoved: 'Usunięto wierszy: {count}',
   aiTableColsRemoved: 'Usunięto kolumn: {count}',
   aiTableRemoved: 'Usunięto tabelę',
-  aiShowChange: 'Pokaż to miejsce w dokumencie',
   aiAttachTitle: 'Załącz pliki lokalne (lub przeciągnij je na panel)',
   aiRemoveAttachmentTitle: 'Usuń załącznik',
   aiSumReadAttachment: 'Odczyt załącznika',
@@ -214,12 +213,6 @@ export const pl = {
   aiUnfinishedSteps: 'Nieukończone kroki: {n}',
   aiUnfinishedNote:
     'Te kroki nie zostały zastosowane w dokumencie. Sprawdź te miejsca, nawet jeśli odpowiedź mówi, że wszystko gotowe.',
-  aiChangesTitle: 'Zmiany w dokumencie: {count}',
-  aiClearMarks: 'Ukryj oznaczenia',
-  aiRevert: 'Cofnij te zmiany',
-  aiReverted: 'Zmiany cofnięte',
-  aiRevertRefused:
-    'Nie udało się cofnąć tych zmian za jednym razem. Jeśli dokument był potem edytowany, użyj polecenia Cofnij w edytorze (Ctrl+Z).',
   memoTitle: 'Komentarze',
   memoOpen: 'Komentarze',
   memoAdd: 'Dodaj komentarz',

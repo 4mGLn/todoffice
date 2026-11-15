@@ -1700,6 +1700,8 @@ export interface SlidesApi {
   applyTxn: (op: ApplyTxnOp) => Promise<ApplyTxnResult | null>
   /** Roll the deck back to an AI rollback point; returns the restored full RenderSlide array, null when the id is unknown */
   aiSnapshotRestore: (id: number) => Promise<RenderSlide[] | null>
+  /** The given AI rollback points that are still kept (the ring drops the oldest) */
+  aiSnapshotAlive: (ids: number[]) => Promise<number[]>
   /** Undo/redo (main-process snapshot history): returns the restored full RenderSlide array, null when nothing to undo */
   undo: () => Promise<RenderSlide[] | null>
   redo: () => Promise<RenderSlide[] | null>

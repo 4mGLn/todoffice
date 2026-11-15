@@ -1165,6 +1165,36 @@ describe('one AI turn', () => {
     expect(copyOf(r.sheet(1))).toEqual(blank)
   })
 
+  it('knows the topics it added or changed: what its card counts and the map marks', async () => {
+    const r = await rigOf(plainSheet())
+    const first = copyOf(r.sheet(1))
+    const [one, two] = attached(first.rootTopic)
+    const turn = new MapTurn()
+    await editMap(
+      r.host,
+      {
+        edits: [
+          { op: 'add', parentId: first.rootTopic.id, title: 'Kept', ref: 'k' },
+          { op: 'add', parentId: first.rootTopic.id, title: 'Gone again', ref: 'g' },
+          { op: 'set_title', id: one!.id, title: 'Renamed' },
+          { op: 'delete', id: 'g' },
+          { op: 'set_title', id: 'no-such-topic', title: 'x' },
+        ],
+      },
+      turn,
+    )
+    const kept = attached(r.sheet(1).rootTopic).find((each) => each.title === 'Kept')!
+    expect([...turn.topics.get(r.key(1))!].sort()).toEqual([kept.id, one!.id].sort())
+    // a deleted topic is no place to mark
+    await editMap(r.host, { edits: [{ op: 'delete', id: two!.id }] }, turn)
+    expect(turn.topicCount).toBe(2)
+
+    // a written sheet is new from top to bottom
+    await writeMap(r.host, { outline: '# New\n\n- Centre\n  - A\n  - B\n' }, turn)
+    expect(turn.topics.get(r.key(2))!.size).toBe(3)
+    expect(turn.topicCount).toBe(5)
+  })
+
   it('never deletes a sheet the turn did not add', async () => {
     const r = await rigOf(plainSheet(), plainSheet('Other'))
     const turn = new MapTurn()

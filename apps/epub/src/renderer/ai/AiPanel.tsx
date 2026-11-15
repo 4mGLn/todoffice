@@ -6,11 +6,15 @@
  * and the person's skills.
  *
  * Every edit_blocks call is one entry of the tab's undo history (the edit
- * controller's), so Ctrl+Z takes an AI change back like any other; the
- * panel keeps no history of its own. A run starts only from the person's
- * send (or a message they queued), through the send gate.
+ * controller's), so Ctrl+Z takes an AI change back like any other. A run
+ * that changed the book gets the shared changes card under its reply: it
+ * takes the run's own entries back while they are still the top of the
+ * history, and the reader marks the blocks the run changed until the next
+ * run, "hide marks", the revert or a new chat. A run starts only from the
+ * person's send (or a message they queued), through the send gate.
  */
 import {
+  AiChangesCard,
   AiBlockedNotice,
   AiComposer,
   AiConnectPrompt,
@@ -109,6 +113,13 @@ import { t as tGlobal, useI18n } from '../i18n/locale'
 import { aiLangDirective } from './lang-directive'
 import type { BookAiHost } from './book-tools'
 import { createEpubSkill } from './epub-skill'
+import {
+  emptyRunRecord,
+  recordingHost,
+  runChangesOf,
+  stateAfterUndo,
+  type RunChanges,
+} from './run-changes'
 import { createFilesSkill } from './files-skill'
 import { createSearchSkill } from './search-skill'
 import { createElectronTransport } from './transport'
@@ -254,6 +265,8 @@ interface ChatEntry {
   memory?: ProjectMemoryLine[]
   /** a project chat's reply whose tools another editor ran: shown as one line */
   otherEditorTools?: { editor: ProjectEditor; fileRef?: string; count: number }
+  /** the book changes of the run this reply ends: rendered as the changes card */
+  changes?: RunChanges
 }
 
 /** A project chat's message as this panel shows it */
@@ -643,6 +656,36 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
   langRef.current = lang
   const hostRef = useRef(host)
   hostRef.current = host
+  /** the edits of the run in flight */
+  const runRecordRef = useRef(emptyRunRecord())
+  /** the reader marks the changes of this run (its first history entry) */
+  const [marksOf, setMarksOf] = useState<number | null>(null)
+  const [reverting, setReverting] = useState(false)
+  const clearMarks = (): void => {
+    setMarksOf(null)
+    hostRef.current.showChangeMarks?.(null)
+  }
+  // the marks belong to this panel's book: a panel that goes takes them along
+  useEffect(() => () => hostRef.current.showChangeMarks?.(null), [])
+  /** The run ended: its reply gets the card, and the reader marks what it changed. */
+  const settleRun = (): void => {
+    const record = runRecordRef.current
+    runRecordRef.current = emptyRunRecord()
+    const changes = runChangesOf(record)
+    if (!changes) return
+    setChat((prev) => {
+      const at = prev.length - 1
+      const last = prev[at]
+      if (!last || last.role !== 'assistant') return prev
+      const next = [...prev]
+      next[at] = { ...last, changes }
+      return next
+    })
+    if (record.marks.size > 0) {
+      setMarksOf(changes.entries[0]!)
+      hostRef.current.showChangeMarks?.(record.marks)
+    }
+  }
   const filePathRef = useRef(filePath)
   /** the instruction of the run in flight: the header retry sends it again */
   const runInstructionRef = useRef('')
@@ -748,7 +791,9 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
       toolsAllowed: () =>
         settingsRef.current ? localModelCapabilities(settingsRef.current).tools !== false : true,
       skill: composeWithDrive('epub+search', '', () => loopRef.current?.messages ?? [], [
-        createEpubSkill({ host: () => hostRef.current }),
+        createEpubSkill({
+          host: () => recordingHost(hostRef.current, () => runRecordRef.current),
+        }),
         createSearchSkill(),
         createFilesSkill(availableAttachments),
         // the person's skills: use_skill, read_skill_file, propose_skill (app-run tools)
@@ -816,6 +861,7 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
             tools: last.tools?.filter((tl) => !tl.running),
           }))
           persistMessage('assistant', final, runToolsRef.current)
+          settleRun()
           void projectChatRef.current.finishSend()
           setBusy(false)
         },
@@ -848,6 +894,8 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
             }
             return next
           })
+          // edits made before the failure stay in the book: the reply still gets the card
+          settleRun()
           void projectChatRef.current.finishSend()
           setBusy(false)
         },
@@ -1024,6 +1072,9 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
     runInstructionRef.current = instruction
     runToolsRef.current = []
     runUsageRef.current = undefined
+    runRecordRef.current = emptyRunRecord()
+    // the last run's marks go when the next one starts
+    clearMarks()
     setChat((prev) => [
       ...prev,
       {
@@ -1158,6 +1209,7 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
     setBusy(false)
     busyRef.current = false
     setChat([])
+    clearMarks()
     skills.resetConversation()
     skillCards.reset()
     attachmentsRef.current = []
@@ -1165,6 +1217,32 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
     setAttachNotice(null)
     sentAttachmentsRef.current = []
   }
+
+  /** The card's revert: this run's history entries, while nothing was done after them. */
+  const revertRun = async (index: number, changes: RunChanges): Promise<void> => {
+    const editor = hostRef.current.editor()
+    if (reverting || !editor.undoEntries) return
+    setReverting(true)
+    try {
+      const state = stateAfterUndo(
+        await editor.undoEntries(changes.entries).catch(() => 'refused' as const),
+      )
+      if (!state) return
+      if (state === 'reverted' || state === 'partial') clearMarks()
+      setChat((prev) =>
+        prev.map((e, i) =>
+          i === index && e.changes ? { ...e, changes: { ...e.changes, state } } : e,
+        ),
+      )
+    } finally {
+      setReverting(false)
+    }
+  }
+  /** only the latest applied run's entries can be the top of the history */
+  let lastChangesIdx = -1
+  chat.forEach((e, i) => {
+    if (e.changes?.state === 'applied') lastChangesIdx = i
+  })
 
   /** "New chat": a new chat of the chosen project, or the fresh start it always was (spec 5.3.7) */
   const newChat = (): void => {
@@ -1642,7 +1720,14 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
           }
           const hasTools = (entry.tools?.length ?? 0) > 0
           const projectLinesOfReply = projectReplyLines(entry)
-          if (!entry.text && !entry.streaming && !hasTools && !projectLinesOfReply) return null
+          if (
+            !entry.text &&
+            !entry.streaming &&
+            !hasTools &&
+            !projectLinesOfReply &&
+            !entry.changes
+          )
+            return null
           const isLast = i === chat.length - 1
           const nextEntry = chat[i + 1]
           const turnEnded = nextEntry ? nextEntry.role === 'user' : !busy
@@ -1675,6 +1760,16 @@ export function AiPanel({ host, filePath, onCollapse }: AiPanelProps): ReactElem
               {projectLinesOfReply}
               <SkillUsedNotes tools={entry.tools} />
               {entry.skillProposals?.map((key) => skillCards.render(key))}
+              {entry.changes && !entry.streaming && turnEnded && (
+                <AiChangesCard
+                  lang={lang}
+                  state={entry.changes.state}
+                  count={entry.changes.count}
+                  canRevert={i === lastChangesIdx && !busy && !reverting}
+                  onRevert={() => void revertRun(i, entry.changes!)}
+                  onClearMarks={marksOf === entry.changes.entries[0] ? clearMarks : null}
+                />
+              )}
               {entry.usage && (
                 <div className="ai-message-usage">
                   <AiUsageChip usage={entry.usage} lang={lang} />

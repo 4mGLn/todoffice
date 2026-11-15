@@ -197,7 +197,6 @@ export const en = {
   aiTableRowsRemoved: '{count} row(s) removed',
   aiTableColsRemoved: '{count} column(s) removed',
   aiTableRemoved: 'table removed',
-  aiShowChange: 'Show this place in the document',
   aiAttachTitle: 'Attach local files (or drag them onto the panel)',
   aiRemoveAttachmentTitle: 'Remove attachment',
   aiSumReadAttachment: 'Read attachment',
@@ -212,12 +211,6 @@ export const en = {
   aiUnfinishedSteps: 'Unfinished steps: {n}',
   aiUnfinishedNote:
     'These steps were not applied to the document. Check these parts even if the reply says it is done.',
-  aiChangesTitle: 'Changes made to the document: {count}',
-  aiClearMarks: 'Hide marks',
-  aiRevert: 'Undo these changes',
-  aiReverted: 'Changes undone',
-  aiRevertRefused:
-    'These changes could not be undone together. If the document was edited afterwards, use the editor’s own Undo (Ctrl+Z).',
   memoTitle: 'Memos',
   memoOpen: 'Memos',
   memoAdd: 'Add memo',

@@ -195,7 +195,6 @@ export const he = {
   aiTableRowsRemoved: 'הוסרו {count} שורות',
   aiTableColsRemoved: 'הוסרו {count} עמודות',
   aiTableRemoved: 'הטבלה הוסרה',
-  aiShowChange: 'הצגת המקום הזה במסמך',
   aiAttachTitle: 'צירוף קבצים מקומיים (אפשר גם לגרור אל החלונית)',
   aiRemoveAttachmentTitle: 'הסרת הקובץ המצורף',
   aiSumReadAttachment: 'קריאת קובץ מצורף',
@@ -210,12 +209,6 @@ export const he = {
   aiUnfinishedSteps: 'שלבים שלא הושלמו: {n}',
   aiUnfinishedNote:
     'השלבים האלה לא הוחלו על המסמך. בדקו את החלקים האלה גם אם התשובה אומרת שהכול בוצע.',
-  aiChangesTitle: 'שינויים במסמך: {count}',
-  aiClearMarks: 'הסתר סימונים',
-  aiRevert: 'ביטול השינויים האלה',
-  aiReverted: 'השינויים בוטלו',
-  aiRevertRefused:
-    'לא ניתן היה לבטל את השינויים האלה בבת אחת. אם המסמך נערך לאחר מכן, השתמשו בביטול של העורך (Ctrl+Z).',
   memoTitle: 'הערות',
   memoOpen: 'הערות',
   memoAdd: 'הוספת הערה',

@@ -199,7 +199,6 @@ export const cs = {
   aiTableRowsRemoved: 'Odebráno řádků: {count}',
   aiTableColsRemoved: 'Odebráno sloupců: {count}',
   aiTableRemoved: 'Tabulka odebrána',
-  aiShowChange: 'Zobrazit toto místo v dokumentu',
   aiAttachTitle: 'Připojit místní soubory (nebo je přetáhněte na panel)',
   aiRemoveAttachmentTitle: 'Odebrat přílohu',
   aiSumReadAttachment: 'Čtení přílohy',
@@ -215,12 +214,6 @@ export const cs = {
   aiUnfinishedSteps: 'Nedokončené kroky: {n}',
   aiUnfinishedNote:
     'Tyto kroky nebyly v dokumentu provedeny. Zkontrolujte tato místa, i když odpověď říká, že je hotovo.',
-  aiChangesTitle: 'Změny v dokumentu: {count}',
-  aiClearMarks: 'Skrýt označení',
-  aiRevert: 'Vrátit tyto změny',
-  aiReverted: 'Změny vráceny',
-  aiRevertRefused:
-    'Tyto změny se nepodařilo vrátit najednou. Pokud byl dokument poté upraven, použijte příkaz Zpět v editoru (Ctrl+Z).',
   memoTitle: 'Komentáře',
   memoOpen: 'Komentáře',
   memoAdd: 'Přidat komentář',
