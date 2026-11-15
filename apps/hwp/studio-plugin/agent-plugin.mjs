@@ -1482,7 +1482,6 @@ function containerOf(doc, hit) {
         splitKeepingText(lengthOf, k, lengthOf(k), () =>
           expectOk(doc.splitParagraph(sec, k, doc.getLogicalLength(sec, k)), 'split the paragraph'),
         ),
-      font: (k) => fontOf(() => doc.getCharPropertiesAt(sec, k, 0)),
       runLooks: (k, length) =>
         parse(doc.getCharShapeRuns(sec, k, 0, length)).map((run) =>
           parse(doc.getCharPropertiesAt(sec, k, run.startOffset ?? 0)),
@@ -1522,7 +1521,6 @@ function containerOf(doc, hit) {
     // the engine cannot be asked this for a cell paragraph; the before/after check of the
     // callers (keepingObjects) is what protects an object there
     objectPositions: () => [],
-    font: (k) => fontOf(() => doc.getCellCharPropertiesAtByPath(sec, para, at(k), 0)),
     runLooks: (k, length) =>
       parse(doc.getCharShapeRunsInCellByPath(sec, para, at(k), 0, length)).map((run) =>
         parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), run.startOffset ?? 0)),
@@ -2862,7 +2860,7 @@ const TABLE_LINE_SPACING = 1.6
 /** Font size assumed for a table when the paragraph next to it does not tell. */
 const DEFAULT_FONT_PT = 10
 
-/** The font of the text at the start of a paragraph, for a table that should match it. */
+/** The family and size in the character properties `read` gives, for the text of a new table. */
 function fontOf(read) {
   try {
     const props = parse(read())
@@ -7639,7 +7637,6 @@ export const agentPlugin = {
               if (!box) throw fail('CHANGED', 'the document changed mid-call')
               const before = objectsOf(doc)
               let at = box.index
-              // the table is set in the body font unless the call says what its text looks like
               const body = look.font && look.size ? null : bodyFontOf(doc)
               const font = {
                 family: look.font ?? body.family,
@@ -8924,7 +8921,6 @@ export const agentPlugin = {
           if (!picked.hit) return refuse(picked.reason)
           if (!isReplaceable(picked.hit)) return refuse('unsupported_place')
           if (cellPathOf(picked.hit)) {
-            // the text of a box already there: the box is made again round it
             const around = boxAround(doc, picked.hit)
             if (!around) return refuse('in_table')
             const box = containerOf(doc, { sec: around.sec, para: around.para })
