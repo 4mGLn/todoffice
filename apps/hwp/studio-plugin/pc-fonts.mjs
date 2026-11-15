@@ -49,6 +49,12 @@ let recordNames = { key: '', names: new Set() }
 /** Settles when the start-up look at the PC's fonts is over, however it ended. */
 let settled = Promise.resolve()
 /**
+ * The studio's work on the document's fonts that a font change set off (noteFontsApplying),
+ * while the change is being told; null when it set none off.
+ * @type {null | Promise<unknown>}
+ */
+let applying = null
+/**
  * The words a missing font is marked with, in the app's language (setMissingFontLabels).
  * @type {null | { tag: string, hint: string }}
  */
@@ -132,12 +138,28 @@ async function refresh(studio) {
     await studio.detect()
     // the PC's fonts changed: an equation font may have come or gone
     forgetEquationFonts()
+    // The studio hears of the change at once and works the document's fonts out again on
+    // its own time: until then its substitution and its lookup of a document's font name
+    // answer as before the look, so the look is over only once that work is.
+    applying = null
     studio.changed()
+    const work = applying
+    applying = null
+    if (work) await work.catch(() => {})
     return true
   } catch (error) {
     console.warn('[pc-fonts] PC font list not refreshed; the kept list stays:', error)
     return false
   }
+}
+
+/**
+ * Takes the work the studio starts on the document's fonts when told the PC's fonts changed
+ * (the studio-pc-fonts patch hands it over from the studio's own listener) and gives it back.
+ */
+export function noteFontsApplying(work) {
+  applying = Promise.resolve(work)
+  return work
 }
 
 /** Hands over what the studio knows of the PC's fonts; the studio-pc-fonts patch calls it at start-up. */
@@ -324,4 +346,9 @@ const ENGINE_FONT_ALIAS = /^__rhwp_(?:ttf|intrinsic)__/
  */
 export function isEngineFontAlias(name) {
   return typeof name === 'string' && ENGINE_FONT_ALIAS.test(name)
+}
+
+/** The document's font name an engine alias stands for (`__rhwp_ttf__함초롬바탕` → 함초롬바탕). */
+export function engineAliasTarget(name) {
+  return isEngineFontAlias(name) ? name.replace(ENGINE_FONT_ALIAS, '') : null
 }
