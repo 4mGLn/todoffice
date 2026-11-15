@@ -187,6 +187,24 @@ draw.io 다이어그램(`.drawio`, `.dio`, `.drawio.svg`, `.drawio.png`)을 읽�
 - 성공 `detail`: `diagram apply`는 `{ format, via?, results, created, batch, failures? }`다. `results[]`는 연산마다 `{ index, op, status, created?, error?, read? }`이고, `created`는 이 묶음이 만든 id 전부다. `create --type drawio`는 같은 모양에 `mermaid: { created }`가 더해지고, `results`의 `index`는 `--ops` 안의 차례다. `convert`는 `{ pages, output_paths? }`이고 `output_paths`는 파일이 여럿일 때만 있다.
 - 이미 있는 다른 파일 위에 쓰기와 앱이 탭으로 연 파일은 공통 규칙(`--force`)을 따른다. `convert`는 쓸 파일마다 검사하고, 하나라도 걸리면 앱을 띄우지 않는다.
 
+## 마인드맵 명령
+
+마인드맵(`.xmind`)을 앱 없이 읽고 고치고 만든다(결정 0150). 모두 `@genoffice/xmind-engine`으로 돈다. 고치기는 편집기와 같은 길(`sheetToView` → 편집 → `reconcileSheet`)을 타므로 고치지 않은 `content.json`의 키와 다른 압축 항목은 바이트 그대로 남는다. 연산의 이름과 입력은 이 명령의 것이고, 앱 AI의 편집 도구와 이름이 다르다.
+
+| 명령                                                                                                | 동작                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `map read <파일>`                                                                                   | 시트마다 `# ` 머리글이 있는 개요 글. `--json`의 `detail`은 `{ sheets: [{ index, id, title, root, topics: [{ id, title, note, link, children, summaries? }] }] }`이다 |
+| `map apply <파일> --ops <JSON\|@파일\|-> [--out <경로>] [--best-effort\|--stop-on-error] [--force]` | 연산 여섯(`add_topic`, `rename_topic`, `move_topic`, `delete_topic`, `set_note`, `set_link`)을 주제 id로 겨냥해 적용하고 쓴다                                        |
+| `map create --outline <파일\|-> [--out <경로.xmind>] [--force]`                                     | 개요 글에서 새 `.xmind`를 만든다. `--out`이 없으면 개요 파일 이름에 `.xmind`를 붙인다. 표준 입력에서 읽을 때는 `--out`이 있어야 한다                                 |
+| `guide map`                                                                                         | 연산 목록. `src/formats/map.ts`의 정의에서 만든다                                                                                                                    |
+
+- 앱은 필요 없다. 바뀐 것이 없는 묶음은 파일을 쓰지 않는다(`--out`이 다른 파일이면 그대로 복사해 쓴다).
+- 묶음은 기본으로 모두 아니면 아무것도 아니다. 하나라도 거절되면 쓰지 않고 종료 코드 1이며, `detail.failures`·`detail.batch`·`detail.results`에 모든 연산의 결과가 있다. `--best-effort`·`--stop-on-error`는 다른 문서 명령과 같다.
+- 성공 `detail`: `map apply`는 `{ changed, results, batch, failures? }`다. `results[]`는 연산마다 `{ index, op, status, created?, error?, reason?, detail? }`이고, `add_topic`이 만든 주제의 id는 `created`다. 같은 묶음의 뒤 연산은 새 id를 겨냥하지 못한다.
+- 주제 id는 한 시트 안에서만 하나다. 같은 id가 여러 시트에 있으면 그 id를 겨냥한 연산은 거절된다.
+- `delete_topic`은 지우면 보존 요소(경계, 부유 주제, 부름말, 요약 아래 가지)를 잃는 주제를 개수와 함께 거절한다(`op_rejected`, `detail.preserved`). 가운데 주제는 지우거나 옮기지 못한다.
+- MCP 도구는 `map_read`, `map_apply`, `map_create`다. `map_create`는 `out`이 꼭 있어야 한다.
+
 ## 웹 페이지 읽기 (`read-url`)
 
 `ieumoffice read-url <url> [--offset <n>]`은 http(s) 주소 하나를 그 사이트에서 받아 읽을 수 있는 글로 돌려준다. HTML은 글자로 바꾸고, GitHub `blob` 주소는 raw 주소로 바꿔 읽는다. 주소는 `fetchWithSsrfGuard`를 지나며 사설·루프백 주소와 그런 곳으로 가는 리다이렉트는 거절한다. 한 번에 50,000자를 주고, 이어 읽기는 `--offset`(기본 0)으로 한다. 제공자·구독·자동 호출 장부를 쓰지 않는다. 비공개 GitHub 파일은 설정의 읽기 토큰을 쓰며, 그 토큰은 `api.github.com` 요청에만 실린다.
@@ -262,13 +280,13 @@ draw.io 다이어그램(`.drawio`, `.dio`, `.drawio.svg`, `.drawio.png`)을 읽�
 
 - 표준 입출력으로 같은 명령들을 도구로 내놓는다. `--http <포트>`를 주면 Streamable HTTP로 내놓는다(`--host`, `--token`).
 - 등록 예: `claude mcp add --transport stdio ieumoffice -- ieumoffice mcp`. `ieumoffice mcp install <에이전트|all>`이 각 에이전트의 설정 파일에 `ieumoffice` 항목만 쓴다. 같은 이름의 항목이 다른 프로그램을 가리키면 `occupied`로 알리고 `--force` 없이는 건드리지 않는다.
-- 도구는 명령 동사마다 하나다(`docs_read`, `docs_apply`, `hwp_read`, `hwp_apply`, `diagram_read`, `diagram_apply`, `create_drawio`, `sheet_apply`, `slides_render`, `convert`, `read_url`, `pdf_read`, `pdf_images`, `pdf_ai_read`, `pdf_translate`, `pdf_status`, `epub_translate`, `epub_status` 등). 매개변수는 명령의 옵션 목록에서 그대로 나온다(`allow-paid`는 `allow_paid`, `no-cover`는 `no_cover`). 두 표면이 어긋나지 않는다. `diagram_read`·`diagram_apply`·`convert`의 `page`는 다이어그램 쪽의 id나 이름(글자)이고, `create_drawio`의 `mermaid`는 Mermaid 글 그대로다.
+- 도구는 명령 동사마다 하나다(`docs_read`, `docs_apply`, `hwp_read`, `hwp_apply`, `diagram_read`, `diagram_apply`, `create_drawio`, `map_read`, `map_apply`, `map_create`, `sheet_apply`, `slides_render`, `convert`, `read_url`, `pdf_read`, `pdf_images`, `pdf_ai_read`, `pdf_translate`, `pdf_status`, `epub_translate`, `epub_status` 등). 매개변수는 명령의 옵션 목록에서 그대로 나온다(`allow-paid`는 `allow_paid`, `no-cover`는 `no_cover`). 두 표면이 어긋나지 않는다. `diagram_read`·`diagram_apply`·`convert`의 `page`는 다이어그램 쪽의 id나 이름(글자)이고, `create_drawio`의 `mermaid`는 Mermaid 글 그대로다.
 - `pdf_ai_read`·`pdf_translate`·`epub_translate`는 `yes`가 없으면 명령처럼 예상만 답한다. `yes`가 있으면 작업을 MCP 서버 프로세스 안에서 띄우고 바로 답한다(`detail.started: true`, `detail.estimate`). 진행, 멈춘 이유, `resetsAt`, 결과 파일 경로는 `pdf_status`(EPUB은 `epub_status`)의 `job`으로 본다. 이어하기는 같은 도구를 다시 부르면 된다.
 - 그 결과 파일은 작업이 끝날 때 쓴다. `partial: true`로 부른 작업은 멈출 때 끝난 부분만 반영해 쓴다. 위치 규칙은 명령어와 같고, 경로는 `job.outputs`로 알려 준다.
 - 서버가 끝나면 그 작업도 멈춘다(`last_error: "interrupted"`). 보관된 결과는 남는다.
 - 결과는 `--json`이 내는 것과 같은 객체다. 실패는 `isError`와 같은 `error` 이유로 온다.
 - 환경변수 `GENOFFICE_MCP_COMPACT_SCHEMAS`는 예전 철자를 유지한다. `--http`의 토큰은 `--token`, 없으면 `GENOFFICE_MCP_TOKEN`에서 읽고, 둘 다 없으면 인증 없이 받는다. 인증 없이 받는 것은 이 PC 주소(`127.0.0.1`, `localhost`, `::1`)에서 열 때뿐이다. 그 밖의 `--host`에 토큰이 없으면 서버를 열지 않고 종료 코드 1, `error: "invalid_argument"`로 끝난다. 에이전트 설정 폴더를 찾을 때의 홈 폴더는 `GENOFFICE_HOME`으로 바꿀 수 있다.
-- 안내 자료는 리소스로도 내놓는다(`ieumoffice://guide/docs`, `…/sheets`, `…/hwp`, `…/diagram`, `…/slides`, `…/slides/design`, `…/slides/spec`, `…/slides/templates`, 내장 템플릿마다 `…/slides/templates/<id>`).
+- 안내 자료는 리소스로도 내놓는다(`ieumoffice://guide/docs`, `…/sheets`, `…/hwp`, `…/diagram`, `…/map`, `…/slides`, `…/slides/design`, `…/slides/spec`, `…/slides/templates`, 내장 템플릿마다 `…/slides/templates/<id>`).
 - 내장 디자인 템플릿은 `ieumoffice guide slides templates [<id>]`로 고른다. 목록의 `--json`은 `detail.templates`(`[{ id, name, scheme, description, fonts }]`, 정해진 순서), 템플릿 하나는 `detail`(`{ id, name, scheme, description, fonts, styleSheet }`)이다. 모르는 id는 종료 코드 1, `error: "invalid_argument"`, `detail.templates`에 쓸 수 있는 id 목록이다. MCP `guide` 도구는 세 번째 위치 인자 `name`으로 id를 받는다.
 - 앱의 설정 → 연동 화면이 지금 설치본에 맞는 등록 예시를 보여 준다.
 
@@ -535,7 +553,7 @@ metadata:
 같은 데이터 폴더에 둘이 있다. 터미널 명령어와 MCP는 둘 다 읽지도 쓰지도 않는다.
 
 - `google-drive.json`: `{ "version": 1, "token": "<base64>" }`. `token`은 운영체제 암호화(Electron `safeStorage`: Windows는 DPAPI, macOS는 키체인, Linux는 키링이 있을 때만)로 감싼 갱신 토큰이다. 다른 사용자나 다른 PC에서는 풀리지 않고, 풀리지 않는 파일은 연결이 없는 것으로 읽는다. 암호화를 쓸 수 없는 PC에서는 이 파일을 만들지 않는다. 연결 끊기와 Google의 연결 종료(`invalid_grant`)에 지운다.
-- `drive-cache/`: 연 드라이브 파일의 PC 사본. 파일마다 `drive-cache/<드라이브 파일 id>/<이름>`이고, `drive-cache/index.json`이 사본과 드라이브 파일을 잇는다. 항목에는 드라이브 파일 id, 이름, 상위 폴더 id, PC 경로, 마지막으로 맞춘 내용의 해시(SHA-256)와 드라이브 쪽 해시(MD5)·변경 시각, 저장이 갈 드라이브 파일 id, "이 PC에만 저장"을 골랐는지, 마지막으로 연 시각이 있다. 문서 내용은 사본 파일에만 있다. 한 달 동안 열지 않았고 올리지 못한 변경이 없는 사본은 시작할 때 지운다.
+- `drive-cache/`: 연 드라이브 파일의 PC 사본. 파일마다 `drive-cache/<드라이브 파일 id>/<이름>`이고, `drive-cache/index.json`이 사본과 드라이브 파일을 잇는다. 항목에는 드라이브 파일 id, 이름, 상위 폴더 id, PC 경로, 마지막으로 맞춘 내용의 해시(SHA-256)와 드라이브 쪽 해시(MD5)·변경 시각, 저장이 갈 드라이브 파일 id, "이 PC에만 저장"을 골랐는지, 마지막으로 연 시각이 있다. 문서 내용은 사본 파일에만 있다. 한 달 동안 열지 않았고 올리지 못한 변경이 없는 사본은 시작할 때 지운다. "이 PC에만 저장"을 고른 사본은 드라이브가 받지 못한 변경을 담고 있으므로 지우지 않는다.
 
 `app-settings.json`의 `driveAiAccess`(참/거짓, 기본 참)는 편집기의 AI가 드라이브를 찾고 읽어도 되는지다. 드라이브가 연결돼 있을 때만 뜻이 있다. `driveTrainingAck`(참일 때만 확인, 기본 없음)는 사람이 "드라이브 파일과 함께 쓰는 AI 계정에서 모델 학습을 껐습니다"에 체크했는지다. 참이 아니면 연결, 고르기, 첨부, AI의 드라이브 도구가 멈춘다.
 

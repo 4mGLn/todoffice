@@ -57,6 +57,7 @@ import {
   showOpenDialogWithMemory,
   showSaveDialogWithMemory,
   aboutMenuItem,
+  macAppMenuTemplate,
   helpCheckUpdatesItems,
   toggleDevToolsItem,
   windowMenuTemplate,
@@ -6909,24 +6910,13 @@ export function buildDocsMenu(): void {
       : [{ label: tm('menuNoRecent'), enabled: false }]
 
   const template: MenuItemConstructorOptions[] = [
+    // ⌘, stays subscript here (the Word tab's own chord), so Settings… shows no shortcut
     ...(isMac
       ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: 'about' as const },
-              { type: 'separator' as const },
-              { label: tm('menuPreferences'), click: () => sendCommand('preferences') },
-              { type: 'separator' as const },
-              { role: 'services' as const },
-              { type: 'separator' as const },
-              { role: 'hide' as const },
-              { role: 'hideOthers' as const },
-              { role: 'unhide' as const },
-              { type: 'separator' as const },
-              { role: 'quit' as const },
-            ],
-          },
+          macAppMenuTemplate(appMenuLabels(getUiLang()), {
+            settingsShortcut: 'none',
+            extraItems: [{ label: tm('menuPreferences'), click: () => sendCommand('preferences') }],
+          }),
         ]
       : []),
     {

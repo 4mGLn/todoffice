@@ -203,6 +203,7 @@ const READING_CALLS: ReadonlySet<string> = new Set([
   'savePreview',
   'printPages',
   'printPageSizes',
+  'printFontsReady',
   'documentRevision',
   'previewPage',
   'reveal',

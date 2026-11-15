@@ -515,7 +515,7 @@ export const TOOLS: ToolSpec[] = [
     command: 'map',
     verb: 'apply',
     description:
-      'Edit an .xmind mind map with the in-app AI ops (guide map): add_topic, rename_topic, move_topic, delete_topic, set_note, set_link, on the ids map_read lists; new ids come back in detail.results[].created. Local, untouched parts of the file kept byte for byte; delete_topic refuses when it would take preserved elements and reports how many. Atomic by default. ' +
+      'Edit an .xmind mind map with the map ops (guide map): add_topic, rename_topic, move_topic, delete_topic, set_note, set_link, on the ids map_read lists; new ids come back in detail.results[].created. Local, untouched parts of the file kept byte for byte; delete_topic refuses when it would take preserved elements and reports how many. Atomic by default. ' +
       GUI_OPEN,
     positionals: [{ key: 'file', description: 'path of the .xmind' }],
     options: [

@@ -7,7 +7,7 @@ import { LINE_A, styledMap } from './map-fixture'
 
 /**
  * The line inheritance of decision 0102 through `map apply` (add_topic and
- * move_topic, the ops the in-app AI uses): a topic that arrives under a new
+ * move_topic): a topic that arrives under a new
  * parent takes the line values the parent has written on itself, on itself and
  * its whole branch; a parent without any leaves the arriving topic as it was.
  * The values are watched in `content.json`, the file's own words.

@@ -294,7 +294,7 @@ describe('mcp server', () => {
     // row height, the width and place of a table (about 4 KiB, decision 0137); 129 KiB before
     // the HWP equations, tab stops, page border, cell diagonal and picture width (about
     // 1.7 KiB, decision 0137); measured 135365 B (132.2 KiB) with map_read, map_apply with its
-    // typed ops and map_create added (decision 0147); 135503 B (132.3 KiB) after map_create
+    // typed ops and map_create added (decision 0150); 135503 B (132.3 KiB) after map_create
     // made out required and the map wording fixes — the 133 KiB ceiling has 689 B left
     expect(bytes).toBeLessThanOrEqual(133 * 1024)
     expect(bytes).toBeGreaterThan(60 * 1024)
@@ -378,7 +378,7 @@ describe('mcp server', () => {
       // 42 KiB before hwp_read (about 1 KiB) joined the catalog; 43 KiB before epub_translate and
       // epub_status (about 2 KiB); 45 KiB before hwp_apply and create_hwp (about 2.5 KiB); 48 KiB
       // before diagram_read, diagram_apply and create_drawio (about 3 KiB); measured 54291 B
-      // (53.0 KiB) with map_read, map_apply and map_create added (decision 0147); 54429 B
+      // (53.0 KiB) with map_read, map_apply and map_create added (decision 0150); 54429 B
       // (53.2 KiB) after map_create made out required and the map wording fixes — the 54 KiB
       // ceiling has 867 B left
       expect(JSON.stringify(tools).length).toBeLessThan(54 * 1024)

@@ -15,14 +15,14 @@ import type { CommandDef } from '../registry'
 import { CliError, EXIT } from '../result'
 
 /**
- * `map read`, `map apply` and `map create`: mind maps (`.xmind`) with the ops
- * the in-app AI uses. Everything runs in this process through
+ * `map read`, `map apply` and `map create`: mind maps (`.xmind`) with six topic
+ * ops that edit the way the editor does. Everything runs in this process through
  * `@genoffice/xmind-engine`, so untouched parts of the file stay byte for byte
  * and no app is ever started.
  */
 export const mapCommand: CommandDef = {
   name: 'map',
-  summary: `Read, edit or create a mind map (${MAP_EXTENSION}) with the ops the in-app AI uses.`,
+  summary: `Read, edit or create a mind map (${MAP_EXTENSION}) with topic ops that edit the way the editor does.`,
   usage:
     'map read <file> [--json] | map apply <file> --ops <JSON|@file|-> [--out <path>] [--best-effort|--stop-on-error] [--force] | map create --outline <file|-> [--out <path.xmind>] [--force]',
   options: [
