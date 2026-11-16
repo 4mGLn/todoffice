@@ -426,7 +426,7 @@ const PARAGRAPH_FORMAT_SCHEMA = {
   line_spacing: { type: 'number', description: 'line spacing in percent, for example 160' },
   indent: {
     type: ['number', 'string'],
-    description: `${INDENT_IN_POINTS}; or "mark": each paragraph hangs by its own mark and the space after it (□, 1., 가.), as measured when the call runs (send it again after the mark's size or font changes), so that its second line starts under its text`,
+    description: `${INDENT_IN_POINTS}; or "mark": the lines after the first hang by the width of the mark and its space (□, 1., 가.), measured when the call runs (send it again after the mark's size or font changes)`,
   },
   margin_left: {
     type: 'number',
