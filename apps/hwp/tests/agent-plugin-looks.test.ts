@@ -3390,14 +3390,14 @@ describe('a test paper in two columns', () => {
     expect(rowHeights(doc())).toEqual([raised, raised])
   })
 
-  it('gives a row added next to a raised head row the height of its own text', () => {
+  it('gives a row added next to a raised head row the height of the lowest row of the table', () => {
     const { plugin, doc } = raisedHead()
     const raised = rowHeights(doc())
     expect(plugin.addTableLines(1, 'rows', 2, 'after', 1)).toMatchObject({ ok: true })
     const now = rowHeights(doc())
     expect(now).toHaveLength(4)
     expect([now[0], now[1], now[3]]).toEqual(raised)
-    expect(now[2]).toBeLessThanOrEqual(raised[0]!)
+    expect(now[2]).toBe(Math.min(...raised))
     const head = tableIn(doc(), 0)
     const drawn = (
       JSON.parse(doc().getTableCellBboxes(0, 0, head.control)) as { row: number; h: number }[]
@@ -3415,6 +3415,133 @@ describe('a test paper in two columns', () => {
     expect(rowHeights(doc())[1]).toBe(Math.round((8 * 7200) / 25.4))
     expect(
       plugin.formatCells(1, { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 }, { heightMm: 15 }),
+    ).not.toHaveProperty('overflowingRows')
+  })
+
+  /** The engine calls `fn` makes on `doc` that read the layout or write a cell. */
+  function layoutCalls(doc: HwpDocument, fn: () => unknown) {
+    const names = [
+      'getTableCellBboxes',
+      'getCursorRectByPathNear',
+      'getCursorRectInCell',
+      'setCellProperties',
+    ]
+    const calls: string[] = []
+    const target = doc as unknown as Record<string, (...args: unknown[]) => unknown>
+    const kept = names.map((name) => target[name]!)
+    names.forEach((name, index) => {
+      target[name] = (...args: unknown[]) => {
+        calls.push(name)
+        return kept[index]!.apply(doc, args)
+      }
+    })
+    try {
+      fn()
+    } finally {
+      names.forEach((name, index) => {
+        target[name] = kept[index]!
+      })
+    }
+    return calls
+  }
+
+  it('neither reads nor writes the head table on a change of the body', () => {
+    const { plugin, doc } = raisedHead()
+    const heights = storedHeights(doc())
+    expect(
+      layoutCalls(doc(), () =>
+        expect(plugin.replaceText('문항 30 본문', '문항 30 본문 글')).toMatchObject({ ok: true }),
+      ),
+    ).toEqual([])
+    expect(
+      layoutCalls(doc(), () =>
+        plugin.insertParagraphs(QUESTIONS[50]!, null, 'after', ['새 문항 한 줄']),
+      ),
+    ).toEqual([])
+    expect(storedHeights(doc())).toEqual(heights)
+  })
+
+  it('gives a row added next to a plain head row the height of the lowest row of the table', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    const plain = rowHeights(doc())
+    expect(plugin.addTableLines(1, 'rows', 2, 'after', 1)).toMatchObject({ ok: true })
+    expect(rowHeights(doc())).toEqual([plain[0], plain[1], plain[1], plain[2]])
+  })
+
+  it('gives a row added under a merged head cell a height, never none', () => {
+    const { plugin, doc } = raisedHead()
+    plugin.mergeCells(1, { row: 2, col: 1 }, { row: 3, col: 1 })
+    plugin.fillCells(1, [{ row: 2, col: 1, text: TALL }], true)
+    const lowest = Math.min(...rowHeights(doc()).filter((height) => height > 0))
+    expect(plugin.addTableLines(1, 'rows', 2, 'after', 1)).toMatchObject({ ok: true })
+    const head = tableIn(doc(), 0)
+    const added = (
+      JSON.parse(doc().getTableCellBboxes(0, 0, head.control)) as {
+        row: number
+        rowSpan: number
+        cellIdx: number
+      }[]
+    ).filter((box) => box.row === 2 && box.rowSpan === 1)
+    expect(added.length).toBeGreaterThan(0)
+    for (const box of added) expect(head.cell(box.cellIdx).height).toBeGreaterThanOrEqual(lowest)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('names no row the user set taller than its text when its text shrinks', () => {
+    const { plugin } = raisedHead()
+    plugin.formatCells(1, { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 }, { heightMm: 30 })
+    plugin.fillCells(1, [{ row: 3, col: 1, text: '서명\n(인)' }], true)
+    expect(plugin.fillCells(1, [{ row: 3, col: 1, text: '서명 (인)' }], true)).not.toHaveProperty(
+      'tallerRows',
+    )
+  })
+
+  it('names the row a merged head cell raised once its text needs less', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.mergeCells(1, { row: 2, col: 1 }, { row: 3, col: 1 })
+    plugin.fillCells(1, [{ row: 2, col: 1, text: `${TALL}\n여섯째\n일곱째` }], true)
+    const raised = rowHeights(doc())
+    expect(raised[2]).toBeGreaterThan(raised[0]! * 3)
+    expect(plugin.fillCells(1, [{ row: 2, col: 1, text: '마' }], true)).toMatchObject({
+      ok: true,
+      tallerRows: [{ table: 1, row: 3 }],
+    })
+    expect(rowHeights(doc())).toEqual(raised)
+  })
+
+  it('says a head row overflows only when its text runs past it once the change is done', () => {
+    const tall = raisedHead()
+    expect(
+      tall.plugin.formatCells(
+        1,
+        { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 },
+        { heightMm: 5, text: { size: 24 } },
+      ),
+    ).not.toHaveProperty('overflowingRows')
+    for (const start of columnStarts(tall.doc()).starts)
+      expect(start).toBeGreaterThanOrEqual(columnStarts(tall.doc()).foot)
+    const { plugin } = raisedHead()
+    expect(
+      plugin.formatCells(1, { fromRow: 1, fromCol: 3, toRow: 1, toCol: 4 }, { heightMm: 14 }),
+    ).not.toHaveProperty('overflowingRows')
+    plugin.fillCells(
+      1,
+      [{ row: 2, col: 1, text: '가나다라마바사아자차카타파하 가나다라마바사' }],
+      true,
+    )
+    expect(
+      plugin.formatCells(
+        1,
+        { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 },
+        { heightMm: 5, columnWidths: [5, 20, 20, 20, 20, 20, 20, 20] },
+      ),
     ).not.toHaveProperty('overflowingRows')
   })
 
