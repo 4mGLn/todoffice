@@ -223,7 +223,7 @@ const SYSTEM_PROMPT = [
   '## What they cannot do',
   '- You cannot draw a line between columns, a header or footer takes one line of text only (no table or picture in it), and you cannot move, replace or remove a picture that is already in the document (the user does that in the editor): you can add a new one and change the width of one in the body text. analyze_picture only looks at one. A note cannot be put inside a table cell, and neither can an equation.',
   "- A tick box that is a picture or a form control cannot be ticked: only a □ that is the paragraph's bullet or typed into the text can.",
-  '- A table inside a cell of another table can be read, filled and removed, but its cells cannot be coloured, merged or split, it cannot get or lose rows and columns, and the alignment, spacing and paragraph style of its paragraphs cannot be changed. Its text can still be formatted, character styles included.',
+  '- A table inside a cell of another table is read, filled, formatted and changed like any other: its cells can be coloured, merged and split, and it can get or lose rows and columns, the table it sits in staying as it is. Only one whose cell borders are drawn as objects cannot be changed. The alignment, spacing and paragraph style of its paragraphs cannot be changed with format_paragraph or the style tools (format_cells aligns the text of its cells); its text can still be formatted, character styles included.',
   '- You cannot remove a style. The user can do that in the style dialog of the editor (F6).',
   '- You cannot add, change or remove memos: the editor has a memo panel for that. When an edit would remove a memo, it is refused and the user is asked to approve that one edit; with a no, nothing is changed.',
   '- One piece of text is always one line: a line break inside a text argument is refused. Several paragraphs are several strings in one insert_paragraphs call.',
@@ -1098,7 +1098,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'merge_cells',
     edits: true,
     description:
-      'Merge the cells of a table between two corners (both included) into one cell. Their text is kept, one cell after another. A merged cell must lie wholly inside the range. Not for a table inside another table.',
+      'Merge the cells of a table between two corners (both included) into one cell. Their text is kept, one cell after another. A merged cell must lie wholly inside the range.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1115,7 +1115,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'split_cell',
     edits: true,
     description:
-      'Split one cell of a table into rows × cols cells, or, without rows and cols, split a merged cell back into the cells it covers. The text stays in the first cell. Not for a table inside another table.',
+      'Split one cell of a table into rows × cols cells, or, without rows and cols, split a merged cell back into the cells it covers. The text stays in the first cell.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1132,7 +1132,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'format_cells',
     edits: true,
     description:
-      'Change how cells of a table look: their background colour (or "none"), their border lines, a diagonal across them, and where their text sits between top and bottom. Name the cells as a list (cells, by row and column from 1 as read_table shows them; a merged cell by any place it covers), as a block (range), or leave both out for the whole table. A border names the edges it means: of a block or the whole table, outer is its outline and inner the lines between its cells; of a list each cell is on its own. Later borders go over earlier ones. Not for a table inside another table.',
+      'Change how cells of a table look: their background colour (or "none"), their border lines, a diagonal across them, and where their text sits between top and bottom. Name the cells as a list (cells, by row and column from 1 as read_table shows them; a merged cell by any place it covers), as a block (range), or leave both out for the whole table. A border names the edges it means: of a block or the whole table, outer is its outline and inner the lines between its cells; of a list each cell is on its own. Later borders go over earlier ones.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1325,7 +1325,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'add_to_table',
     edits: true,
     description:
-      'Add empty rows or columns to a table, after or before one of its rows or columns. The new ones are shaped and formatted like that one. Row and column numbers after them shift: read the table again before filling. Not for a table that sits inside a cell of another table.',
+      'Add empty rows or columns to a table, after or before one of its rows or columns. The new ones are shaped and formatted like that one. Row and column numbers after them shift: read the table again before filling.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -2890,7 +2890,7 @@ function linesRefusal(table: number, what: string, result: AgentTableLinesRefusa
     case 'no_such_table':
       return noSuchTable(table, result.count)
     case 'nested':
-      return 'Nothing was changed: that table sits inside a cell of another table, and rows and columns can only be added to or removed from a table of the body text.'
+      return 'Nothing was changed: that table sits inside a cell of another table and its cell borders are drawn as objects, which cannot be moved here, so it cannot get or lose rows and columns.'
     case 'no_such_line':
       return `Nothing was changed: the table has ${result.rows} row(s) and ${result.cols} column(s), so those ${what} are not all in it.`
     case 'would_empty':
@@ -4290,7 +4290,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             case 'unsupported_place':
               return bad(
                 call,
-                'Nothing was changed: that table sits inside a cell of another table, whose cells cannot be merged here.',
+                'Nothing was changed: that table sits inside a cell of another table and its cell borders are drawn as objects, which cannot be moved here, so its cells cannot be merged.',
               )
             case 'no_such_cell':
               return bad(
@@ -4365,7 +4365,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             case 'unsupported_place':
               return bad(
                 call,
-                'Nothing was changed: that table sits inside a cell of another table, whose cells cannot be split here.',
+                'Nothing was changed: that table sits inside a cell of another table and its cell borders are drawn as objects, which cannot be moved here, so its cells cannot be split.',
               )
             case 'no_such_cell':
               return bad(
@@ -4610,7 +4610,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           if (result.reason === 'unsupported_place') {
             return bad(
               call,
-              'Nothing was changed: that table sits inside a cell of another table, whose cells cannot be coloured here.',
+              'Nothing was changed: that table sits inside a cell of another table and its cell borders are drawn as objects, which cannot be moved here, so its cells cannot be changed.',
             )
           }
           if (result.reason === 'column_count') {

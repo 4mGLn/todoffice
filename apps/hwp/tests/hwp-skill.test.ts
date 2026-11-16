@@ -2277,7 +2277,7 @@ describe('rows and columns of a table', () => {
 
   it('tells the model why nothing was changed', async () => {
     const cases = [
-      [{ ok: false, reason: 'nested', rows: 2, cols: 2 }, 'inside a cell of another table'],
+      [{ ok: false, reason: 'nested', rows: 2, cols: 2 }, 'cell borders are drawn as objects'],
       [{ ok: false, reason: 'no_such_line', rows: 3, cols: 4 }, '3 row(s) and 4 column(s)'],
       [{ ok: false, reason: 'would_empty', rows: 3, cols: 4 }, 'at least one row'],
       [
@@ -5674,5 +5674,53 @@ describe('what an edit did to the pages and tables, in its answer', () => {
       expect(await editing.verify(['fill_cells', 'fill_cells'])).toContain('table 1, row 2, col 1')
       expect(editing.bridge.cutCells).toHaveBeenCalledTimes(2)
     })
+  })
+})
+
+describe('a table inside a cell of another table', () => {
+  const TABLE_TOOLS = ['merge_cells', 'split_cell', 'format_cells', 'add_to_table']
+
+  it('is not ruled out by the table tools or the instructions', () => {
+    const { skill } = setup()
+    for (const name of TABLE_TOOLS) {
+      const tool = skill.tools.find((offered) => offered.name === name)
+      expect(tool?.description, name).not.toMatch(/another table|inside a cell/)
+    }
+    const prompt = skill.systemPrompt
+    expect(prompt).not.toContain('its cells cannot be coloured, merged or split')
+    expect(prompt).toContain(
+      'A table inside a cell of another table is read, filled, formatted and changed like any other',
+    )
+    // what still cannot be done there stays said
+    expect(prompt).toContain('The alignment, spacing and paragraph style of its paragraphs')
+  })
+
+  it('tells the model when its borders are drawn by objects', async () => {
+    const drawn = 'its cell borders are drawn as objects'
+    const lines = setup({
+      addTableLines: async () => ({ ok: false, reason: 'nested', rows: 2, cols: 2 }),
+    })
+    const added = await lines.call('add_to_table', { table: 2, what: 'rows', at: 1 })
+    expect(added.isError).toBe(true)
+    expect(added.output).toContain(drawn)
+    const merge = setup({ mergeCells: async () => ({ ok: false, reason: 'unsupported_place' }) })
+    const merged = await merge.call('merge_cells', {
+      table: 2,
+      from_row: 1,
+      from_col: 1,
+      to_row: 1,
+      to_col: 2,
+    })
+    expect(merged.output).toContain(drawn)
+    const split = setup({ splitCell: async () => ({ ok: false, reason: 'unsupported_place' }) })
+    expect(
+      (await split.call('split_cell', { table: 2, row: 1, col: 1, rows: 2 })).output,
+    ).toContain(drawn)
+    const look = setup({
+      formatCells: async () => ({ ok: false, reason: 'unsupported_place', count: 3 }),
+    })
+    expect((await look.call('format_cells', { table: 2, background: '#eeeeee' })).output).toContain(
+      drawn,
+    )
   })
 })
