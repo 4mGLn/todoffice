@@ -3142,6 +3142,7 @@ describe('the look of a document', () => {
           apart: 1,
           noMark: 1,
           alignment: 1,
+          object: 1,
           split: 0,
           tab: 0,
           noSpace: 0,
@@ -3185,6 +3186,9 @@ describe('the look of a document', () => {
     )
     expect(result.output).toContain('1 paragraph(s) are aligned right, centred or spread')
     expect(result.output).toContain(
+      '1 paragraph(s) have a field, its guide or another object before or inside the mark',
+    )
+    expect(result.output).toContain(
       '2 paragraph(s) in tables inside table cells were not looked at',
     )
     expect(result.output).not.toContain('could not be measured')
@@ -3197,6 +3201,7 @@ describe('the look of a document', () => {
       apart: 0,
       noMark: 0,
       alignment: 2,
+      object: 0,
       split: 0,
       tab: 0,
       noSpace: 0,
@@ -3225,6 +3230,7 @@ describe('the look of a document', () => {
           apart: 0,
           noMark: 1,
           alignment: 0,
+          object: 0,
           split: 0,
           tab: 0,
           noSpace: 0,

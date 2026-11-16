@@ -1543,6 +1543,7 @@ function containerOf(doc, hit) {
       props: (k) => parse(doc.getParaPropertiesAt(sec, k)),
       diag: (k) => parse(doc.measureWidthDiagnostic(sec, k)),
       line: (k, offset) => parse(doc.getLineInfo(sec, k, offset)),
+      objectBefore: (k, end) => bodyObjectBefore(doc, sec, k, end),
       // the width the engine sets the paragraph's first line in: its column less its margins
       columnPt: (k) =>
         Number(parse(doc.measureWidthDiagnostic(sec, k)).lines?.[0]?.stored_segment_width_hwpunit) /
@@ -1567,6 +1568,13 @@ function containerOf(doc, hit) {
     charShapeAt: (k, offset) =>
       parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), offset)).charShapeId,
     props: (k) => parse(doc.getCellParaPropertiesAtByPath(sec, para, at(k))),
+    // the engine names the objects of a body paragraph only; of a cell paragraph, its fields
+    objectBefore: (k, end) => {
+      for (let offset = 0; offset < end; offset++) {
+        if (parse(doc.getFieldInfoAtByPath(sec, para, at(k), offset)).inField) return true
+      }
+      return false
+    },
     // the engine tells the lines and the size of a cell by table and cell number only
     line:
       path.length === 1
@@ -1692,6 +1700,31 @@ function objectsOf(doc, ignore = null) {
     controls: controls.length - memoControls,
     fields: JSON.stringify(watched.map((field) => field.value ?? '')),
   }
+}
+
+/**
+ * Whether body paragraph `para` of section `sec` holds an object drawn before character
+ * `end`: a field (a click-here field shows its guide there), a table, a picture or any other
+ * control but those that set up the page and the memos, which take no room in the line. The
+ * engine numbers the paragraphs of all sections in one run when it names their controls.
+ */
+function bodyObjectBefore(doc, sec, para, end) {
+  const positions = parse(doc.getControlTextPositions(sec, para))
+  if (!positions.some((at) => at < end)) return false
+  let run = para
+  for (let earlier = 0; earlier < sec; earlier++) run += doc.getParagraphCount(earlier)
+  const kinds = new Map(
+    parse(doc.getControls())
+      .filter((control) => control.list === 0 && control.para === run)
+      .map((control) => [control.controlIndex, control.ctrlId]),
+  )
+  const besideMemos = memoFreeObjectPositions(doc, sec, para)
+  return positions.some(
+    (at, index) =>
+      at < end &&
+      !PAGE_CONTROLS.has(kinds.get(index)) &&
+      (kinds.get(index) !== '' || besideMemos.includes(at)),
+  )
 }
 
 /**
@@ -2245,7 +2278,8 @@ const HANGING_ALIGNMENTS = new Set(['left', 'justify'])
  * advance `samples.exact` holds, from the last lines of the paragraphs measured with it,
  * which are not widened, else `samples.estimated` (firstLineSpaces).
  * Otherwise `{ skip }`, why it is not hung: `empty` (no words, not counted), `noMark`,
- * `alignment` (right, centre or spread: line 2 is not set under the words there), `split`
+ * `alignment` (right, centre or spread: line 2 is not set under the words there), `object`
+ * (a field, its guide or another object is drawn before or inside the mark), `split`
  * (the mark runs over two lines, or fills the first of several), `tab` (a tab whose stop moves with the first line's indent or with a
  * widened space before it), `noSpace` (no space of the line with a known natural advance)
  * or `outOfRange` (a width not above 0, past MAX_HANG_PT or past half the column the paragraph
@@ -2263,6 +2297,7 @@ function markWidthOf(box, k, rule, samples) {
   if (count === 0) return { skip: 'noMark' }
   const props = box.props(k)
   if (!HANGING_ALIGNMENTS.has(props.alignment)) return { skip: 'alignment' }
+  if (box.objectBefore(k, lead + count)) return { skip: 'object' }
   const span = chars.slice(lead, lead + count)
   const first = span.findIndex((char) => char !== ' ')
   const tab = span.indexOf('\t')
@@ -2297,7 +2332,7 @@ function markWidthOf(box, k, rule, samples) {
 }
 
 /** Why indent "mark" left paragraphs unhung, by the reasons markWidthOf gives. */
-const HANG_SKIPS = ['noMark', 'alignment', 'split', 'tab', 'noSpace', 'outOfRange']
+const HANG_SKIPS = ['noMark', 'alignment', 'object', 'split', 'tab', 'noSpace', 'outOfRange']
 
 /**
  * Measure paragraphs for indent "mark" (`items` are `[box, k, rule]`), reading only:

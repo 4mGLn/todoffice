@@ -1327,6 +1327,24 @@ describe('indent "mark" on lines that keep their spaces', () => {
     }
   })
 
+  it('leaves a paragraph with a field before or inside its mark as it is, and says so', () => {
+    for (const offset of [0, 1]) {
+      const start = blank([`○ 누름틀 문단 ${WRAPPING}`, `○ 보통 문단 ${WRAPPING}`])
+      start.insertClickHereField(0, 0, offset, '여기에 입력', '', 'f1', true)
+      const { plugin, doc } = open(start)
+      expect(
+        plugin.formatParagraph('누름틀 문단', null, { indent: 'mark' }),
+        `${offset}`,
+      ).toMatchObject({ hang: { hung: 0, object: 1 } })
+      expect(indentOf(doc(), 0), `${offset}`).toBe(0)
+    }
+    const after = blank([`○ 누름틀 문단 ${WRAPPING}`])
+    after.insertClickHereField(0, 0, 2, '여기에 입력', '', 'f1', true)
+    expect(
+      open(after).plugin.formatParagraph('누름틀 문단', null, { indent: 'mark' }),
+    ).toMatchObject({ hang: { hung: 1, object: 0 } })
+  })
+
   it('keeps a hang within half the column the paragraph stands in', () => {
     const lines = ['가', '나', '다'].map(
       (first) => `□ ${first}나다라 마바사 아자차 카타파하 가나다 라마바사`,

@@ -1275,13 +1275,15 @@ export interface AgentHangOutcome {
   noMark: number
   /** right, centre or spread lines: line 2 is not set under the words there */
   alignment: number
-  /** the mark runs over two lines */
+  /** a field, its guide or another object is drawn before or inside the mark */
+  object: number
+  /** the mark runs over two lines, or fills the first of several */
   split: number
   /** a tab whose stop moves with the first line's indent or a widened space before it */
   tab: number
-  /** a justified first line and no space of the mark's shape on a line that is not widened */
+  /** a justified first line with no space whose natural advance is known */
   noSpace: number
-  /** a width not above 0, past 100 pt or past half the line */
+  /** a width not above 0, past 100 pt or past half the column */
   outOfRange: number
   /** paragraphs in tables inside cells not looked at: the engine cannot tell their style */
   unread?: number
