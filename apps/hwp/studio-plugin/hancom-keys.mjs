@@ -1817,6 +1817,7 @@ export function cellBlockCopy(ih) {
         colSpan: Math.min(info.col + Math.max(1, info.colSpan) - 1, endCol) - info.col + 1,
         text: cellTextOf(ih, context, i),
         look: looks?.[i] ?? null,
+        own: cellLookOf(props),
         // HWPUNIT: 100 to the point
         width: Number(props?.width) > 0 ? Number(props.width) / 100 : 0,
         height: Number(props?.height) > 0 ? Number(props.height) / 100 : 0,
@@ -1851,7 +1852,10 @@ export function cellBlockCopy(ih) {
         const spans =
           (cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : '') +
           (cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : '')
-        return `<td${spans} style="${escapeHtml(style)}">${content}</td>`
+        // the cell's own lines and fill, which the HTML style can only approximate, for a
+        // paste here that rebuilds the cells as a table (셀 안에 표로 넣기)
+        const own = cell.own ? ` ${CELL_LOOK_ATTR}="${escapeHtml(JSON.stringify(cell.own))}"` : ''
+        return `<td${spans}${own} style="${escapeHtml(style)}">${content}</td>`
       })
     htmlRows.push(`<tr>${cells.join('')}</tr>`)
   }
@@ -1943,12 +1947,8 @@ function htmlCellText(cell) {
     .trim()
 }
 
-/**
- * The cells of a pasted HTML table, row by row, when the clipboard holds just a table (cells
- * from a spreadsheet or another table). A merged source cell keeps its text in its first slot
- * and leaves the slots it spans alone (null). Null when the HTML is not a lone table.
- */
-export function cellGridFromHtml(html) {
+/** The one table of pasted HTML when the HTML holds nothing else, or null. */
+function loneTableOf(html) {
   if (!html || !/<table[\s>]/i.test(html)) return null
   const Parser = globalThis.DOMParser
   if (!Parser) return null
@@ -1967,6 +1967,17 @@ export function cellGridFromHtml(html) {
   for (const style of [...doc.querySelectorAll('style, script, title')]) style.remove()
   const outside = (doc.body?.textContent ?? '').replace(table.textContent ?? '', '')
   if (outside.trim() !== '') return null
+  return table
+}
+
+/**
+ * The cells of a pasted HTML table, row by row, when the clipboard holds just a table (cells
+ * from a spreadsheet or another table). A merged source cell keeps its text in its first slot
+ * and leaves the slots it spans alone (null). Null when the HTML is not a lone table.
+ */
+export function cellGridFromHtml(html) {
+  const table = loneTableOf(html)
+  if (!table) return null
   const grid = []
   const rows = [...table.querySelectorAll('tr')].filter((tr) => tr.closest('table') === table)
   rows.forEach((tr, r) => {
@@ -1987,6 +1998,199 @@ export function cellGridFromHtml(html) {
   const width = Math.max(0, ...grid.map((row) => row.length))
   if (grid.length === 0 || width === 0) return null
   return grid.map((row) => Array.from({ length: width }, (_, c) => row[c] ?? null))
+}
+
+/** Attribute this editor's cell copy puts on each cell: the cell's own lines, fill and margins. */
+const CELL_LOOK_ATTR = 'data-ieum-cell'
+
+/** The cell property keys that attribute carries (getCellProperties' names). */
+const CELL_LOOK_KEYS = [
+  'borderLeft',
+  'borderRight',
+  'borderTop',
+  'borderBottom',
+  'paddingLeft',
+  'paddingRight',
+  'paddingTop',
+  'paddingBottom',
+  'applyInnerMargin',
+  'verticalAlign',
+]
+
+/** A cell's look as this editor's copy carries it; fills other than none or solid stay out. */
+function cellLookOf(props) {
+  if (!props) return null
+  const look = {}
+  for (const key of CELL_LOOK_KEYS) if (props[key] !== undefined) look[key] = props[key]
+  if (props.fillType === 'none' || props.fillType === 'solid') {
+    for (const key of ['fillType', 'fillColor', 'patternColor', 'patternType'])
+      if (props[key] !== undefined) look[key] = props[key]
+  }
+  return look
+}
+
+/** Points in one CSS length unit; a bare number is pixels, as browsers read it. */
+const CSS_POINTS = { pt: 1, px: 0.75, mm: 72 / 25.4, cm: 72 / 2.54, in: 72, '': 0.75 }
+
+/** A CSS length in points, or 0 when it is none. */
+function cssPoints(value) {
+  const m = /^(-?\d*\.?\d+)\s*(pt|px|mm|cm|in)?$/i.exec(String(value ?? '').trim())
+  return m ? Number(m[1]) * CSS_POINTS[(m[2] ?? '').toLowerCase()] : 0
+}
+
+/** The declarations of an inline style, by lower-case name. */
+function inlineStyle(el) {
+  const out = new Map()
+  for (const part of (el.getAttribute('style') ?? '').split(';')) {
+    const at = part.indexOf(':')
+    if (at > 0) out.set(part.slice(0, at).trim().toLowerCase(), part.slice(at + 1).trim())
+  }
+  return out
+}
+
+const CSS_NAMED_COLORS = { black: '#000000', white: '#ffffff', red: '#ff0000', blue: '#0000ff' }
+
+/** A CSS colour as #rrggbb, or null. */
+function cssColor(value) {
+  const v = String(value ?? '')
+    .trim()
+    .toLowerCase()
+  if (CSS_NAMED_COLORS[v]) return CSS_NAMED_COLORS[v]
+  let m = /^#([0-9a-f]{6})$/.exec(v)
+  if (m) return `#${m[1]}`
+  m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(v)
+  if (m) return `#${m[1]}${m[1]}${m[2]}${m[2]}${m[3]}${m[3]}`
+  m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(v)
+  if (m)
+    return `#${[m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`
+  return null
+}
+
+/** CSS line styles as the engine's line kinds (none, solid, dashed, dotted, double). */
+const CSS_LINE_TYPES = { none: 0, hidden: 0, solid: 1, dashed: 2, dotted: 3, double: 8 }
+
+/** A line's thickness in points as the engine's line width step, as its HTML import does. */
+function lineWidthStep(points) {
+  const mm = points * 0.3528
+  const steps = [0.11, 0.14, 0.18, 0.23, 0.28, 0.35, 0.45]
+  const step = steps.findIndex((limit) => mm < limit)
+  return step === -1 ? 7 : step
+}
+
+/** A CSS border value ("solid #000000 0.28pt") as the engine's line, as its HTML import reads it. */
+function cssLine(value) {
+  let type = 1
+  let points = 0
+  let color = '#000000'
+  for (const token of String(value).match(/\w+\([^)]*\)|\S+/g) ?? []) {
+    const word = token.toLowerCase()
+    if (word in CSS_LINE_TYPES) type = CSS_LINE_TYPES[word]
+    else if (word === 'thin') points = 0.75
+    else if (word === 'medium') points = 2.25
+    else if (word === 'thick') points = 3.75
+    else if (cssColor(word)) color = cssColor(word)
+    else if (cssPoints(word) > 0) points = cssPoints(word)
+  }
+  if (type === 0 || points <= 0.01) return { type: 0, width: 0, color: '#000000' }
+  return { type, width: lineWidthStep(points), color }
+}
+
+/** A cell's look from its inline style, read the way the engine's HTML table import reads it. */
+function cssCellLook(td) {
+  const style = inlineStyle(td)
+  const look = {}
+  const sides = {
+    borderLeft: 'left',
+    borderRight: 'right',
+    borderTop: 'top',
+    borderBottom: 'bottom',
+  }
+  for (const [key, side] of Object.entries(sides)) {
+    const value = style.get(`border-${side}`) ?? style.get('border')
+    if (value !== undefined) look[key] = cssLine(value)
+  }
+  const fill = cssColor(style.get('background-color') ?? style.get('background'))
+  if (fill)
+    Object.assign(
+      look,
+      fill === '#ffffff' ? { fillType: 'none' } : { fillType: 'solid', fillColor: fill },
+    )
+  const align = (style.get('vertical-align') ?? td.getAttribute('valign') ?? '').toLowerCase()
+  const vertical = { top: 0, middle: 1, center: 1, bottom: 2 }[align]
+  if (vertical !== undefined) look.verticalAlign = vertical
+  return look
+}
+
+/** A cell's size along one axis in HWPUNIT from its style or attribute; 0 when not given. */
+function cellExtent(td, name) {
+  const value = inlineStyle(td).get(name) ?? td.getAttribute(name)
+  return Math.round(cssPoints(value) * 100)
+}
+
+/**
+ * The cells of a pasted HTML table as a table to rebuild (셀 안에 표로 넣기): each cell's place
+ * and spans, its contents as HTML, its look (lines, fill, vertical alignment, and margins when
+ * this editor copied it), and each column's width and row's height in HWPUNIT (0 where no
+ * single cell gives it). Null when the HTML is not a lone table, as for cellGridFromHtml.
+ */
+export function cellTableFromHtml(html) {
+  const table = loneTableOf(html)
+  if (!table) return null
+  const taken = []
+  const cells = []
+  const rows = [...table.querySelectorAll('tr')].filter((tr) => tr.closest('table') === table)
+  rows.forEach((tr, r) => {
+    taken[r] ??= []
+    let c = 0
+    for (const td of [...tr.children].filter((el) => /^(TD|TH)$/.test(el.tagName))) {
+      while (taken[r][c]) c += 1
+      const rowSpan = Math.max(1, Number(td.getAttribute('rowspan')) || 1)
+      const colSpan = Math.max(1, Number(td.getAttribute('colspan')) || 1)
+      for (let dr = 0; dr < rowSpan; dr += 1) {
+        taken[r + dr] ??= []
+        for (let dc = 0; dc < colSpan; dc += 1) taken[r + dr][c + dc] = true
+      }
+      let own
+      try {
+        own = JSON.parse(td.getAttribute(CELL_LOOK_ATTR) ?? 'null')
+      } catch {
+        // an attribute this editor did not write
+        own = null
+      }
+      cells.push({
+        row: r,
+        col: c,
+        rowSpan,
+        colSpan,
+        // line breaks between tags would read as paragraphs of their own
+        content: td.innerHTML.replace(/>\s*\n\s*</g, '><').trim(),
+        look: { ...cssCellLook(td), ...(own && typeof own === 'object' ? own : {}) },
+        width: cellExtent(td, 'width'),
+        height: cellExtent(td, 'height'),
+      })
+      c += colSpan
+    }
+  })
+  const rowCount = taken.length
+  const colCount = Math.max(0, ...taken.map((row) => row.length))
+  if (rowCount === 0 || colCount === 0) return null
+  const colWidths = Array.from({ length: colCount }, () => 0)
+  const rowHeights = Array.from({ length: rowCount }, () => 0)
+  for (const cell of cells) {
+    if (cell.colSpan === 1) colWidths[cell.col] = Math.max(colWidths[cell.col], cell.width)
+    if (cell.rowSpan === 1) rowHeights[cell.row] = Math.max(rowHeights[cell.row], cell.height)
+  }
+  // a column only merged cells cover takes what is left of their width
+  for (const cell of cells.filter((x) => x.colSpan > 1 && x.width > 0)) {
+    const span = colWidths.slice(cell.col, cell.col + cell.colSpan)
+    const open = span.filter((w) => w === 0).length
+    const rest = cell.width - span.reduce((a, b) => a + b, 0)
+    if (open > 0 && rest > 0) {
+      for (let c = cell.col; c < cell.col + cell.colSpan; c += 1)
+        if (colWidths[c] === 0) colWidths[c] = Math.floor(rest / open)
+    }
+  }
+  return { rows: rowCount, cols: colCount, cells, colWidths, rowHeights }
 }
 
 /**
@@ -2051,8 +2255,9 @@ export const CELL_PASTE_MODES = ['overwrite', 'up', 'down', 'left', 'right']
 
 /**
  * Paste copied cells with the caret in one cell of a table (no block), as Hangul does: the
- * 셀 붙이기 dialog asks where they go, and they overwrite the table from the caret's cell or
- * come in as new rows or columns beside it. Only a clipboard that holds a table of more than
+ * 셀 붙이기 dialog asks where they go, and they overwrite the table from the caret's cell,
+ * come in as new rows or columns beside it, or go into the caret's cell as a table of their own
+ * (pasteCellsAsTable). Only a clipboard that holds a table of more than
  * one cell (cells copied here or in Hangul, a spreadsheet range) is taken; anything else, a
  * selection, and places other than a cell of a body table keep the studio's paste.
  */
@@ -2093,7 +2298,8 @@ function cellPasteAtCaret(ih, e) {
   const caret = cursor.getPosition()
   if (caret?.parentParaIndex === undefined || caret.cellIndex === undefined) return false
   if ((caret.cellPath?.length ?? 0) > 1) return false
-  const grid = cellGridFromHtml(e?.clipboardData?.getData?.('text/html') ?? '')
+  const html = e?.clipboardData?.getData?.('text/html') ?? ''
+  const grid = cellGridFromHtml(html)
   if (!grid || grid.length * grid[0].length < 2) return false
   const at = { sec: caret.sectionIndex, ppi: caret.parentParaIndex, ci: caret.controlIndex }
   let cell
@@ -2104,7 +2310,11 @@ function cellPasteAtCaret(ih, e) {
   } catch {
     return false
   }
-  const paste = (mode) => pasteCellsAt(ih, at, cell, grid, mode, caret)
+  const paste = (mode) => {
+    if (mode !== 'nested') return pasteCellsAt(ih, at, cell, grid, mode, caret)
+    const table = cellTableFromHtml(html)
+    return table ? pasteCellsAsTable(ih, at, cell, table, caret) : false
+  }
   if (!modalDialog) {
     // a host without the dialog base (a test): Hangul's default, overwrite
     paste('overwrite')
@@ -2213,11 +2423,109 @@ export function pasteCellsAt(ih, at, cell, grid, mode, caret) {
   return true
 }
 
+/** Outer margin, every side, of the table 셀 안에 표로 넣기 makes (Hangul 2024, measured). */
+const NESTED_PASTE_MARGIN = 141
+
 /**
- * Hangul's 셀 붙이기 dialog: where the copied cells go. Overwrite is the default. Putting the
- * cells into the caret's cell as a table of their own is shown but cannot be chosen: the
- * engine cannot make a table inside a cell.
+ * 셀 안에 표로 넣기: put copied cells into the caret's cell as a table of their own, one undo
+ * step, as Hangul 2024 does (measured through its automation, 2026-11-17). The table goes in
+ * at the caret inside the caret's paragraph, the text before and after it staying in that
+ * paragraph; it is treat-as-char with a 0.5 mm outer margin. Its columns keep the copied
+ * widths (not fitted to the cell) and its cells their text, paragraphs, character shapes,
+ * lines and fill. The host table keeps its grid and its other cells; its row grows with the
+ * new table. `table` is cellTableFromHtml's reading of the clipboard; `cell` the caret's cell.
+ * The caret stays where it was in the caret's paragraph, at the table: a caret right after a
+ * table in a cell has no place of its own in the editor.
  */
+export function pasteCellsAsTable(ih, at, cell, table, caret) {
+  const { sec, ppi } = at
+  const host = {
+    controlIndex: at.ci,
+    cellIndex: caret.cellIndex,
+    cellParaIndex: caret.cellParaIndex ?? 0,
+  }
+  const hostAt = (cellParaIndex) => JSON.stringify([{ ...host, cellParaIndex }])
+  ih.executeOperation({
+    kind: 'snapshot',
+    operationType: 'ieumPasteCellsAsTable',
+    operation: (bridge) => {
+      const known = (sizes) => (sizes.every((size) => size > 0) ? sizes : undefined)
+      let colWidths = known(table.colWidths)
+      if (!colWidths && table.colWidths.some((w) => w > 0)) {
+        // columns nobody gave a width share the cell, as the engine's HTML table import does
+        const props = answerOf(bridge.getCellProperties(sec, ppi, at.ci, host.cellIndex))
+        const inner =
+          Number(props?.width) - Number(props?.paddingLeft) - Number(props?.paddingRight)
+        const share = Math.max(100, Math.floor((inner - 2 * NESTED_PASTE_MARGIN) / table.cols) || 0)
+        colWidths = table.colWidths.map((w) => w || share)
+      }
+      const made = answerOf(
+        bridge.createTableInCellByPath(sec, ppi, [host], caret.charOffset ?? 0, {
+          rowCount: table.rows,
+          colCount: table.cols,
+          treatAsChar: true,
+          ...(colWidths ? { colWidths } : {}),
+          ...(known(table.rowHeights) ? { rowHeights: table.rowHeights } : {}),
+        }),
+      )
+      if (!made?.ok) throw new Error('the cell took no table')
+      const tablePara = made.cellParaIdx
+      const ctrl = made.cellPath[made.cellPath.length - 1].controlIndex
+      const steps = made.cellPath.slice(0, -1)
+      const cellAt = (cellIndex) =>
+        JSON.stringify([...steps, { controlIndex: ctrl, cellIndex, cellParaIndex: 0 }])
+      const tableAt = cellAt(0)
+      for (const c of table.cells) {
+        if (c.rowSpan > 1 || c.colSpan > 1) {
+          bridge.mergeTableCellsByPath(
+            sec,
+            ppi,
+            tableAt,
+            c.row,
+            c.col,
+            Math.min(table.rows, c.row + c.rowSpan) - 1,
+            Math.min(table.cols, c.col + c.colSpan) - 1,
+          )
+        }
+      }
+      const dims = answerOf(bridge.getTableDimensionsByPath(sec, ppi, tableAt))
+      const byPlace = new Map()
+      for (let i = 0; i < dims.cellCount; i += 1) {
+        const info = answerOf(bridge.getCellInfoByPath(sec, ppi, cellAt(i)))
+        byPlace.set(`${info.row}:${info.col}`, i)
+      }
+      for (const c of table.cells) {
+        const index = byPlace.get(`${c.row}:${c.col}`)
+        if (index === undefined) continue
+        if (c.content.replace(/<[^>]*>/g, '').trim() !== '' || /<img\b/i.test(c.content))
+          bridge.pasteHtmlInCellByPath(sec, ppi, cellAt(index), 0, c.content)
+        if (Object.keys(c.look).length > 0)
+          bridge.setCellPropertiesByPath(sec, ppi, tableAt, index, c.look)
+      }
+      bridge.setTablePropertiesByPath(sec, ppi, tableAt, {
+        outerLeft: NESTED_PASTE_MARGIN,
+        outerRight: NESTED_PASTE_MARGIN,
+        outerTop: NESTED_PASTE_MARGIN,
+        outerBottom: NESTED_PASTE_MARGIN,
+      })
+      // the engine puts a new table in a paragraph of its own between the text before and
+      // after the caret; Hangul keeps the caret's paragraph whole around it
+      bridge.mergeParagraphInCellByPath(sec, ppi, hostAt(tablePara + 1))
+      if (tablePara > host.cellParaIndex)
+        bridge.mergeParagraphInCellByPath(sec, ppi, hostAt(tablePara))
+      const cellPath = [{ ...host }]
+      return {
+        ...caret,
+        cellParaIndex: host.cellParaIndex,
+        cellPath: Array.isArray(caret.cellPath) ? cellPath : caret.cellPath,
+      }
+    },
+  })
+  ih.updateCaret?.()
+  return true
+}
+
+/** Hangul's 셀 붙이기 dialog: where the copied cells go. Overwrite is the default. */
 function cellPasteDialog(ModalDialog, ko, onPaste) {
   const choices = [
     { mode: 'up', ko: '위쪽에 끼워 넣기', en: 'Insert above' },
@@ -2242,7 +2550,7 @@ function cellPasteDialog(ModalDialog, ko, onPaste) {
         h.textContent = text
         return h
       }
-      const option = (mode, text, disabled = false) => {
+      const option = (mode, text) => {
         const label = doc.createElement('label')
         label.style.cssText = 'display:flex;align-items:center;gap:6px;white-space:nowrap'
         const input = doc.createElement('input')
@@ -2250,23 +2558,15 @@ function cellPasteDialog(ModalDialog, ko, onPaste) {
         input.name = 'ieum-cell-paste'
         input.value = mode
         input.checked = mode === this.mode
-        input.disabled = disabled
         input.addEventListener('change', () => {
           if (input.checked) this.mode = mode
         })
         label.append(input, text)
-        if (disabled) {
-          label.style.opacity = '0.5'
-          label.title = ko
-            ? '셀 안에 표를 만드는 기능은 아직 없습니다.'
-            : 'A table cannot be made inside a cell yet.'
-        } else {
-          // a double click on a choice pastes at once
-          label.addEventListener('dblclick', () => {
-            this.mode = mode
-            this.confirm()
-          })
-        }
+        // a double click on a choice pastes at once
+        label.addEventListener('dblclick', () => {
+          this.mode = mode
+          this.confirm()
+        })
         return label
       }
       body.appendChild(heading(ko ? '끼워 넣기' : 'Insert'))
@@ -2281,7 +2581,7 @@ function cellPasteDialog(ModalDialog, ko, onPaste) {
       over.style.cssText = 'display:grid;gap:6px;margin-top:6px'
       over.append(
         option('overwrite', ko ? '덮어쓰기' : 'Overwrite'),
-        option('nested', ko ? '셀 안에 표로 넣기' : 'Insert as a table in the cell', true),
+        option('nested', ko ? '셀 안에 표로 넣기' : 'Insert as a table in the cell'),
       )
       body.appendChild(over)
       return body
@@ -2317,7 +2617,7 @@ function cellPasteDialog(ModalDialog, ko, onPaste) {
     }
 
     onConfirm() {
-      if (CELL_PASTE_MODES.includes(this.mode)) onPaste(this.mode)
+      if (CELL_PASTE_MODES.includes(this.mode) || this.mode === 'nested') onPaste(this.mode)
       return true
     }
   }
