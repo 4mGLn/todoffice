@@ -131,6 +131,14 @@
  *   kept one (studio-plugin/pc-fonts.mjs), then tells the font lists as the button does.
  *   It also hands that module what the studio knows of the PC's fonts, for the marks below.
  *
+ * studio-font-file-reads
+ *   The studio's detection reads the name table of every installed font in one go, and on
+ *   Linux the page keeps each file it read open until its next garbage collection. A PC
+ *   with thousands of fonts ran into the open-file limit of a desktop session (1024) on the
+ *   way and the editor stopped for good (#488). The detection asks studio-plugin/pc-fonts.mjs
+ *   (fontFilesToRead) which files to read: on Linux only so many, and the other fonts keep
+ *   the names the PC's list gives.
+ *
  * studio-missing-font-marks
  *   A font that is not on the PC is drawn with another one, while the font menu and the
  *   font box showed its name as if it were there. The menu marks such an entry and the box
@@ -1130,6 +1138,31 @@ const PATCHES = {
       },
     ],
   },
+  'studio-font-file-reads': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]core[\\/]local-fonts\.ts$/,
+    edits: [
+      {
+        find: "import { setRawCanvasFont } from './canvas-font-raw.ts';",
+        replace: [
+          "import { setRawCanvasFont } from './canvas-font-raw.ts';",
+          `import { fontFilesToRead } from '${PC_FONTS_MODULE}';`,
+        ].join('\n'),
+      },
+      {
+        find: ['  let nextIndex = 0;', '  const worker = async (): Promise<void> => {'].join('\n'),
+        replace: [
+          '  let nextIndex = 0;',
+          '  const readsFile = fontFilesToRead(fontDataList);',
+          '  const worker = async (): Promise<void> => {',
+        ].join('\n'),
+      },
+      {
+        find: "      records[index] = makeLocalFontRecord(fontData, await readSfntFontNames(fontData), 'local-font-access');",
+        replace:
+          "      records[index] = makeLocalFontRecord(fontData, readsFile(index) ? await readSfntFontNames(fontData) : emptySfntFontNames(), 'local-font-access');",
+      },
+    ],
+  },
   // Hancom's equation fonts are written in private code points, which mean nothing in the
   // font the substitution would put in their place while the PC's fonts are not known yet
   // or the font is not there. The app's own layer (equation-fonts.mjs) sits under the
@@ -1276,6 +1309,7 @@ export const STUDIO_PATCHES = /** @type {const} */ ([
   'studio-memo-label-en',
   'studio-cell-block-paste',
   'studio-pc-fonts',
+  'studio-font-file-reads',
   'studio-missing-font-marks',
   'studio-equation-fonts',
   'studio-source-font-alias',
