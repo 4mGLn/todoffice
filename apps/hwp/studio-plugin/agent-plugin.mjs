@@ -2476,17 +2476,23 @@ function defaultStyleParagraphs(doc) {
  * paragraphs of a shape that holds no text.
  */
 function bodyTextBoxes(doc) {
+  const shapes = parse(doc.getControls()).filter(
+    (control) =>
+      control.list === 0 && control.ctrlId === 'gso' && control.userDesc !== PICTURE_DESC,
+  )
   const boxes = []
+  let run = 0
   for (let sec = 0; sec < doc.getSectionCount(); sec++) {
-    for (let para = 0; para < doc.getParagraphCount(sec); para++) {
-      for (const { ctrlId, userDesc, controlIndex } of bodyControlsOf(doc, sec, para)) {
-        if (ctrlId !== 'gso' || userDesc === PICTURE_DESC) continue
-        const path = JSON.stringify([{ controlIndex, cellIndex: 0, cellParaIndex: 0 }])
-        if (tryOr(() => doc.getCellParagraphCountByPath(sec, para, path), 0) > 0) {
-          boxes.push({ sec, para, control: controlIndex })
-        }
+    const paragraphs = doc.getParagraphCount(sec)
+    for (const { para: at, controlIndex } of shapes) {
+      if (at < run || at >= run + paragraphs) continue
+      const para = at - run
+      const path = JSON.stringify([{ controlIndex, cellIndex: 0, cellParaIndex: 0 }])
+      if (tryOr(() => doc.getCellParagraphCountByPath(sec, para, path), 0) > 0) {
+        boxes.push({ sec, para, control: controlIndex })
       }
     }
+    run += paragraphs
   }
   return boxes
 }
