@@ -773,8 +773,12 @@ export function AiPanel({
       label: tGlobal,
       onChange: (change) => {
         runChangesRef.current.push(change)
-        // the view follows the work: a change far down the document would go unseen
-        if (change.place) void bridgeRef.current.reveal(change.place).catch(() => {})
+        // the view follows the work: a change far down the document would go unseen. The
+        // caret goes there without selecting it: the mark shows the change, and a selection
+        // laid over the last change would hide its mark once the run ends
+        if (change.place) {
+          void bridgeRef.current.reveal({ ...change.place, length: 0 }).catch(() => {})
+        }
       },
       confirmMemoRemoval: (refusal) => memoGateRef.current!.ask(refusal),
       imageGenAvailable: () => imageGenAvailableRef.current,
