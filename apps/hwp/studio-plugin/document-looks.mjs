@@ -490,13 +490,18 @@ export function headerPieces(text) {
 /** The letters Korean documents count with: 가, 나, 다, … */
 const HANGUL_ORDER = '가나다라마바사아자차카타파하'
 
+/** A month and a day as Korean documents write them: 11. 12. */
+const MONTH_DAY = String.raw`(?:0?[1-9]|1[0-2])\.\s*(?:0?[1-9]|[12]\d|3[01])\.`
+
 /**
  * A line that starts with a date as Korean documents write one: a month and a day followed
- * by the weekday in brackets (11. 12.(목)) or by a time (11. 12. 09:00). A number followed by
- * a reference to another part (10. 1.~3.의, 1. 2.(가)를) is not a date.
+ * by the weekday in brackets (11. 12.(목)), by a time (11. 12. 09:00), by a range to another
+ * month and day (11. 12.~11. 14.) or by nothing (12. 25.). A number followed by a reference
+ * to another part (10. 1.~3.의, 1. 2.(가)를) is not a date.
  */
-export const DATE_START =
-  /^(?:0?[1-9]|1[0-2])\.\s+(?:0?[1-9]|[12]\d|3[01])\.\s*(?:\([월화수목금토일](?:요일)?\)|\d{1,2}:\d{2})/
+export const DATE_START = new RegExp(
+  String.raw`^${MONTH_DAY.replace('\\s*', '\\s+')}\s*(?:\([월화수목금토일](?:요일)?\)|\d{1,2}:\d{2}|~\s*${MONTH_DAY}|$)`,
+)
 
 /**
  * How the numbered levels of a Korean official document start, named by the first number of
