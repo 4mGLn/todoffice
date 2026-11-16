@@ -34,14 +34,23 @@
  *   deletes the table a selection or a caret points at, in the body or in a
  *   cell, and the three paths call it: the inner table goes, the outer stays.
  *
- * studio-nested-table-refusal, studio-nested-table-move-drag
+ * studio-nested-table-dispatch, studio-nested-table-path-calls, studio-nested-table-keys,
+ * studio-textbox-table-cell-block, studio-textbox-table-context-menu, studio-nested-table-move-drag
  *   The other table commands name their table by the outer table's numbers (the caret's
  *   parentParaIndex/controlIndex/cellIndex, a cell block's or a selected table's sec/ppi/ci),
  *   so in a table inside a cell or a text box they changed the outer table: a row went into
  *   the form, M merged its cells. The dispatcher asks studio-plugin/hancom-keys.mjs
- *   (refuseInNestedTable) before an enabled command runs; there the listed commands leave the
- *   document alone and say why. A selected table there is not dragged either (its move took
- *   the outer table too); the module stops the arrow keys that move it.
+ *   (nestedTableCommand) before an enabled command runs. There the editing commands run with
+ *   services whose bridge sends a flat table call named with those numbers to the path call
+ *   for the inner table (vendor/rhwp-core patch 0055; the bridge gains those calls) and whose
+ *   edits are one snapshot on it. (The studio's list of document-changing bridge calls,
+ *   core/mutation-method-registry.ts, is read only by its own tests, which the build does not
+ *   compile; it is left as it is.) The others (split, captions, formulas, transposing, order,
+ *   wrap) leave the document alone and say why. Tab in the last cell of an inner table adds a row to it, as in a body
+ *   table and as Hangul does. A table in a text box is a table to the keys too: Tab moves
+ *   between its cells, F5 opens a cell block and a right click gives the table cell menu (the
+ *   studio had them for tables in cells only). A selected inner table is not dragged or moved
+ *   by the arrow keys (the move takes the outer table's numbers).
  *
  * studio-hancom-shortcuts, studio-hancom-labels, studio-hancom-commands,
  * studio-hancom-equal-cells, studio-hancom-chords
@@ -336,14 +345,14 @@ const PATCHES = {
       "          operationType: 'deleteTable',",
     ].join('\n'),
   },
-  'studio-nested-table-refusal': {
+  'studio-nested-table-dispatch': {
     file: /[\\/]rhwp-studio[\\/]src[\\/]command[\\/]dispatcher\.ts$/,
     edits: [
       {
         find: "import type { CommandResult, CommandServices, EditorContext } from './types';",
         replace:
           "import type { CommandResult, CommandServices, EditorContext } from './types';\n" +
-          `import { refuseInNestedTable } from '${HANCOM_KEYS_MODULE}';`,
+          `import { nestedTableCommand } from '${HANCOM_KEYS_MODULE}';`,
       },
       {
         find: [
@@ -351,20 +360,197 @@ const PATCHES = {
           '      // canExecute 실패 — 비활성 상태',
           "      return { ok: false, reason: 'disabled' };",
           '    }',
+          '',
+          '    try {',
+          '      def.execute(this.services, params);',
         ].join('\n'),
         replace: [
           '    if (def.canExecute && !def.canExecute(ctx)) {',
           '      // canExecute 실패 — 비활성 상태',
           "      return { ok: false, reason: 'disabled' };",
           '    }',
-          '    // ieum: in a table inside a cell or a text box the command would change the outer',
-          '    // table; the app says so and leaves the document alone',
-          '    if (refuseInNestedTable(commandId, this.services)) {',
+          '    // ieum: a table command on a table inside a cell or a text box runs on that table by',
+          '    // its path (the outer numbers would change the outer table), or is refused with the reason',
+          '    const nested = nestedTableCommand(commandId, this.services);',
+          '    if (nested === false) {',
           "      return { ok: false, reason: 'disabled', message: 'nested-table' };",
           '    }',
+          '',
+          '    try {',
+          '      def.execute(nested ?? this.services, params);',
         ].join('\n'),
       },
     ],
+  },
+  'studio-nested-table-path-calls': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]core[\\/]wasm-bridge\.ts$/,
+    find: '  getTableDimensionsByPath(sec: number, parentPara: number, pathJson: string): TableDimensions {',
+    replace: [
+      '  // ieum: the flat table calls for the table a cell path names, inside a cell or a text box',
+      '  // (vendor/rhwp-core patch 0055). The path ends at the table; the answers are the flat ones.',
+      '  insertTableRowByPath(sec: number, parentPara: number, pathJson: string, rowIdx: number, below: boolean): { ok: boolean; rowCount: number; colCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.insertTableRowByPath(sec, parentPara, pathJson, rowIdx, below));',
+      '  }',
+      '',
+      '  insertTableColumnByPath(sec: number, parentPara: number, pathJson: string, colIdx: number, right: boolean): { ok: boolean; rowCount: number; colCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.insertTableColumnByPath(sec, parentPara, pathJson, colIdx, right));',
+      '  }',
+      '',
+      '  deleteTableRowByPath(sec: number, parentPara: number, pathJson: string, rowIdx: number): { ok: boolean; rowCount: number; colCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.deleteTableRowByPath(sec, parentPara, pathJson, rowIdx));',
+      '  }',
+      '',
+      '  deleteTableColumnByPath(sec: number, parentPara: number, pathJson: string, colIdx: number): { ok: boolean; rowCount: number; colCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.deleteTableColumnByPath(sec, parentPara, pathJson, colIdx));',
+      '  }',
+      '',
+      '  mergeTableCellsByPath(sec: number, parentPara: number, pathJson: string, startRow: number, startCol: number, endRow: number, endCol: number): { ok: boolean; cellCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.mergeTableCellsByPath(sec, parentPara, pathJson, startRow, startCol, endRow, endCol));',
+      '  }',
+      '',
+      '  splitTableCellByPath(sec: number, parentPara: number, pathJson: string, row: number, col: number): { ok: boolean; cellCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.splitTableCellByPath(sec, parentPara, pathJson, row, col));',
+      '  }',
+      '',
+      '  splitTableCellIntoByPath(',
+      '    sec: number, parentPara: number, pathJson: string, row: number, col: number,',
+      '    nRows: number, mCols: number, equalRowHeight: boolean, mergeFirst: boolean,',
+      '  ): { ok: boolean; cellCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.splitTableCellIntoByPath(sec, parentPara, pathJson, row, col, nRows, mCols, equalRowHeight, mergeFirst));',
+      '  }',
+      '',
+      '  splitTableCellsInRangeByPath(',
+      '    sec: number, parentPara: number, pathJson: string,',
+      '    startRow: number, startCol: number, endRow: number, endCol: number,',
+      '    nRows: number, mCols: number, equalRowHeight: boolean,',
+      '  ): { ok: boolean; cellCount: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.splitTableCellsInRangeByPath(sec, parentPara, pathJson, startRow, startCol, endRow, endCol, nRows, mCols, equalRowHeight));',
+      '  }',
+      '',
+      '  getCellOwnPropertiesByPath(sec: number, parentPara: number, pathJson: string, cellIdx: number): CellProperties {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.getCellOwnPropertiesByPath(sec, parentPara, pathJson, cellIdx));',
+      '  }',
+      '',
+      "  setCellPropertiesByPath(sec: number, parentPara: number, pathJson: string, cellIdx: number, props: Partial<CellProperties>): ReturnType<WasmBridge['setCellProperties']> {",
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.setCellPropertiesByPath(sec, parentPara, pathJson, cellIdx, JSON.stringify(props)));',
+      '  }',
+      '',
+      '  setCellZonePropertiesByPath(',
+      '    sec: number, parentPara: number, pathJson: string,',
+      '    range: { startRow: number; startCol: number; endRow: number; endCol: number },',
+      '    props: Partial<CellProperties>,',
+      "  ): ReturnType<WasmBridge['setCellZoneProperties']> {",
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.setCellZonePropertiesByPath(',
+      '      sec, parentPara, pathJson, range.startRow, range.startCol, range.endRow, range.endCol, JSON.stringify(props),',
+      '    ));',
+      '  }',
+      '',
+      "  applyCellBorderFillIdsByPath(sec: number, parentPara: number, pathJson: string, payload: Parameters<WasmBridge['applyCellBorderFillIds']>[3]): { ok: boolean } {",
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.applyCellBorderFillIdsByPath(sec, parentPara, pathJson, JSON.stringify(payload)));',
+      '  }',
+      '',
+      '  getTablePropertiesByPath(sec: number, parentPara: number, pathJson: string): TableProperties {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.getTablePropertiesByPath(sec, parentPara, pathJson));',
+      '  }',
+      '',
+      '  setTablePropertiesByPath(sec: number, parentPara: number, pathJson: string, props: Partial<TableProperties>): { ok: boolean } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.setTablePropertiesByPath(sec, parentPara, pathJson, JSON.stringify(props)));',
+      '  }',
+      '',
+      '  resizeTableCellByPath(',
+      '    sec: number, parentPara: number, pathJson: string,',
+      '    row: number, col: number, vertical: boolean, forward: boolean,',
+      '  ): { ok: boolean; moved?: boolean; reason?: string } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.resizeTableCellByPath(sec, parentPara, pathJson, row, col, vertical, forward));',
+      '  }',
+      '',
+      '  setTableCellExtentsByPath(',
+      '    sec: number, parentPara: number, pathJson: string, vertical: boolean,',
+      '    extents: Array<{ cellIdx: number; start: number; end: number }>,',
+      '  ): { ok: boolean; reason?: string } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse(this.doc.setTableCellExtentsByPath(sec, parentPara, pathJson, vertical, JSON.stringify(extents)));',
+      '  }',
+      '',
+      '  getTableDimensionsByPath(sec: number, parentPara: number, pathJson: string): TableDimensions {',
+    ].join('\n'),
+  },
+  'studio-nested-table-keys': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-keyboard\.ts$/,
+    edits: [
+      // Tab in the last cell of a table inside a cell or a text box adds a row to that table
+      {
+        find: 'function insertRowAfterLastTableCellByTab(this: any): boolean {',
+        replace: [
+          `import { innerTableTabRow } from '${HANCOM_KEYS_MODULE}';`,
+          '',
+          'function insertRowAfterLastTableCellByTab(this: any): boolean {',
+        ].join('\n'),
+      },
+      {
+        find: '  if (isNestedCellPosition(pos)) return false;',
+        replace: '  if (isNestedCellPosition(pos)) return innerTableTabRow(this);',
+      },
+      // a table in a text box takes Tab as a table does (Hangul moves to the next cell there)
+      {
+        find: [
+          '      if (this.cursor.isInCell() && !this.cursor.isInTextBox()) {',
+          '        if (e.shiftKey) {',
+          '          this.cursor.moveToCellPrev();',
+        ].join('\n'),
+        replace: [
+          '      if (this.cursor.isInCell() && (!this.cursor.isInTextBox() || this.cursor.nestingDepth() > 1)) {',
+          '        if (e.shiftKey) {',
+          '          this.cursor.moveToCellPrev();',
+        ].join('\n'),
+      },
+      // and F5 opens a cell block there
+      {
+        find: [
+          '    if (this.cursor.isInCell() && !this.cursor.isInTextBox()) {',
+          '      if (this.cursor.isInCellSelectionMode()) {',
+        ].join('\n'),
+        replace: [
+          '    if (this.cursor.isInCell() && (!this.cursor.isInTextBox() || this.cursor.nestingDepth() > 1)) {',
+          '      if (this.cursor.isInCellSelectionMode()) {',
+        ].join('\n'),
+      },
+    ],
+  },
+  'studio-textbox-table-cell-block': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]cursor\.ts$/,
+    find: [
+      "  enterCellSelectionMode(reason: CellSelectionReason = 'manual'): boolean {",
+      '    if (!this.isInCell() || this.isInTextBox()) return false;',
+    ].join('\n'),
+    replace: [
+      "  enterCellSelectionMode(reason: CellSelectionReason = 'manual'): boolean {",
+      '    // ieum: a table in a text box takes a cell block as any table; the text box itself does not',
+      '    if (!this.isInCell() || (this.isInTextBox() && this.nestingDepth() < 2)) return false;',
+    ].join('\n'),
+  },
+  'studio-textbox-table-context-menu': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-mouse\.ts$/,
+    find: '    inTable = hit.parentParaIndex !== undefined && !hit.isTextBox;',
+    replace: [
+      "    // ieum: a table in a text box gets the table cell menu (Hangul's), the text box itself not",
+      '    inTable = hit.parentParaIndex !== undefined && (!hit.isTextBox || (hit.cellPath?.length ?? 0) > 1);',
+    ].join('\n'),
   },
   'studio-nested-table-move-drag': {
     file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-mouse\.ts$/,
@@ -1332,7 +1518,11 @@ export const STUDIO_PATCHES = /** @type {const} */ ([
   'studio-nested-table-delete',
   'studio-nested-table-cut',
   'studio-nested-table-command',
-  'studio-nested-table-refusal',
+  'studio-nested-table-dispatch',
+  'studio-nested-table-path-calls',
+  'studio-nested-table-keys',
+  'studio-textbox-table-cell-block',
+  'studio-textbox-table-context-menu',
   'studio-nested-table-move-drag',
   'studio-hancom-shortcuts',
   'studio-hancom-labels',
@@ -1487,6 +1677,7 @@ export const hancomHooks = [
       'isInHeaderFooter(): boolean',
       'isInFootnote(): boolean',
       'isInTextBox(): boolean',
+      'nestingDepth(): number',
       'isInPictureObjectSelection(): boolean',
       'isInTableObjectSelection(): boolean',
       'getPosition(): DocumentPosition',
@@ -1604,6 +1795,9 @@ export const hancomHooks = [
       'getCellParagraphLengthByPath(sec: number, parentPara: number, pathJson: string)',
       'getTableDimensionsByPath(sec: number, parentPara: number, pathJson: string)',
       'getCellInfoByPath(sec: number, parentPara: number, pathJson: string)',
+      // a table inside a cell or a text box (innerTableBridge): the path calls upstream already has
+      'getTableCellBboxesByPath(sec: number, parentPara: number, pathJson: string): CellBbox[]',
+      'resizeTableCellsByPath(',
       'runInBatch<T>(fn: () => T): T',
       // the cell copy's table HTML and the 셀 붙이기 dialog's new rows and columns
       "exportControlHtml(sec: number, para: number, ci: number, cellPathJson = ''): string",
