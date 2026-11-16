@@ -5882,12 +5882,13 @@ function columnsChangeWithin(doc) {
 /**
  * The columns the text runs in at body paragraph `para` of section `sec`: how many and how
  * wide one is, in points, and `lineWidthPt`, how wide the paragraph's first line may run
- * where it is laid out; null where that cannot be read. A section starts in the columns
+ * where it is laid out (always after a mid-section definition, given `line` in the columns
+ * a section starts with); null where that cannot be read. A section starts in the columns
  * getColumnDef reads. No engine call reads a column definition set part way through it (as
  * a test-paper form sets two columns under a head in one), so after one the columns are
  * read from where the paragraph's lines are laid out (columnsWhereLaid).
  */
-function columnsAt(doc, sec, para) {
+function columnsAt(doc, sec, para, { line = false } = {}) {
   let first = 0
   for (let s = 0; s < sec; s++) first += doc.getParagraphCount(s)
   let controls = []
@@ -5908,7 +5909,13 @@ function columnsAt(doc, sec, para) {
       control.para <= first + para,
   )
   if (laterDefinition) return columnsWhereLaid(doc, sec, para)
-  return { count: columnsOf(doc, sec).count, widthPt: columnWidthPt(doc, sec) }
+  const { count } = columnsOf(doc, sec)
+  const laid = line && count > 1 ? columnsWhereLaid(doc, sec, para) : null
+  return {
+    count,
+    widthPt: columnWidthPt(doc, sec),
+    ...(laid?.lineWidthPt ? { lineWidthPt: laid.lineWidthPt } : {}),
+  }
 }
 
 /**
@@ -9617,7 +9624,7 @@ export const agentPlugin = {
           // above the box
           if (NUMBERED_HEADS.has(parse(doc.getParaPropertiesAt(sec, para)).headType))
             return refuse('numbered')
-          const columns = columnsAt(doc, sec, para)
+          const columns = columnsAt(doc, sec, para, { line: true })
           if (!columns) return refuse('columns_unknown')
           return { box, text, length, columns }
         }

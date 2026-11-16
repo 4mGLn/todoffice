@@ -3945,6 +3945,25 @@ describe('a test paper in two columns', () => {
     expect(box.x + box.w).toBeLessThanOrEqual(text.x + column + 2)
   })
 
+  it.each([
+    ['a left margin', { marginLeft: 40 }],
+    ['a first-line indent', { indent: 15 }],
+  ])(
+    'keeps a title box on a line with %s inside its column in columns the section starts with',
+    (_name, look) => {
+      const { plugin, doc } = open(blank(['']))
+      plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 30))
+      plugin.setColumns({ count: 2 })
+      plugin.formatParagraph(QUESTIONS[4]!, null, look)
+      expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toMatchObject({
+        ok: true,
+      })
+      const box = drawnTable(doc(), 4)
+      const column = box.columns.find((one) => box.x >= one.x - 2 && box.x <= one.x + one.width)!
+      expect(box.x + box.w).toBeLessThanOrEqual(column.x + column.width + 1)
+    },
+  )
+
   it('takes a table as wide as the text in a part set back to one column no page starts in', async () => {
     const { plugin, doc } = open(
       await zoned(QUESTIONS.slice(0, 12), [
