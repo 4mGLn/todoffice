@@ -2015,8 +2015,7 @@ function missingStyle(doc, spec) {
  * Whether the words of the document are in the default look, the document's first paragraph
  * style (바탕글) with no paragraph or character formatting of their own: `body` for the body
  * paragraphs, `tables` for the cells of its tables (title boxes are tables too; null without
- * a table, and a table inside a cell is not looked into). Each stops at the first paragraph
- * that is not.
+ * a table, and a table inside a cell is not looked into).
  */
 function plainLookOf(doc) {
   const base = parse(doc.getStyleList())[0]
@@ -2086,8 +2085,8 @@ const MAX_HANG_PT = 100
 const SAME_MARK_PT = 0.3
 
 /**
- * The last caret place of paragraph k on the line that starts at caret place `from` (a
- * line break offset reports the end of the line it ends), found by halving.
+ * The caret rect of the last place of paragraph k on the line that starts at caret place
+ * `from` (a line break offset reports the end of the line it ends).
  */
 function lineEndOf(box, k, from, length) {
   const top = box.rect(k, from)
@@ -2107,7 +2106,8 @@ function lineEndOf(box, k, from, length) {
  * the engine gives the spaces of a justified line all the room the line has to spare, and
  * its diagnostic gives the line's natural width. With the drawn width up to the trailing
  * spaces (D), the natural width (N), the trailing spaces (t), the inner spaces (n) and the
- * drawn advance of one inner space (d = space + widening): widening = (D - N + t·d) / (n + t).
+ * drawn advance of one space, an inner one when there is one (d = space + widening):
+ * widening = (D - N + t·d) / (n + t).
  */
 function spaceWideningOf(box, k, lead, line) {
   const text = String(line.text ?? '')
@@ -2125,11 +2125,12 @@ function spaceWideningOf(box, k, lead, line) {
 
 /**
  * How paragraph k hangs by its mark (markLengthOf, with `rule` when a style rule named it):
- * `{ width }` in points to a tenth (`{ empty: true }` for a paragraph with no words), the mark and the spaces after it as set without
- * justification, in the font and size the paragraph has now; `{ none: true }` without a
- * mark; `{ unmeasured: true }` where the width cannot be read (a cell line widened by
- * justification, a line spread out letter by letter, a tab whose stop moves with the first
- * line's indent); `{ tooWide: true }` for a hang past MAX_HANG_PT or half the line.
+ * `{ width }` in points to a tenth, the mark and the spaces after it as set without
+ * justification, in the font and size the paragraph has now; `{ empty: true }` for a
+ * paragraph with no words; `{ none: true }` without a mark; `{ unmeasured: true }` where the
+ * width cannot be read (a table inside a cell, a mark split over two lines, a cell line
+ * widened by justification, a line spread out letter by letter, a tab whose stop moves with
+ * the first line's indent); `{ tooWide: true }` for a hang past MAX_HANG_PT or half the line.
  */
 function markWidthOf(box, k, rule) {
   const length = box.length(k)
@@ -2182,9 +2183,10 @@ function markWidthOf(box, k, rule) {
  * Hang paragraphs by their marks (`items` are `[box, k, rule]`): each paragraph's lines after
  * the first start where the words after its mark start. With `styleId` the style takes the
  * width most of them have, and only the others are given an indent of their own. A paragraph
- * without a mark, or one whose width is not taken (markWidthOf), keeps the indent it has or
- * its style's. Returns how many got one of their own under the style, had no mark, could not
- * be measured, and would have hung too far.
+ * without a mark, or one whose width is not taken (markWidthOf), is given no indent of its
+ * own. Returns how many were hung, how many of those got one of their own under the style,
+ * and how many had no mark, could not be measured, or would have hung too far; a paragraph
+ * with no words is not counted.
  */
 function hangByMarks(doc, items, styleId = null) {
   const measured = []
@@ -2217,7 +2219,7 @@ function hangByMarks(doc, items, styleId = null) {
   return { ...outcome, hung: measured.length }
 }
 
-/** Body paragraphs with words that are in the document's first paragraph style (바탕글). */
+/** How many body paragraphs with words are in the document's first paragraph style (바탕글). */
 function defaultStyleParagraphs(doc) {
   const base = parse(doc.getStyleList())[0]
   let count = 0
@@ -9787,7 +9789,6 @@ export const agentPlugin = {
             }))
             .filter((rule) => rule.text !== null || rule.mark !== null)
           const withoutSpace = []
-          // lines a rule starts like but leaves out on purpose, by kind, the first one quoted
           const skipped = {}
           const skip = (kind, head) => {
             const found = skipped[kind] ?? { count: 0, first: head.slice(0, MAX_STARTS_WITH) }

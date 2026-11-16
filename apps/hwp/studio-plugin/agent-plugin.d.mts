@@ -1237,17 +1237,17 @@ export interface AgentDocumentShape extends AgentPaper {
   /** a later part of the document sets other columns */
   columnsChangeWithin?: true
   /**
-   * whether the words with text are plain 바탕글, formatted nowhere: in the body, and in the
-   * table cells (title boxes included; null without a table)
+   * whether the text is plain 바탕글, formatted nowhere: in the body, and in the table cells
+   * (title boxes included; null without a table)
    */
   plain: { body: boolean; tables: boolean | null }
 }
 
 /**
  * What indent "mark" did: paragraphs hung by their marks, those of them given an indent of
- * their own over their style (another width than most), and those it left with the indent
- * they had: no mark at their start, a width it could not read, or a hang past 100 pt or
- * half the line.
+ * their own over their style (another width than most), and those it gave no indent of their
+ * own: no mark at their start, a width it could not read, or a hang past 100 pt or half the
+ * line.
  */
 export interface AgentHangOutcome {
   hung: number

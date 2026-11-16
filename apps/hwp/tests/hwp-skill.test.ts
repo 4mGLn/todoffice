@@ -4113,7 +4113,6 @@ describe('the skill as the model sees it', () => {
   it('never names a call of the editor plugin in a refusal the model reads', () => {
     const plugin = readFileSync(join(__dirname, '../studio-plugin/agent-plugin.mjs'), 'utf8')
     const skill = readFileSync(join(__dirname, '../src/renderer/ai/hwp-skill.ts'), 'utf8')
-    // the plugin's calls are camelCase (styleParagraphs); the model knows the tools (style_paragraphs)
     const calls = [...plugin.matchAll(/^ {6}([a-z]+[A-Z][A-Za-z]*): guarded\(/gm)].map((m) => m[1]!)
     expect(calls).toContain('styleParagraphs')
     const texts = [

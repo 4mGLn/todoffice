@@ -3063,17 +3063,17 @@ function hangNote(hang: AgentHangOutcome | undefined): string {
   }
   if (hang.noMark > 0) {
     parts.push(
-      `${hang.noMark} paragraph(s) have no mark at their start and keep the indent they had or their style's.`,
+      `${hang.noMark} paragraph(s) have no mark at their start and get no indent of their own: one they had stays, else they follow their style's.`,
     )
   }
   if (hang.unmeasured > 0) {
     parts.push(
-      `${hang.unmeasured} paragraph(s) could not be measured (a justified line of several lines in a table cell, a line spread letter by letter, or a tab after the mark under a first line set further in) and keep the indent they had or their style's.`,
+      `${hang.unmeasured} paragraph(s) could not be measured (a justified line of several lines in a table cell, a line spread letter by letter, or a tab after the mark under a first line set further in) and get no indent of their own: one they had stays, else they follow their style's.`,
     )
   }
   if (hang.tooWide > 0) {
     parts.push(
-      `${hang.tooWide} paragraph(s) would hang further than 100 pt or half their line and keep the indent they had or their style's.`,
+      `${hang.tooWide} paragraph(s) would hang further than 100 pt or half their line and get no indent of their own: one they had stays, else they follow their style's.`,
     )
   }
   return parts.join(' ')
