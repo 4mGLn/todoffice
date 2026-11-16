@@ -3087,6 +3087,11 @@ function hangNote(hang: AgentHangOutcome | undefined, lead = true): string {
       `${hang.unread} paragraph(s) in tables inside table cells were not looked at, because the editor cannot tell their style there; their first-line indent stays as it was.`,
     )
   }
+  if (hang.unreachedShapes) {
+    parts.push(
+      `${hang.unreachedShapes} drawn shape(s) inside table cells or other shapes could not be looked at, as the editor cannot read their text; a paragraph of this style in one follows the style's hang.`,
+    )
+  }
   if (hang.kept) {
     parts.push(
       `${hang.kept} paragraph(s) left unhung, empty ones included, were given the indent they had as their own, so the style's hang does not reach them.`,

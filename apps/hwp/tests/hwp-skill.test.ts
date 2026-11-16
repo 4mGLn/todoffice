@@ -3149,6 +3149,7 @@ describe('the look of a document', () => {
           outOfRange: 1,
           unread: 2,
           kept: 3,
+          unreachedShapes: 1,
         },
         paragraphs: 3,
         rules: [
@@ -3188,6 +3189,9 @@ describe('the look of a document', () => {
     expect(result.output).toContain('1 paragraph(s) are aligned right, centred or spread')
     expect(result.output).toContain(
       '3 paragraph(s) left unhung, empty ones included, were given the indent they had as their own',
+    )
+    expect(result.output).toContain(
+      '1 drawn shape(s) inside table cells or other shapes could not be looked at',
     )
     expect(result.output).toContain(
       '1 paragraph(s) have a field, its guide or another object before or inside the mark',

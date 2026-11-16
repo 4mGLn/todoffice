@@ -1366,6 +1366,43 @@ describe('indent "mark" on lines that keep their spaces', () => {
     expect(indentOf(doc(), 4)).toBe(indentOf(doc(), 0))
   })
 
+  it('hangs the marked paragraphs of a style in a text box and keeps the indent of the others', () => {
+    const start = blank([`○ 항목 ${WRAPPING}`, '', ''])
+    const boxes = [1, 2].map((para) => {
+      const made = JSON.parse(
+        start.createShapeControl(
+          JSON.stringify({
+            sectionIdx: 0,
+            paraIdx: para,
+            charOffset: 0,
+            width: 30000,
+            height: 12000,
+            horzOffset: 0,
+            vertOffset: 0,
+            treatAsChar: true,
+          }),
+        ),
+      ) as { paraIdx: number; controlIdx: number }
+      start.setTextBoxAt(made.paraIdx, made.controlIdx, true)
+      return JSON.stringify([{ controlIndex: made.controlIdx, cellIndex: 0, cellParaIndex: 0 }])
+    })
+    start.insertTextInCellByPath(0, 1, boxes[0]!, 0, `상자 산문 ${WRAPPING}`)
+    start.insertTextInCellByPath(0, 2, boxes[1]!, 0, `○ 상자 항목 ${WRAPPING}`)
+    const { plugin, doc } = open(start)
+    const boxIndent = (para: number) =>
+      (
+        JSON.parse(doc().getCellParaPropertiesAtByPath(0, para, boxes[para - 1]!)) as {
+          indent: number
+        }
+      ).indent
+    expect(plugin.editStyle('바탕글', { format: { indent: 'mark' } })).toMatchObject({
+      ok: true,
+      hang: { hung: 2 },
+    })
+    expect(boxIndent(1)).toBe(0)
+    expect(boxIndent(2)).toBeLessThan(0)
+  })
+
   it('changes nothing when format_paragraph with "mark" alone hangs nothing', () => {
     const start = blank([`○ 하나 ${WRAPPING}`])
     start.applyParaFormat(0, 0, JSON.stringify({ alignment: 'center' }))

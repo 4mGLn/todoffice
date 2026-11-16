@@ -1295,6 +1295,11 @@ export interface AgentHangOutcome {
    * the hang their style took does not reach them
    */
   kept?: number
+  /**
+   * drawn shapes inside table cells or other shapes, whose text the editor cannot read: a
+   * paragraph of the style in one follows the style's hang
+   */
+  unreachedShapes?: number
 }
 
 /** A section's page setup, in millimetres. */

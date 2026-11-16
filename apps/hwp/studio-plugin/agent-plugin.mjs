@@ -1587,14 +1587,22 @@ function containerOf(doc, hit) {
     columnPt:
       path.length === 1
         ? (k) => {
-            const cell = parse(doc.getCellProperties(sec, para, last.controlIndex, last.cellIndex))
+            // a text box is addressed as a table of one cell, but its size is the shape's
+            const inner =
+              tryOr(() => {
+                const cell = parse(
+                  doc.getCellProperties(sec, para, last.controlIndex, last.cellIndex),
+                )
+                return cell.width - cell.paddingLeft - cell.paddingRight
+              }, null) ??
+              tryOr(() => {
+                const shape = parse(doc.getShapeProperties(sec, para, last.controlIndex))
+                return shape.width - shape.tbMarginLeft - shape.tbMarginRight
+              }, NaN)
             const { marginLeft, marginRight } = parse(
               doc.getCellParaPropertiesAtByPath(sec, para, at(k)),
             )
-            return (
-              (cell.width - cell.paddingLeft - cell.paddingRight) / 100 -
-              ptOfPx(Number(marginLeft) + Number(marginRight))
-            )
+            return inner / 100 - ptOfPx(Number(marginLeft) + Number(marginRight))
           }
         : null,
     runLooks: (k, length) =>
@@ -2406,7 +2414,8 @@ function keepingIndents(items, change) {
  * words typed there later are not a marked line; so do the paragraphs of the tables inside
  * cells, whose style the engine cannot tell, as far as tablesOf finds those tables. Returns how many were hung,
  * how many of those got one of their own under the style, how many were left, by reason, and
- * how many of all those left were given the indent they had.
+ * how many of all those left were given the indent they had, and how many drawn shapes
+ * (shapesOutOfReach) the style's hang may reach unseen.
  */
 function hangByMarks(doc, items, styleId = null) {
   const { measured, outcome, left } = measureHangs(items)
@@ -2420,6 +2429,8 @@ function hangByMarks(doc, items, styleId = null) {
       alike(entry.width) > alike(best.width) ? entry : best,
     ).width
     const indent = -Math.round(common * PARA_UNITS_PER_PT)
+    const unreached = shapesOutOfReach(doc)
+    if (unreached > 0) outcome.unreachedShapes = unreached
     outcome.kept = keepingIndents([...left, ...nestedTableItems(doc)], () => {
       if (!doc.updateStyleShapes(styleId, '{}', JSON.stringify({ indent }))) {
         throw fail('ENGINE_REFUSED', 'the editor refused to change the style')
@@ -2450,9 +2461,44 @@ function defaultStyleParagraphs(doc) {
 }
 
 /**
+ * The text boxes (and other drawn shapes that hold text) of the body, as `{ sec, para,
+ * control }`: the engine addresses one as a table of one cell.
+ */
+function bodyTextBoxes(doc) {
+  const boxes = []
+  for (let sec = 0; sec < doc.getSectionCount(); sec++) {
+    for (let para = 0; para < doc.getParagraphCount(sec); para++) {
+      const controls = parse(doc.getControlTextPositions(sec, para)).length
+      for (let control = 0; control < controls; control++) {
+        const path = JSON.stringify([{ controlIndex: control, cellIndex: 0, cellParaIndex: 0 }])
+        const holdsText = tryOr(() => {
+          parse(doc.getShapeProperties(sec, para, control))
+          return doc.getCellParagraphCountByPath(sec, para, path) > 0
+        }, false)
+        if (holdsText) boxes.push({ sec, para, control })
+      }
+    }
+  }
+  return boxes
+}
+
+/**
+ * How many drawn shapes stand somewhere else than in a body paragraph (in a table cell or in
+ * another shape): the engine lists them but gives no address to read their text by.
+ */
+function shapesOutOfReach(doc) {
+  return tryOr(
+    () =>
+      parse(doc.getControls()).filter((control) => control.ctrlId === 'gso' && control.list !== 0)
+        .length,
+    0,
+  )
+}
+
+/**
  * The paragraphs that have paragraph style `styleId`, as hang items: the body of every
- * section and the cells of the tables in it. The engine reads the style of a cell paragraph
- * by table and cell number only, so a table inside a cell is not looked into.
+ * section, the cells of the tables in it and its text boxes. The engine reads the style of a
+ * cell paragraph by table and cell number only, so a table inside a cell is not looked into.
  */
 function paragraphsOfStyle(doc, styleId) {
   const items = []
@@ -2473,6 +2519,14 @@ function paragraphsOfStyle(doc, styleId) {
         const hit = { sec: table.sec, para: table.para, cellPath: cellAt(table.path, cell, k) }
         items.push([containerOf(doc, hit), k, null])
       }
+    }
+  }
+  for (const { sec, para, control } of bodyTextBoxes(doc)) {
+    const path = [{ controlIndex: control, cellIndex: 0, cellParaIndex: 0 }]
+    const count = doc.getCellParagraphCountByPath(sec, para, JSON.stringify(path))
+    for (let k = 0; k < count; k++) {
+      if (parse(doc.getCellStyleAt(sec, para, control, 0, k)).id !== styleId) continue
+      items.push([containerOf(doc, { sec, para, cellPath: cellAt(path, 0, k) }), k, null])
     }
   }
   return items
