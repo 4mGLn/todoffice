@@ -49,7 +49,7 @@
 
 구현
 
-- 빌드 패치로 한다. 끌기 계산은 `apps/hwp/studio-plugin/object-drag.mjs`, 키와 Alt+클릭은 `studio-plugin/hancom-keys.mjs`(`hancomPictureObjectKey`, `hancomAltClickObject`)에 둔다. 편집기에는 그것을 부르는 패치(`studio-hancom-object-drag`, `-drag-cancel`, `-step`, `-alt-click`)와 연속키 패치의 한 줄만 건다.
+- 빌드 패치로 한다. 끌기 계산은 `apps/hwp/studio-plugin/object-drag.mjs`, 키와 Alt+클릭은 `studio-plugin/hancom-keys.mjs`(`hancomPictureObjectKey`, `hancomAltClickObject`)에 둔다. 편집기에는 그것을 부르는 패치(`studio-hancom-object-drag`, `-drag-cancel`, `-step`, `-mouse`), 엔진의 복제 호출을 브리지에 더하는 패치(`studio-object-duplicate`), 연속키 패치의 한 줄만 건다.
 - 크기·위치·배치·자르기는 편집기의 개체 속성 호출로, 순서는 엔진의 순서 호출로, 복사는 엔진의 새 호출로 쓴다.
 - 엔진 패치 셋을 더한다(`vendor/rhwp-core`, 0.9.0-ieum.31, 결정 0050의 방식). 0052: 자르기 양을 개체의 원래 크기가 아니라 그림의 원본 좌표 범위(imgDim)로 재고, 그 범위를 그림 속성(`cropExtentWidth`·`cropExtentHeight`)으로 내주고, 그림 크기 되돌리기 기록이 자르기도 보관한다. 고치기 전에는 앱이 넣은 그림을 이미 잘린 것으로 읽고 자르기 값을 쓰면 그림 밖을 잡아 그림이 사라졌다. 0053: 순서 바꾸기와 그 되돌리기가 그림도 도형과 함께 세운다. 0054: 떠 있는 그림·도형을 같은 문단의 원본 뒤에 복제하는 `duplicateFloatingControl`. 붙이기와 달리 문단을 나누지 않아 본문이 밀리지 않는다. 저장 형식은 바꾸지 않는다(자르기·순서·개체는 한글이 쓰는 그 필드다).
 
@@ -64,4 +64,4 @@
 
 - 그림은 모서리를 끌면 비율이 유지되고 Shift를 누르면 잘리며, 도형·글상자는 Shift를 누르고 끌면 비율이 유지된다. 옮기는 중의 Shift·Ctrl·Esc, 개체를 고른 상태의 한컴 키, Alt+클릭이 한컴처럼 동작한다. 도움말 "키보드 단축키"의 한글 절에 22개 언어로 적었다.
 - 남은 것: Tab에 표와 선 넣기, 조절점 Ctrl의 한컴 동작 확인, 회전한 그림 자르기, 다른 쪽으로 Ctrl+끌기. 엔진 패치 셋은 상위에 내지 않았다.
-- 확인: 순수 함수와 키 시험(`apps/hwp/tests/object-drag.test.ts`, `object-keys.test.ts`), 패치가 받아 둔 v0.9.0 소스에 한 번씩 걸리고 패치한 편집기 계산이 비율을 지키는지(`tests/rhwp-patches.test.ts`), 빌드한 앱에서 마우스와 키로 하는 화면 시험(`e2e/hwp-object-drag.spec.ts` 6건). 패치를 빼거나 키 처리를 끄고 빌드하면 화면 시험이 모두 실패한다.
+- 확인: 순수 함수와 키 시험(`apps/hwp/tests/object-drag.test.ts`, `object-keys.test.ts`), 패치가 받아 둔 v0.9.0 소스에 한 번씩 걸리고 패치한 편집기 계산이 비율을 지키는지(`tests/rhwp-patches.test.ts`), 엔진 패치 셋을 실제 엔진으로(`tests/engine-object-edits.test.ts`: 자르기 양과 자른 그림, 되돌리기, 그림 순서, 복제 뒤 문단 수와 저장), 빌드한 앱에서 마우스와 키로 하는 화면 시험(`e2e/hwp-object-drag.spec.ts` 9건: 자르기와 되돌리기, Ctrl+끌어 복사와 되돌리기, 그림의 Shift+PageUp/PageDown 포함). 끌기 패치를 빼거나 키 처리를 끄고 빌드하면 앞의 화면 시험 6건이 모두 실패한다. 자르기 화면 시험은 Shift를 끌기 도중에 누르므로, 편집기가 먼저 바꾼 크기로 배율을 재던 결함을 잡았다.
