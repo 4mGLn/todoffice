@@ -10,7 +10,9 @@ import {
   NUMBERED_WITHOUT_SPACE,
   numberedMarkOf,
   markLengthOf,
+  markSkipOf,
   startsWithMark,
+  DATE_START,
   BORDER_WIDTHS_MM,
   DOCUMENT_FONTS,
   PAGE_NUMBER_PLACES,
@@ -343,9 +345,11 @@ describe('the lines a style rule names', () => {
     const cases: [string, boolean][] = [
       ['11. 12.(목) 09:00 개회', false],
       ['11. 12. (목) 09:00 개회', false],
-      ['11. 12.~11. 14. 수학여행', false],
+      ['11. 12.~11. 14. 수학여행', true],
+      ['11. 12. 09:00 개회', false],
+      ['3. 2.(월요일) 입학식', false],
       ['3. 1.(금) 삼일절 행사', false],
-      ['12. 25.', false],
+      ['12. 25.', true],
       ['3. 0.5의 역수를 구하시오. [4점]', true],
       ['7. 1.5 km는 몇 m인가?', true],
       ['2. 2026. 4. 28.(화) 2교시에 실시한다.', true],
@@ -354,10 +358,23 @@ describe('the lines a style rule names', () => {
       ['1. 운영 방향', true],
       ['10. 다음 중 옳은 것은?', true],
       ['11. 12. 개회식', true],
+      ['10. 1.~3.의 내용을 정리하시오.', true],
+      ['1. 2.(가)를 읽고 답하시오.', true],
+      ['4. 5.(1)의 결과를 쓰시오.', true],
+      ['5. 12.(가)에 들어갈 말을 쓰시오', true],
     ]
     for (const [line, wanted] of cases) {
       expect(NUMBERED_MARKS['1.'].test(line), line).toBe(wanted)
     }
+  })
+
+  it('says why a line is left out: a placeholder, a cut line, a date', () => {
+    expect(markSkipOf('○○ 사업 담당자', '○')).toBe('placeholder')
+    expect(markSkipOf('- - - 절취선 - - -', '-')).toBe('cutLine')
+    expect(markSkipOf('○ 일시', '○')).toBeNull()
+    expect(markSkipOf('- - - 절취선 - - -', '- - -')).toBeNull()
+    expect(DATE_START.test('11. 12.(목) 09:00 개회')).toBe(true)
+    expect(DATE_START.test('1. 2.(가)를 읽고 답하시오.')).toBe(false)
   })
 
   it('tells a 가. line that lacks only the space after its mark', () => {

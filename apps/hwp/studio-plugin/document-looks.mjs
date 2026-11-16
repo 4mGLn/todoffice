@@ -494,11 +494,19 @@ const HANGUL_ORDER = '가나다라마바사아자차카타파하'
  * How the numbered levels of a Korean official document start, named by the first number of
  * each level (Ⅰ, 1., 가., 1), 가), (1), (가), ①), as the first characters of a paragraph tell
  * it, leading spaces aside. "1." is not the start of a decimal (1.5), of a year (2026.) or
- * of a date: a month, a day and then a bracket, a tilde or the end of the line (11. 12.(목)).
+ * of a date (DATE_START).
  */
+/**
+ * A line that starts with a date as Korean documents write one: a month and a day followed
+ * by the weekday in brackets (11. 12.(목)) or by a time (11. 12. 09:00). A number followed by
+ * a reference to another part (10. 1.~3.의, 1. 2.(가)를) is a question line.
+ */
+export const DATE_START =
+  /^(?:0?[1-9]|1[0-2])\.\s+(?:0?[1-9]|[12]\d|3[01])\.\s*(?:\([월화수목금토일](?:요일)?\)|\d{1,2}:\d{2})/
+
 export const NUMBERED_MARKS = {
   Ⅰ: /^(?:[Ⅰ-Ⅻ]+(?:[.\s]|$)|[IVX]{1,4}\.(?:\s|$))/,
-  '1.': /^(?!(?:0?[1-9]|1[0-2])\.\s+(?:0?[1-9]|[12]\d|3[01])\.(?!\d)\s*(?:\(|~|$))\d{1,2}\.(?!\d)/,
+  '1.': new RegExp(`^(?!${DATE_START.source.slice(1)})\\d{1,2}\\.(?!\\d)`),
   '가.': new RegExp(`^[${HANGUL_ORDER}]\\.(?:\\s|$)`),
   '1)': /^\d{1,2}\)/,
   '가)': new RegExp(`^[${HANGUL_ORDER}]\\)`),
@@ -528,15 +536,20 @@ function isCutLine(line) {
 }
 
 /**
- * Whether paragraph text `head`, its leading spaces already removed, is named by a rule that
- * gives a style to the lines starting with `mark`. A mark of one character skips a line where
- * the same character follows it with no space between (○○ 사업, a placeholder) and a cut
- * line; a longer mark names the line as it is given.
+ * Why a rule that gives a style to the lines starting with `mark` leaves paragraph text
+ * `head` (its leading spaces already removed) out although it starts so: a mark of one
+ * character skips a line where the same character follows it with no space between
+ * (`placeholder`: ○○ 사업) and a `cutLine`. Null when the line is not left out.
  */
+export function markSkipOf(head, mark) {
+  if (!head.startsWith(mark) || [...mark].length !== 1) return null
+  if (head.slice(mark.length).startsWith(mark)) return 'placeholder'
+  return isCutLine(head) ? 'cutLine' : null
+}
+
+/** Whether such a rule names paragraph text `head`; a longer mark names the line as given. */
 export function startsWithMark(head, mark) {
-  if (!head.startsWith(mark)) return false
-  if ([...mark].length !== 1) return true
-  return !head.slice(mark.length).startsWith(mark) && !isCutLine(head)
+  return head.startsWith(mark) && markSkipOf(head, mark) === null
 }
 
 /** A mark at the start of a line that is not a numbered level: □, ○, -, ※ and the like. */
