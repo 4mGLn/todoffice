@@ -83,6 +83,7 @@ const METHODS = [
   'insertTitleBox',
   'documentFonts',
   'pageCount',
+  'documentShape',
   'pageLayout',
   'setColumns',
   'insertBreak',

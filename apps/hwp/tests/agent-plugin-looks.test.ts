@@ -1029,6 +1029,39 @@ describe('indent "mark"', () => {
   })
 })
 
+describe('the limits of one call', () => {
+  it('states each limit and sends the rest to another call, and changes nothing', () => {
+    const { plugin, steps } = open()
+    const before = steps()
+    const many = (count: number) => Array.from({ length: count }, (_, index) => `문단 ${index + 1}`)
+    expect(() => plugin.insertParagraphs('', null, 'end', many(101))).toThrow(
+      /^paragraphs takes up to 100; send the rest in another call$/,
+    )
+    expect(() => plugin.insertEquations(many(61).map((find) => ({ find, script: 'x^2' })))).toThrow(
+      /^equations takes up to 60; send the rest in another call$/,
+    )
+    expect(() =>
+      plugin.styleParagraphs({
+        styles: many(13).map((name) => ({ name, format: { bold: true } })),
+      }),
+    ).toThrow(/^styles takes up to 12; send the rest in another call$/)
+    expect(() =>
+      plugin.styleParagraphs({
+        apply: many(41).map((find) => ({ style: '바탕글', find })),
+      }),
+    ).toThrow(/^apply takes up to 40 rules; send the rest in another call$/)
+    expect(() =>
+      plugin.insertTable(
+        TITLE,
+        null,
+        'after',
+        Array.from({ length: 101 }, () => many(4)),
+      ),
+    ).toThrow(/^a new table takes up to 400 cells; .* add_to_table in another call$/)
+    expect(steps()).toBe(before)
+  })
+})
+
 describe('the lines a style rule takes', () => {
   const LINES_OF_RULES = [
     '○○ 사업 담당자: 홍길동',
@@ -2186,6 +2219,13 @@ describe('a title box and the colour of its words', () => {
     })
     expect(kept).not.toHaveProperty('textColor')
     expect(titleColor(asked.doc())).toBe('#ffc000')
+  })
+
+  it('says what color of a title box colours when it is not a colour', () => {
+    const { plugin } = open()
+    expect(() => plugin.insertTitleBox(TITLE, null, { color: '진한 초록' })).toThrow(
+      /^color must look like #RRGGBB: the colour of the bands, lines, frame or fill; the words take textColor$/,
+    )
   })
 
   it('writes the title white when the colour the call names would not show on the dark fill', () => {

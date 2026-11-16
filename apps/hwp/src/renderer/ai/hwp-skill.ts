@@ -18,6 +18,7 @@ import type {
   AgentCellText,
   AgentChangeOptions,
   AgentCutCell,
+  AgentDocumentShape,
   AgentTallerRow,
   AgentEquation,
   AgentCheckBox,
@@ -203,7 +204,7 @@ const SYSTEM_PROMPT = [
   '- Add a table of plain-text cells, with a header row when the first row names the columns, and with its look: a grid, an open table without side lines or lines between rows only, the colour of the header, the widths of the columns and the size of its text (insert_table).',
   '- Add a picture in a new paragraph after or before an anchor paragraph, or at the end: a real picture found on the web (image_search, then insert_image with its address) or an illustration the app draws (generate_image). A picture is saved inside the document, so it travels with the file. Only insert pictures the user asked for.',
   '- Work on the tables that are already there: list them (list_tables), read one cell by cell (read_table), write text into its cells, many at once (fill_cells), tick the choice boxes of a form (check_boxes), add or remove rows and columns (add_to_table, remove_from_table), and remove a whole table (delete_table). After writing into cells, check that their text fits (check_layout): text that runs past the bottom of a cell is cut off in print.',
-  '- Change formatting: bold, italic, underline, strikethrough, font, font size, text colour, highlight and the character style of a piece of text (format_text); alignment, line spacing, first-line indent, margins, space above and below and the paragraph style of a paragraph, and the character formatting of a whole paragraph (format_paragraph); the background colour, the border lines and the vertical alignment of table cells (format_cells).',
+  '- Change formatting: bold, italic, underline, strikethrough, font, font size, text colour, highlight and the character style of a piece of text (format_text); alignment, line spacing, indents, margins, spacing, a border, a background, tab stops, a list and the paragraph style of a paragraph, and the character formatting of a whole paragraph (format_paragraph); the background, border lines, row heights, column widths, vertical alignment and text look of table cells (format_cells).',
   '- Give a whole document its look in one call: make paragraph styles and apply each one to every paragraph that starts with a mark such as □ or ○, or to a paragraph you name (style_paragraphs). Turn a title line into a title box: bands of colour, heavy lines, a frame or a fill (insert_title_box).',
   '- Number the pages, and write a header or a footer of one line (read_page_layout, set_page_number, set_header_footer).',
   '- Lay the text out in columns, and start a paragraph on a new page or in the next column (set_columns, insert_break).',
@@ -268,7 +269,7 @@ const SYSTEM_PROMPT = [
   '- Change the page setup only when the user asks. Margins and paper are in millimetres; say that pages may break differently afterwards.',
   '- A page number is set once for the document with set_page_number (its place, its shape, dashes or not); never type a page number into the text. A header or footer is one line with set_header_footer: {page} stands for the page number and {pages} for the number of pages. Read what is there first (read_page_layout): one laid out by hand, with a table or a picture, is left to the user.',
   '- Columns (set_columns) are for test papers, newsletters and the like. Write the text first, then set the columns, then add the tables: text written into columns already set runs past the foot of the page in this editor, and a table or title box added after them is one column wide. The head of the page, as wide as the page, is one table with across_columns in front of the first paragraph: put the title into it. insert_break starts a paragraph on a new page or in the next column, for example so that a question is not cut in two.',
-  '- For numbered or bulleted paragraphs use list on the paragraphs instead of typing 1. or ● into their text. Korean official documents often type their level marks (□, ㅇ, -, 1., 가.) as text: keep that scheme when the document uses it.',
+  "- In a document you write, type the numbers and marks of its levels as text (1., 가., □, ○), as the look below says. list gives paragraphs the editor's own numbers or bullets: use it when the user asks for that or the document numbers its paragraphs that way.",
   '',
   "## Copying another document's formatting",
   '- When the user asks to make this document look like an attached one, call read_formatting with that attachment, then read_formatting for this document, and match them: page setup (set_page_setup), note settings (set_note_settings), the styles both use (edit_style, create_style), and each kind of body paragraph (format_look for each look of this document that plays the role of a look of the other: body text with body text, headings with headings of the same level, quotations, captions).',
@@ -292,8 +293,8 @@ const SYSTEM_PROMPT = [
   '',
   '## The look of a document you write',
   '- When you write a document from scratch (an empty document, or one whose text is all in the default look) and neither a template nor a skill fixes its look, give it the look that kind of document has, without being asked: a run of default text is not a finished report. Decide the look from what the document is and who reads it, and keep it through the whole document.',
-  '- A report or a plan inside a public office, a school or a company (보고서, 계획서, written in 개조식): a title box; heading lines marked □ in a heavy gothic of 15 to 16 pt with space above; items marked ○ in a serif text face of 13 to 15 pt; sub-items marked - and notes marked ※ a little smaller; line spacing of 160 to 180 percent; each level set further in with margin_left (the top level at 0, where the text of the page starts) and given a negative indent as wide as its mark and the space after it, so that a second line starts under the text and not under the mark; tables with a shaded header row.',
-  '- Numbered levels, when the user asks for them or the organisation writes that way (Ⅰ, 1., 가., 1), 가), (1), (가), ① from the top level down, the order of Korean official documents): type the number as text at the start of each paragraph, and count each level from its first value again under a new parent. Give each level a style of its own and apply it with one rule by numbered ("1." is every 1. 2. 3. … paragraph, "가." every 가. 나. 다. …): the top level heaviest and largest and at margin_left 0, each level below lighter and with a margin_left about two characters larger than the one above, and each with a negative indent as wide as its number so that a second line starts under the text. Bold is for levels that hold short headings: a level whose lines are sentences stays regular.',
+  '- A report or a plan inside a public office, a school or a company (보고서, 계획서, written in 개조식): a title box; heading lines marked □ in a heavy gothic of 15 to 16 pt with space above; items marked ○ in a serif text face of 13 to 15 pt; sub-items marked - and notes marked ※ a little smaller; line spacing of 160 to 180 percent; each level set further in with margin_left (the top level at 0, where the text of the page starts) and given indent "mark", so that a second line starts under the text and not under the mark; tables with a shaded header row.',
+  '- Numbered levels, when the user asks for them or the organisation writes that way (Ⅰ, 1., 가., 1), 가), (1), (가), ① from the top level down, the order of Korean official documents): type the number as text at the start of each paragraph, and count each level from its first value again under a new parent. Give each level a style of its own and apply it with one rule by numbered ("1." is every 1. 2. 3. … paragraph, "가." every 가. 나. 다. …): the top level heaviest and largest and at margin_left 0, each level below lighter and with a margin_left about two characters larger than the one above, and each with indent "mark" so that a second line starts under the text. Bold is for levels that hold short headings: a level whose lines are sentences stays regular.',
   '- A test paper (시험지, 평가, 고사), from scratch or in a form that is open: read the skill hwp-exam-paper with use_skill before the first change, and follow it. A worksheet (학습지) or a quiz sheet is an ordinary document: the test-paper form (B4, approval box, points, page border, end mark) only when asked.',
   '- A notice or a letter to people outside (안내문, 가정통신문): a centred title with a frame or lines, full sentences in one text face of 11 to 12 pt at about 160 percent, the date and the sender centred or right-aligned at the end, and little decoration. A reply slip goes under a cut line: one paragraph of dashes with 절취선 in the middle, centred (type it as "- - - 절취선 - - -": the app writes as many dashes on each side as fit one line), and is a table of plain grid lines with the blanks to fill in.',
   '- An official letter (공문): no decoration; its fixed parts in one text face of 12 to 13 pt.',
@@ -411,7 +412,7 @@ const PARAGRAPH_FORMAT_SCHEMA = {
       color: { type: 'string', description: 'line colour as #RRGGBB; default black' },
     },
     description:
-      'a border of the paragraph (문단 테두리): a box round it, a line under a heading (bottom), a band at its left. Paragraphs in a row with the same border make one box. The lines stand at the edges of the text column whatever the margins of the paragraph are: margin_left and margin_right move only the words in, which is the room between line and words (6 to 10 pt in a box). space_before and space_after lie inside the box',
+      'a border of the paragraph (문단 테두리): a box round it, a line under a heading (bottom), a band at its left. Neighbours with the same border make one box. Its lines stand at the edges of the text column: margin_left and margin_right move only the words in (6 to 10 pt in a box), and space_before and space_after lie inside it',
   },
   background: {
     type: 'string',
@@ -421,7 +422,7 @@ const PARAGRAPH_FORMAT_SCHEMA = {
   indent: {
     type: ['number', 'string'],
     description:
-      'indent in points (-100 to 100), or "mark". Positive: the first line starts that much further in. Negative is the hanging indent of Hangul (내어쓰기): the first line stays at margin_left and the lines after it start that much further in. "mark" hangs each paragraph by the width of its mark and the space after it (□, ○, 1., 가.), measured in its own font and size, so that its second line starts under its text',
+      'indent in points (-100 to 100), or "mark". Positive: the first line starts that much further in. Negative is the hanging indent of Hangul (내어쓰기): the first line stays at margin_left and the lines after it start that much further in. "mark" hangs each paragraph by its own mark and the space after it (□, 1., 가.), so that its second line starts under its text',
   },
   margin_left: {
     type: 'number',
@@ -465,6 +466,18 @@ const PARAGRAPH_FORMAT_SCHEMA = {
     description:
       'the tab stops of the paragraph (탭 설정), in place of the ones it has: a tab character in its text runs to the next stop. [{ "leader": "dots" }] is one stop at the right edge with dots leading to it, as in a contents line; [] takes the stops away',
   },
+}
+
+/** The context's lines on the pages, the paper and columns, and whether the text is plain. */
+function documentShapeLines(shape: AgentDocumentShape): string[] {
+  const paper = shape.paper ?? `${shape.width} x ${shape.height} mm`
+  const later = shape.columnsChangeWithin ? ', other columns later in the document' : ''
+  return [
+    `Pages: ${shape.pages} (paper ${paper}, ${shape.orientation}, ${shape.columns} column(s)${later}).`,
+    shape.plain
+      ? 'Look: all text is in the default look (바탕글, nothing formatted).'
+      : 'Look: the text has a look of its own (styles or formatting).',
+  ]
 }
 
 /** Paragraph styles named in the context at most. */
@@ -685,7 +698,8 @@ const TOOLS: HwpToolDef[] = [
         paragraphs: {
           type: 'array',
           items: { type: 'string' },
-          description: 'the new paragraphs in order, each one line; "" is an empty line',
+          description:
+            'the new paragraphs in order, each one line, up to 100 a call; "" is an empty line',
         },
       },
       required: ['where', 'paragraphs'],
@@ -719,7 +733,7 @@ const TOOLS: HwpToolDef[] = [
         rows: {
           type: 'array',
           items: { type: 'array', items: { type: 'string' } },
-          description: 'the rows from top to bottom, each a list of cell texts',
+          description: 'the rows from top to bottom, each a list of cell texts; up to 400 cells',
         },
         header: {
           type: 'boolean',
@@ -782,7 +796,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'style_paragraphs',
     edits: true,
     description:
-      'Give paragraphs their look in one call (one undo step): make paragraph styles, or change the ones the document already has by that name, and apply them. Each apply rule gives its style to every body paragraph that starts with starts_with (leading spaces aside; table cells are left alone), or to the one paragraph find occurs in. A paragraph takes the first rule that names it. Use it to style a whole document after writing it: one style for each kind of line, told by the mark the line starts with.',
+      'Give paragraphs their look in one call (one undo step): make paragraph styles, or change the ones the document already has by that name, and apply them. Each apply rule gives its style to every body paragraph that starts with starts_with (leading spaces aside; table cells are left alone), or to the one paragraph find occurs in. Rules by find go first; any other paragraph takes the first rule that names it. A starts_with of one character skips a line where the same character follows with no space (○○) and a cut line; numbered "1." skips a date (11. 12.(목)). Up to 12 styles and 40 rules a call. Use it to style a whole document after writing it: one style for each kind of line, told by the mark the line starts with.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -839,7 +853,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_title_box',
     edits: true,
     description:
-      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title). The title keeps the font and size it has unless you pass others. Text inside a table is refused, a title box made before included: a box is never drawn again in place. One undo step.',
+      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title); color is the colour of those and text_color that of the words. The title keeps the font and size it has unless you pass others. Text inside a table is refused, a title box made before included: a box is never drawn again in place. One undo step.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -976,7 +990,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'format_paragraph',
     edits: true,
     description:
-      'Change the formatting of the whole paragraph that contains a piece of text: its alignment, line spacing, indent, margins, spacing and style, and character formatting for all of its text. Only the properties you pass change; a style is applied first and the rest goes over it.',
+      'Change the formatting of the whole paragraph that contains a piece of text: its alignment, line spacing, indent, margins, spacing, border, background, tab stops, list and style, and character formatting for all of its text. Only the properties you pass change; a style is applied first and the rest goes over it.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1026,7 +1040,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'format_selection',
     edits: true,
     description:
-      'Change the formatting of the text the user selected in the editor. Only the properties you pass change; the paragraph properties (align, line_spacing, indent, margins, spacing, style) apply to the whole paragraphs the selection is in.',
+      'Change the formatting of the text the user selected in the editor. Only the properties you pass change; the paragraph properties (align, line_spacing, indent, margins, spacing, border, background, tabs, list, style) apply to the whole paragraphs the selection is in.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1132,7 +1146,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'format_cells',
     edits: true,
     description:
-      'Change how cells of a table look: their background colour (or "none"), their border lines, a diagonal across them, and where their text sits between top and bottom. Name the cells as a list (cells, by row and column from 1 as read_table shows them; a merged cell by any place it covers), as a block (range), or leave both out for the whole table. A border names the edges it means: of a block or the whole table, outer is its outline and inner the lines between its cells; of a list each cell is on its own. Later borders go over earlier ones. Not for a table inside another table.',
+      'Change how cells of a table look: their background colour (or "none"), their border lines, a diagonal across them, where their text sits between top and bottom, the height of their rows, the widths of the columns and the look of their text. Name the cells as a list (cells, by row and column from 1 as read_table shows them; a merged cell by any place it covers), as a block (range), or leave both out for the whole table. A border names the edges it means: of a block or the whole table, outer is its outline and inner the lines between its cells; of a list each cell is on its own. Later borders go over earlier ones. Not for a table inside another table.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1640,7 +1654,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_equations',
     edits: true,
     description:
-      "Put equations (수식) into the body text, all of them in one call. Write the text first with a short placeholder where each equation goes, for example [[1]] and [[2]]; each item names its placeholder (find) and the equation in the script of Hangul's equation editor, and the equation takes the placeholder's place, as large as the text around it. The script is not LaTeX and has no backslashes: {a} over {b} is a fraction; sqrt {x} a root and root {3} of {x} a cube root; x^2 and x_1 raise and lower, with braces round more than one character (x^{n+1}, a_{ij}); times, div, +-, cdot, le, ge, ne, approx are × ÷ ± · ≤ ≥ ≠ ≈ (not <=, >=, !=); -> is an arrow and inf is ∞; Greek letters by name (alpha, beta, pi, theta, and DELTA for a capital); limits go on with _ and ^: sum _{i=1} ^{n}, int _{a} ^{b}, lim _{x -> 0}; LEFT ( ... RIGHT ) are brackets as tall as what they hold; matrix {a & b # c & d} has & between columns and # between rows (pmatrix with round brackets, dmatrix with bars); cases {x & (x ge 0) # -x & (x < 0)}; vec {a}, bar {x}, overline {AB}; angle A, triangle ABC, 90 DEG; rm makes the next word upright, as a unit is (3 rm cm); ~ is a space (a plain space only separates the words of the script). Text inside a table cell cannot take an equation.",
+      "Put equations (수식) into the body text, all of them in one call (up to 60). Write the text first with a short placeholder where each equation goes, for example [[1]] and [[2]]; each item names its placeholder (find) and the equation in the script of Hangul's equation editor, and the equation takes the placeholder's place, as large as the text around it. The script is not LaTeX and has no backslashes: {a} over {b} is a fraction; sqrt {x} a root and root {3} of {x} a cube root; x^2 and x_1 raise and lower, with braces round more than one character (x^{n+1}, a_{ij}); times, div, +-, cdot, le, ge, ne, approx are × ÷ ± · ≤ ≥ ≠ ≈ (not <=, >=, !=); -> is an arrow and inf is ∞; Greek letters by name (alpha, beta, pi, theta, and DELTA for a capital); limits go on with _ and ^: sum _{i=1} ^{n}, int _{a} ^{b}, lim _{x -> 0}; LEFT ( ... RIGHT ) are brackets as tall as what they hold; matrix {a & b # c & d} has & between columns and # between rows (pmatrix with round brackets, dmatrix with bars); cases {x & (x ge 0) # -x & (x < 0)}; vec {a}, bar {x}, overline {AB}; angle A, triangle ABC, 90 DEG; rm makes the next word upright, as a unit is (3 rm cm); ~ is a space (a plain space only separates the words of the script). Text inside a table cell cannot take an equation.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1743,7 +1757,10 @@ const TOOLS: HwpToolDef[] = [
       type: 'object',
       properties: {
         kind: { type: 'string', enum: ['header', 'footer'] },
-        text: { type: 'string', description: 'one line; "" removes the header or footer' },
+        text: {
+          type: 'string',
+          description: 'one line of up to 200 characters; "" removes the header or footer',
+        },
         align: {
           type: 'string',
           enum: ['left', 'center', 'right'],
@@ -2380,7 +2397,7 @@ function titleInTableRefusal(table: number | undefined): string {
 
 /** The refusal of a script written in LaTeX, which the equation editor does not read. */
 const latexHelp = (what: string): string =>
-  `Nothing was changed: ${what} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum from {i=1} to {n}, LEFT ( ... RIGHT ).`
+  `Nothing was changed: ${what} is LaTeX (it has a backslash). Write it in the script of Hangul's equation editor: {a} over {b} for a fraction, sqrt {x}, x^2, x_1, times, le, ge, alpha, sum _{i=1} ^{n}, LEFT ( ... RIGHT ).`
 
 /** Where an equation stands, as list_equations shows it: the words round it, … in its place. */
 const equationPlace = (equation: { before: string; after: string; previous?: string }): string =>
@@ -2956,7 +2973,7 @@ function noSuchPicture(count: number): string {
 const arrow = (from: string, to: string) => `“${quote(from)}” → “${quote(to)}”`
 
 const NO_FORMAT_HELP =
-  'Name at least one property to change: bold, italic, underline, strikethrough, font, size, color, highlight, and for a paragraph align, line_spacing, indent, margin_left, margin_right, space_before, space_after or style.'
+  'Name at least one property to change: bold, italic, underline, strikethrough, font, size, color, highlight, char_width, letter_spacing, char_style, and for a paragraph align, line_spacing, indent, margin_left, margin_right, space_before, space_after, border, background, tabs, list or style.'
 
 const MAX_CELLS_LISTED = 8
 
@@ -6055,19 +6072,21 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     },
     refreshContext: async () => {
       try {
-        const [text, fields, tables, notes, styles, memos, pictures, fonts] = await Promise.all([
-          bridge.readText(),
-          bridge.listFields(),
-          bridge.listTables(),
-          // the notes are a line of the context; the document is still worth sending without it
-          bridge.listNotes().catch(() => null),
-          bridge.listStyles().catch(() => null),
-          // only the count goes into the context; a failure leaves the rest of it usable
-          bridge.listMemos().catch(() => null),
-          bridge.listPictures().catch(() => null),
-          // which document fonts this PC has, for a look the AI picks; unknown says nothing
-          bridge.documentFonts().catch(() => null),
-        ])
+        const [text, fields, tables, notes, styles, memos, pictures, fonts, shape] =
+          await Promise.all([
+            bridge.readText(),
+            bridge.listFields(),
+            bridge.listTables(),
+            // the notes are a line of the context; the document is still worth sending without it
+            bridge.listNotes().catch(() => null),
+            bridge.listStyles().catch(() => null),
+            // only the count goes into the context; a failure leaves the rest of it usable
+            bridge.listMemos().catch(() => null),
+            bridge.listPictures().catch(() => null),
+            // which document fonts this PC has, for a look the AI picks; unknown says nothing
+            bridge.documentFonts().catch(() => null),
+            bridge.documentShape().catch(() => null),
+          ])
         const footnotes = notes?.notes.filter((note) => note.kind === 'footnote').length ?? 0
         // numbered: the number is what fill_field takes, and names repeat
         const names = fields
@@ -6077,6 +6096,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         context = [
           '## Open document',
           `Length: ${text.length} characters.`,
+          ...(shape ? documentShapeLines(shape) : []),
           fields.length === 0
             ? 'Form fields: none.'
             : `Form fields (${fields.length}): ${names.join(', ')}${fields.length > names.length ? ', …' : ''}`,

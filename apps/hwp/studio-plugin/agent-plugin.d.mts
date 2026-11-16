@@ -1216,6 +1216,22 @@ export type AgentNoteSettingsResult =
   | { ok: false; reason: 'unsupported' }
   | AgentMemoRemovalRefusal
 
+/** The shape of a document as the context tells it, its first section's paper and columns. */
+export interface AgentDocumentShape {
+  pages: number
+  /** A3, A4, … when the paper is one of the named sizes */
+  paper: string | null
+  /** the paper, portrait, in millimetres */
+  width: number
+  height: number
+  orientation: 'portrait' | 'landscape'
+  columns: number
+  /** a later part of the document sets other columns */
+  columnsChangeWithin?: true
+  /** every body paragraph with words is plain 바탕글, formatted nowhere */
+  plain: boolean
+}
+
 /** A section's page setup, in millimetres. */
 export interface AgentPageSetup {
   /** A3, A4, A5, B4, B5, Letter or Legal, when the paper is one of them */
@@ -1855,6 +1871,7 @@ export interface AgentPluginSurface {
   ): AgentTitleBoxResult
   documentFonts(): AgentDocumentFonts
   pageCount(): number
+  documentShape(): AgentDocumentShape
   /** the page number, header and footer of the document */
   pageLayout(): AgentPageLayout
   setColumns(

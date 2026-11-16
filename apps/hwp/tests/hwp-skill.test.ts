@@ -324,6 +324,15 @@ function setup(
     formatting: vi.fn(async () => ({ ok: true as const, ...FORMATTING })),
     formatLook: vi.fn(async () => ({ ok: true as const, paragraphs: 12, place: PLACE })),
     documentFonts: vi.fn(async () => ({ known: false, onPc: [], missing: [] })),
+    documentShape: vi.fn(async () => ({
+      pages: 1,
+      paper: 'A4',
+      width: 210,
+      height: 297,
+      orientation: 'portrait' as const,
+      columns: 1,
+      plain: true,
+    })),
     styleParagraphs: vi.fn(async () => ({
       ok: true as const,
       made: 2,
@@ -3588,6 +3597,36 @@ describe('the look of a document', () => {
     expect(unknown.skill.buildContext!()).not.toContain('Document fonts on this PC')
   })
 
+  it('tells the model the pages, the paper and columns, and whether the text is plain', async () => {
+    const plain = setup()
+    await plain.refreshContext()
+    expect(plain.skill.buildContext!()).toContain(
+      'Pages: 1 (paper A4, portrait, 1 column(s)).\nLook: all text is in the default look',
+    )
+    const formed = setup({
+      documentShape: vi.fn(async () => ({
+        pages: 3,
+        paper: null,
+        width: 182,
+        height: 257,
+        orientation: 'landscape' as const,
+        columns: 2,
+        columnsChangeWithin: true as const,
+        plain: false,
+      })),
+    })
+    await formed.refreshContext()
+    const context = formed.skill.buildContext!()
+    expect(context).toContain(
+      'Pages: 3 (paper 182 x 257 mm, landscape, 2 column(s), other columns later in the document).',
+    )
+    expect(context).toContain('Look: the text has a look of its own')
+    const unread = setup({ documentShape: vi.fn(async () => Promise.reject(new Error('gone'))) })
+    await unread.refreshContext()
+    expect(unread.skill.buildContext!()).toContain('Length:')
+    expect(unread.skill.buildContext!()).not.toContain('Pages:')
+  })
+
   it('tells the model to give a document it writes its look', () => {
     const prompt = setup().skill.systemPrompt
     expect(prompt).toContain('## The look of a document you write')
@@ -3968,6 +4007,64 @@ describe('the skill as the model sees it', () => {
       expect(own.startsWith(`---\nname: ${name}\n`), name).toBe(true)
       expect(own).toMatch(/\nmetadata:\n {2}ieum-editors: hwp\n---\n/)
     }
+  })
+
+  it('names only tools and arguments there are, in the system text and the tool descriptions', () => {
+    const { skill } = setup()
+    const known = new Set<string>()
+    const walk = (schema: unknown): void => {
+      if (!schema || typeof schema !== 'object') return
+      const { properties, items } = schema as {
+        properties?: Record<string, unknown>
+        items?: unknown
+      }
+      for (const [name, inner] of Object.entries(properties ?? {})) {
+        known.add(name)
+        walk(inner)
+      }
+      walk(items)
+    }
+    for (const tool of skill.tools) {
+      known.add(tool.name)
+      walk(tool.inputSchema)
+    }
+    const texts = [skill.systemPrompt, ...skill.tools.map((tool) => tool.description)]
+    const words = new Set(
+      texts.flatMap((text) => [...text.matchAll(/\b[a-z]+(?:_[a-z]+)+\b/g)].map((m) => m[0])),
+    )
+    expect(words.size).toBeGreaterThan(40)
+    // a tool of the loop, offered beside these, and a key of the read_page_layout answer
+    const elsewhere = new Set(['use_skill', 'changes_within'])
+    expect([...words].filter((word) => !known.has(word) && !elsewhere.has(word))).toEqual([])
+  })
+
+  it('says the limits of one call and that the rest goes into the next', () => {
+    const tools = new Map(setup().skill.tools.map((tool) => [tool.name, JSON.stringify(tool)]))
+    expect(tools.get('insert_paragraphs')).toContain('up to 100 a call')
+    expect(tools.get('insert_equations')).toContain('all of them in one call (up to 60)')
+    expect(tools.get('style_paragraphs')).toContain('Up to 12 styles and 40 rules a call.')
+    expect(tools.get('insert_table')).toContain('up to 400 cells')
+    expect(tools.get('set_header_footer')).toContain('one line of up to 200 characters')
+  })
+
+  it('says one thing where its sentences used to pull apart', () => {
+    const prompt = setup().skill.systemPrompt
+    const dir = join(__dirname, '../../shell/resources/builtin-skills')
+    const document = readFileSync(join(dir, 'hwp-document/SKILL.md'), 'utf8')
+    expect(prompt).not.toContain('instead of typing 1.')
+    expect(prompt).toContain(
+      'In a document you write, type the numbers and marks of its levels as text',
+    )
+    expect(prompt).toContain('type the number as text at the start of each paragraph')
+    expect(document).not.toContain('- Each table has a caption line')
+    expect(document).toContain(
+      '- Each data table has a caption line above it and a header row (an approval box, a reply slip and a title box have neither)',
+    )
+    const styleTool = setup().skill.tools.find((tool) => tool.name === 'style_paragraphs')!
+    expect(styleTool.description).not.toContain('A paragraph takes the first rule that names it.')
+    expect(styleTool.description).toContain('Rules by find go first')
+    expect(prompt).not.toContain('a negative indent as wide as')
+    expect(prompt).toContain('given indent "mark"')
   })
 
   it('sends a test paper to its skill, which gives the numbers of the test-paper look', () => {

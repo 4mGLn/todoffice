@@ -2008,6 +2008,31 @@ function missingStyle(doc, spec) {
  * properties that differ and takes the rest from the new style (engine patch 0013). Null
  * where it cannot be asked.
  */
+/**
+ * Whether every body paragraph that holds words is in the default look: the document's
+ * first paragraph style (바탕글), with no paragraph or character formatting of its own.
+ * False at the first paragraph that is not.
+ */
+function plainBody(doc) {
+  const base = parse(doc.getStyleList())[0]
+  if (!base) return false
+  for (let sec = 0; sec < doc.getSectionCount(); sec++) {
+    for (let para = 0; para < doc.getParagraphCount(sec); para++) {
+      const length = doc.getParagraphLength(sec, para)
+      if (length <= 0 || !doc.getTextRange(sec, para, 0, length).replace(LEADING_CONTROLS, '')) {
+        continue
+      }
+      if (parse(doc.getStyleAt(sec, para)).id !== base.id) return false
+      if (parse(doc.getParaPropertiesAt(sec, para)).paraShapeId !== base.paraShapeId) return false
+      for (const run of parse(doc.getCharShapeRuns(sec, para, 0, length))) {
+        const chars = parse(doc.getCharPropertiesAt(sec, para, run.startOffset ?? 0))
+        if (chars.charShapeId !== base.charShapeId) return false
+      }
+    }
+  }
+  return true
+}
+
 /** Characters of a paragraph read to find its mark: the longest rule text and its spaces. */
 const MARK_TEXT_READ = 160
 // eslint-disable-next-line no-control-regex
@@ -2911,6 +2936,12 @@ function pictureOf(base64, extension) {
 }
 
 function checkParagraphs(paragraphs) {
+  if (Array.isArray(paragraphs) && paragraphs.length > MAX_INSERTED_PARAGRAPHS) {
+    throw fail(
+      'BAD_ARGUMENT',
+      `paragraphs takes up to ${MAX_INSERTED_PARAGRAPHS}; send the rest in another call`,
+    )
+  }
   const valid =
     Array.isArray(paragraphs) &&
     paragraphs.length > 0 &&
@@ -2937,7 +2968,13 @@ function tableOf(rows) {
         row.every((cell) => typeof cell === 'string' && !CONTROL_CHARS.test(cell)),
     )
   const cols = valid ? Math.max(...rows.map((row) => row.length)) : 0
-  if (!valid || rows.length * cols > MAX_TABLE_CELLS) {
+  if (valid && rows.length * cols > MAX_TABLE_CELLS) {
+    throw fail(
+      'BAD_ARGUMENT',
+      `a new table takes up to ${MAX_TABLE_CELLS} cells; make it with fewer rows and add the rest with add_to_table in another call`,
+    )
+  }
+  if (!valid) {
     throw fail(
       'BAD_ARGUMENT',
       `rows must be a non-empty list of rows of one-line strings, at most ${MAX_TABLE_CELLS} cells`,
@@ -3638,8 +3675,12 @@ function styleBatchOf(spec) {
   const standIns = []
   const styles = []
   if (spec.styles !== undefined && spec.styles !== null) {
-    if (!Array.isArray(spec.styles) || spec.styles.length > MAX_BATCH_STYLES) {
-      throw fail('BAD_ARGUMENT', `styles must be a list of at most ${MAX_BATCH_STYLES} styles`)
+    if (!Array.isArray(spec.styles)) throw fail('BAD_ARGUMENT', 'styles must be a list of styles')
+    if (spec.styles.length > MAX_BATCH_STYLES) {
+      throw fail(
+        'BAD_ARGUMENT',
+        `styles takes up to ${MAX_BATCH_STYLES}; send the rest in another call`,
+      )
     }
     for (const given of spec.styles) {
       if (!given || typeof given !== 'object' || Array.isArray(given)) {
@@ -3660,8 +3701,12 @@ function styleBatchOf(spec) {
   }
   const rules = []
   if (spec.apply !== undefined && spec.apply !== null) {
-    if (!Array.isArray(spec.apply) || spec.apply.length > MAX_STYLE_RULES) {
-      throw fail('BAD_ARGUMENT', `apply must be a list of at most ${MAX_STYLE_RULES} rules`)
+    if (!Array.isArray(spec.apply)) throw fail('BAD_ARGUMENT', 'apply must be a list of rules')
+    if (spec.apply.length > MAX_STYLE_RULES) {
+      throw fail(
+        'BAD_ARGUMENT',
+        `apply takes up to ${MAX_STYLE_RULES} rules; send the rest in another call`,
+      )
     }
     for (const given of spec.apply) {
       if (!given || typeof given !== 'object' || Array.isArray(given)) {
@@ -3732,20 +3777,26 @@ function titleBoxOf(spec) {
   if (!TITLE_BOX_LOOKS.includes(look)) {
     throw fail('BAD_ARGUMENT', `look must be one of ${TITLE_BOX_LOOKS.join(', ')}`)
   }
-  const colorOf = (value, what) => {
+  const colorOf = (value, what, more = '') => {
     if (value === undefined || value === null) return null
     if (typeof value !== 'string' || !HEX_COLOR.test(value)) {
-      throw fail('BAD_ARGUMENT', `${what} must look like #RRGGBB`)
+      throw fail('BAD_ARGUMENT', `${what} must look like #RRGGBB${more}`)
     }
     return value.toLowerCase()
   }
   const textColor = colorOf(given.textColor, 'textColor')
+  const boxColor = (value, what) =>
+    colorOf(
+      value,
+      what,
+      ': the colour of the bands, lines, frame or fill; the words take textColor',
+    )
   const standIns = []
   const text = {}
   for (const key of ['font', 'size', 'bold']) {
     if (given[key] !== undefined && given[key] !== null) text[key] = given[key]
   }
-  const color = colorOf(given.color, 'color') ?? TITLE_BOX_COLORS[look]
+  const color = boxColor(given.color, 'color') ?? TITLE_BOX_COLORS[look]
   // words that cannot be told from what is behind them are no title: bands, lines and a
   // frame leave the white page behind the words, and a fill may be as pale as the words
   const behind = look === 'shaded' ? color : '#ffffff'
@@ -3755,7 +3806,7 @@ function titleBoxOf(spec) {
   return {
     look,
     color,
-    color2: colorOf(given.color2, 'color2'),
+    color2: boxColor(given.color2, 'color2'),
     text: Object.keys(text).length > 0 ? standInFormat(text, standIns) : null,
     fillUnderOwnColour:
       look === 'shaded' && (textColor === null || textColorDropped) ? color : null,
@@ -9482,9 +9533,9 @@ export const agentPlugin = {
        * look of a whole document in one call. `spec.styles` are paragraph styles with their
        * look (made from `basedOn`, 바탕글 when not given; a style the document already has by
        * that name is changed instead). `spec.apply` are rules: each gives a style to every
-       * body paragraph that starts with `startsWith` (leading spaces aside), or to the one
-       * paragraph `find` occurs in (a table cell too). A paragraph takes the first rule that
-       * names it. A paragraph given a style of this call takes its whole look, also where it
+       * body paragraph that starts with `startsWith` (leading spaces aside, as
+       * startsWithMark reads it), or to the one paragraph `find` occurs in (a table cell
+       * too). Rules by `find` go first; any other paragraph takes the first rule that names it. A paragraph given a style of this call takes its whole look, also where it
        * had formatting of its own; one given a style the document already had keeps what it
        * had set differently, as applying a style does. A font this PC is known to lack is
        * written as one of the same kind that it has (`standIn` in the answer).
@@ -9966,6 +10017,27 @@ export const agentPlugin = {
       pageCount: guarded(() => host.read((doc) => doc.pageCount())),
 
       /**
+       * What the context tells the model about the document's shape: its pages, the paper
+       * and columns its first section starts with, and whether all of its body text is in
+       * the default look (plainBody).
+       */
+      documentShape: guarded(() =>
+        host.read((doc) => {
+          const setup = pageSetupOf(doc, 0)
+          return {
+            pages: doc.pageCount(),
+            paper: setup.paper ?? null,
+            width: setup.width,
+            height: setup.height,
+            orientation: setup.orientation,
+            columns: columnsOf(doc, 0).count,
+            ...(columnsChangeWithin(doc) ? { columnsChangeWithin: true } : {}),
+            plain: plainBody(doc),
+          }
+        }),
+      ),
+
+      /**
        * The page number, header and footer of the document (its first section): the page
        * number's place, shape and dashes, and the text of the header and of the footer with
        * `plain` saying whether setHeaderFooter may rewrite it; and the page map (pageMapOf).
@@ -10124,7 +10196,13 @@ export const agentPlugin = {
        * cell is refused: the engine puts equations into body paragraphs. One undo step.
        */
       insertEquations: guarded((items, options) => {
-        if (!Array.isArray(items) || items.length === 0 || items.length > MAX_EQUATIONS) {
+        if (Array.isArray(items) && items.length > MAX_EQUATIONS) {
+          throw fail(
+            'BAD_ARGUMENT',
+            `equations takes up to ${MAX_EQUATIONS}; send the rest in another call`,
+          )
+        }
+        if (!Array.isArray(items) || items.length === 0) {
           throw fail('BAD_ARGUMENT', `equations must be 1 to ${MAX_EQUATIONS} items`)
         }
         const wanted = items.map((item) => {
