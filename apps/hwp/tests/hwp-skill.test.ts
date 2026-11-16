@@ -3137,11 +3137,23 @@ describe('the look of a document', () => {
         unmatched: 2,
         withoutSpace: ['가.접수 기간'],
         skipped: { date: { count: 1, first: '11. 12.(목) 09:00 개회' } },
-        hang: { hung: 3, apart: 1, noMark: 1, unmeasured: 0, tooWide: 1 },
+        hang: {
+          hung: 3,
+          apart: 1,
+          noMark: 1,
+          alignment: 1,
+          nested: 0,
+          split: 0,
+          tab: 0,
+          noSpace: 0,
+          outOfRange: 1,
+          unread: 2,
+        },
         paragraphs: 3,
         rules: [
           { style: '항목', paragraphs: 2 },
           { style: '소항목', paragraphs: 1 },
+          { style: '번호', paragraphs: 0, skipped: 1 },
         ],
       })),
     })
@@ -3170,8 +3182,63 @@ describe('the look of a document', () => {
     )
     expect(result.output).toContain('1 paragraph(s) have no mark at their start')
     expect(result.output).toContain(
-      '1 paragraph(s) would hang further than 100 pt or half their line',
+      '1 paragraph(s) would hang by nothing, by more than 100 pt or by more than half their line',
     )
+    expect(result.output).toContain('1 paragraph(s) are aligned right, centred or spread')
+    expect(result.output).toContain(
+      '2 paragraph(s) in tables inside table cells were not looked at',
+    )
+    expect(result.output).not.toContain('could not be measured')
+    expect(result.output).not.toContain('No paragraph matched the rule(s)')
+  })
+
+  it('changes nothing when edit_style with "mark" alone hangs no paragraph, and says why', async () => {
+    const hang = {
+      hung: 0,
+      apart: 0,
+      noMark: 0,
+      alignment: 2,
+      nested: 0,
+      split: 0,
+      tab: 0,
+      noSpace: 0,
+      outOfRange: 0,
+    }
+    const { call, changes } = setup({
+      editStyle: vi.fn(async () => ({ ok: false as const, reason: 'not_hung' as const, hang })),
+    })
+    const result = await call('edit_style', { name: '항목', indent: 'mark' })
+    expect(result.mutated).toBeFalsy()
+    expect(result.isError).toBeFalsy()
+    expect(result.output).toBe(
+      'Nothing was changed: no paragraph of the style "항목" could be hung by its mark. 2 paragraph(s) are aligned right, centred or spread, where line 2 is not set under the words, and get no indent of their own: one they had stays, else they follow their style\'s.',
+    )
+    expect(changes).toEqual([])
+  })
+
+  it('says which paragraphs of a look format_look hung when "mark" is all it was given', async () => {
+    const { call } = setup({
+      formatLook: vi.fn(async () => ({
+        ok: true as const,
+        paragraphs: 3,
+        place: PLACE,
+        hang: {
+          hung: 2,
+          apart: 0,
+          noMark: 1,
+          alignment: 0,
+          nested: 0,
+          split: 0,
+          tab: 0,
+          noSpace: 0,
+          outOfRange: 0,
+        },
+      })),
+    })
+    const result = await call('format_look', { look: 'L1', indent: 'mark' })
+    expect(result.output).toContain('Of the 3 paragraph(s) of that look: Hung 2 paragraph(s)')
+    expect(result.output).toContain('The paragraphs hung by their marks have a new look id now')
+    expect(result.output).not.toContain('These paragraphs have a new look id now')
   })
 
   it('takes indent "mark" and a number written as text, and leaves another word to the editor', async () => {

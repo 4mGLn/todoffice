@@ -221,8 +221,11 @@ export type AgentStyleParagraphsResult =
       hang?: AgentHangOutcome
       /** paragraphs given a style */
       paragraphs: number
-      /** how many paragraphs each rule gave its style to, in the order of the rules */
-      rules: { style: string; paragraphs: number }[]
+      /**
+       * how many paragraphs each rule gave its style to, in the order of the rules, and how
+       * many lines it starts like it left out on purpose (skipped)
+       */
+      rules: { style: string; paragraphs: number; skipped?: number }[]
       place?: AgentPlace
       keptOwnLook?: number
       standIn?: AgentStandInFont[]
@@ -705,6 +708,12 @@ export type AgentStyleResult =
   /** another style already has the name */
   | { ok: false; reason: 'style_exists' }
   | AgentNoSuchStyle
+
+/** What editStyle answers: a style result, or nothing changed for indent "mark" alone. */
+export type AgentEditStyleResult =
+  | AgentStyleResult
+  /** indent "mark" alone, and no paragraph of the style could be hung */
+  | { ok: false; reason: 'not_hung'; hang: AgentHangOutcome }
 
 /** A place in a table, rows and columns from 1. */
 export interface AgentCellPlace {
@@ -1253,8 +1262,20 @@ export interface AgentHangOutcome {
   hung: number
   apart: number
   noMark: number
-  unmeasured: number
-  tooWide: number
+  /** right, centre or spread lines: line 2 is not set under the words there */
+  alignment: number
+  /** in a table inside a cell, whose formatting the engine cannot read */
+  nested: number
+  /** the mark runs over two lines */
+  split: number
+  /** a tab whose stop moves with the first line's indent or a widened space before it */
+  tab: number
+  /** a justified first line and no space of the mark's shape on a line that is not widened */
+  noSpace: number
+  /** a width not above 0, past 100 pt or past half the line */
+  outOfRange: number
+  /** paragraphs in tables inside cells not looked at: the engine cannot tell their style */
+  unread?: number
 }
 
 /** A section's page setup, in millimetres. */
@@ -1852,7 +1873,7 @@ export interface AgentPluginSurface {
     name: string,
     changes: AgentStyleChanges,
     options?: AgentChangeOptions,
-  ): AgentStyleResult
+  ): AgentEditStyleResult
   /** pages for printing from `from`, as many as are drawn in about two seconds */
   printPages(from: number): AgentPrintPages
   /** once the start-up look at the PC's fonts is over: whether print can use the screen's fonts */

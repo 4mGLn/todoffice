@@ -3048,32 +3048,44 @@ function skippedNote(
     : ''
 }
 
+/** Why indent "mark" left paragraphs unhung, each reason as the model reads it. */
+const HANG_SKIPS_SAID = {
+  noMark: 'have no mark at their start',
+  alignment: 'are aligned right, centred or spread, where line 2 is not set under the words',
+  nested: 'are in a table inside a table cell, whose formatting the editor cannot read',
+  split: 'have a mark that runs over two lines',
+  tab: "have a tab in the mark whose stop moves with the first line's indent or with a widened space before it",
+  noSpace:
+    "have a justified first line and no space in the mark's size and font on a line that is not widened, to measure the space after the mark by",
+  outOfRange: 'would hang by nothing, by more than 100 pt or by more than half their line',
+} as const
+
 /** What indent "mark" did, as the model reads it. */
-function hangNote(hang: AgentHangOutcome | undefined): string {
+function hangNote(hang: AgentHangOutcome | undefined, lead = true): string {
   if (!hang) return ''
-  const parts = [
-    hang.hung > 0
-      ? ` Hung ${hang.hung} paragraph(s) by their marks.`
-      : ' No paragraph was hung by its mark.',
-  ]
+  const parts = lead
+    ? [
+        hang.hung > 0
+          ? ` Hung ${hang.hung} paragraph(s) by their marks.`
+          : ' No paragraph was hung by its mark.',
+      ]
+    : ['']
   if (hang.apart > 0) {
     parts.push(
       `${hang.apart} of them have a mark of another width than most of their style's and got an indent of their own: a later indent given to the style does not reach them.`,
     )
   }
-  if (hang.noMark > 0) {
-    parts.push(
-      `${hang.noMark} paragraph(s) have no mark at their start and get no indent of their own: one they had stays, else they follow their style's.`,
-    )
+  for (const [reason, said] of Object.entries(HANG_SKIPS_SAID)) {
+    const count = hang[reason as keyof typeof HANG_SKIPS_SAID]
+    if (count > 0) {
+      parts.push(
+        `${count} paragraph(s) ${said}, and get no indent of their own: one they had stays, else they follow their style's.`,
+      )
+    }
   }
-  if (hang.unmeasured > 0) {
+  if (hang.unread) {
     parts.push(
-      `${hang.unmeasured} paragraph(s) could not be measured (a justified line of several lines in a table cell, a line spread letter by letter, or a tab after the mark under a first line set further in) and get no indent of their own: one they had stays, else they follow their style's.`,
-    )
-  }
-  if (hang.tooWide > 0) {
-    parts.push(
-      `${hang.tooWide} paragraph(s) would hang further than 100 pt or half their line and get no indent of their own: one they had stays, else they follow their style's.`,
+      `${hang.unread} paragraph(s) in tables inside table cells were not looked at, because the editor cannot tell their style there; any of them in this style follows its indent.`,
     )
   }
   return parts.join(' ')
@@ -4574,6 +4586,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (outcome.kind !== 'done')
           return bad(call, memoRemovalDeclined(outcome.refusal, outcome.kind))
         const result = outcome.result
+        if (!result.ok && result.reason === 'not_hung') {
+          return {
+            output: `Nothing was changed: no paragraph of the style "${name}" could be hung by its mark.${hangNote(result.hang, false)}`,
+            summary: label('aiToolStyleEdit', { name: quote(name) }),
+          }
+        }
         if (!result.ok) {
           return bad(
             call,
@@ -5569,7 +5587,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           }
         }
         const applied = result.rules.filter((rule) => rule.paragraphs > 0)
-        const unmatched = result.rules.filter((rule) => rule.paragraphs === 0)
+        const unmatched = result.rules.filter((rule) => rule.paragraphs === 0 && !rule.skipped)
         deps.onChange({
           kind: 'format',
           from: label('aiFmtStyle'),
@@ -6039,7 +6057,10 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Formatted ${result.paragraphs} paragraph(s) of that look.${keptOwnLookNote(result.keptOwnLook)}${hangNote(result.hang)} These paragraphs have a new look id now; the other looks keep theirs.`,
+          output:
+            Object.keys(format).length === 1 && result.hang
+              ? `Of the ${result.paragraphs} paragraph(s) of that look:${hangNote(result.hang)} The paragraphs hung by their marks have a new look id now; the others and the other looks keep theirs.`
+              : `Formatted ${result.paragraphs} paragraph(s) of that look.${keptOwnLookNote(result.keptOwnLook)}${hangNote(result.hang)} These paragraphs have a new look id now; the other looks keep theirs.`,
           mutated: true,
           summary: label('aiToolFormatLook', { count: result.paragraphs }),
         }

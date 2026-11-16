@@ -967,7 +967,7 @@ describe('indent "mark"', () => {
     expect(result).toMatchObject({
       ok: true,
       paragraphs: 4,
-      hang: { hung: 4, apart: 1, noMark: 0, unmeasured: 0, tooWide: 0 },
+      hang: { hung: 4, apart: 1, noMark: 0, outOfRange: 0 },
     })
     for (const [para, mark] of [
       [0, 3],
@@ -1002,12 +1002,13 @@ describe('indent "mark"', () => {
         styles: [{ name: '항목', format: { size: 13, align, indent: 'mark' } }],
         apply: [{ style: '항목', startsWith: '○' }],
       })
-      expect(result, align).toMatchObject({ hang: { hung: 4, apart: 0, tooWide: 0 } })
+      expect(result, align).toMatchObject({ hang: { hung: 4, apart: 0, outOfRange: 0 } })
       return items.map((_, para) => indentOf(doc(), para))
     }
     const justified = indents('justify')
     expect(new Set(justified).size).toBe(1)
-    expect(justified).toEqual(indents('left'))
+    // caret places are read to a tenth of a pixel
+    indents('left').forEach((left, at) => expect(Math.abs(justified[at]! - left)).toBeLessThan(0.2))
     // 13 pt × 1.5, in the engine's page pixels: the hang of "○ " in 함초롬바탕
     expect(justified[0]).toBeCloseTo(-26, 0)
   })
@@ -1021,7 +1022,7 @@ describe('indent "mark"', () => {
       hang: { hung: 0, noMark: 1 },
     })
     expect(plugin.formatParagraph('1.\t탭', null, { indent: 'mark' })).toMatchObject({
-      hang: { hung: 0, unmeasured: 1 },
+      hang: { hung: 0, tab: 1 },
     })
     expect([indentOf(doc(), 0), indentOf(doc(), 1)]).toEqual(before)
   })
@@ -1049,7 +1050,7 @@ describe('indent "mark"', () => {
     })
     expect(plugin.editStyle('칸항목', { format: { size: 14, indent: 'mark' } })).toMatchObject({
       ok: true,
-      hang: { hung: 1, unmeasured: 0 },
+      hang: { hung: 1, nested: 0 },
     })
     const para = [0, 1, 2].find((at) => {
       try {
@@ -1103,6 +1104,131 @@ describe('indent "mark"', () => {
       /a new style has none: give indent in points, or make and apply the style with style_paragraphs/,
     )
     expect(steps()).toBe(before)
+  })
+})
+
+describe('indent "mark" by construction', () => {
+  /** The indents indent "mark" gives `lines` under one style aligned `align`, page pixels. */
+  const hangsOf = (
+    lines: string[],
+    align: string,
+    before?: (doc: HwpDocument) => void,
+    startsWith?: string,
+  ) => {
+    const start = blank(lines)
+    before?.(start)
+    const { plugin, doc } = open(start)
+    const result = plugin.styleParagraphs({
+      styles: [{ name: '항목', format: { size: 12, align, indent: 'mark' } }],
+      apply: startsWith
+        ? [{ style: '항목', startsWith }]
+        : lines.map((line) => ({ style: '항목', find: [...line].slice(0, 4).join('') })),
+    })
+    return { result, indents: lines.map((_, para) => indentOf(doc(), para)) }
+  }
+  const sameAsLeft = (
+    lines: string[],
+    before?: (doc: HwpDocument) => void,
+    startsWith?: string,
+  ) => {
+    const justified = hangsOf(lines, 'justify', before, startsWith)
+    const left = hangsOf(lines, 'left', before, startsWith)
+    expect(justified.result).toMatchObject({ hang: { hung: lines.length } })
+    left.indents.forEach((indent, at) =>
+      expect(Math.abs(justified.indents[at]! - indent), lines[at]).toBeLessThan(0.2),
+    )
+    return justified
+  }
+
+  it('reads a line with characters outside the Basic Multilingual Plane right', () => {
+    sameAsLeft([`○ 이모지😀😀😀😀😀😀 ${WRAPPING}`, `○ 한자𠀀𠀁𠀂𠀃 ${WRAPPING}`])
+  })
+
+  it('reads a line with a tab later in it right', () => {
+    sameAsLeft([
+      `○ 문의\t교육지원과 장학사 홍길동 ${WRAPPING}`,
+      `□ 붙임\t2026학년도 운영 계획 ${WRAPPING}`,
+    ])
+  })
+
+  it('gives marks after leading spaces one width', () => {
+    const lines = [
+      `  - 세부 내용 ${WRAPPING}`,
+      '  - 가나다 라마바 사아자 차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하',
+      '  - 짧은 말 하나 둘 셋 넷 다섯 여섯 일곱 여덟 아홉 열 열하나 열둘 열셋 열넷 열다섯 열여섯',
+      '  - 세부내용연수기간동안신규직원은부서별실습과멘토면담을거쳐직무기본역량을갖추고 끝말',
+    ]
+    const { result, indents } = sameAsLeft(lines, undefined, '-')
+    expect(result).toMatchObject({ hang: { hung: 4, apart: 0 } })
+    expect(new Set(indents).size).toBe(1)
+  })
+
+  it('reads a mark in another size than its text', () => {
+    const hang = (align: string) => {
+      const { plugin, doc } = open(blank([`◆ 큰 표지 ${WRAPPING}`]))
+      plugin.formatParagraph('◆ 큰', null, { size: 12, align })
+      plugin.formatText('◆', null, false, { size: 18 })
+      expect(plugin.formatParagraph('◆ 큰', null, { indent: 'mark' }), align).toMatchObject({
+        hang: { hung: 1 },
+      })
+      return indentOf(doc(), 0)
+    }
+    expect(Math.abs(hang('justify') - hang('left'))).toBeLessThan(0.2)
+  })
+
+  it('leaves right, centred and spread paragraphs as they are, and says so', () => {
+    for (const alignment of ['right', 'center', 'distribute']) {
+      const start = blank([`○ ${WRAPPING}`])
+      start.applyParaFormat(0, 0, JSON.stringify({ alignment }))
+      const { plugin, doc } = open(start)
+      const before = indentOf(doc(), 0)
+      expect(plugin.formatParagraph('○ 연수', null, { indent: 'mark' }), alignment).toMatchObject({
+        hang: { hung: 0, alignment: 1 },
+      })
+      expect(indentOf(doc(), 0), alignment).toBe(before)
+    }
+  })
+
+  it('changes nothing when edit_style with "mark" alone hangs no paragraph', () => {
+    const start = blank([`○ ${WRAPPING}`, `○ 둘 ${WRAPPING}`])
+    const { plugin, steps } = open(start)
+    plugin.styleParagraphs({
+      styles: [{ name: '가운데', format: { align: 'center' } }],
+      apply: [{ style: '가운데', startsWith: '○' }],
+    })
+    const before = steps()
+    expect(plugin.editStyle('가운데', { format: { indent: 'mark' } })).toMatchObject({
+      ok: false,
+      reason: 'not_hung',
+      hang: { hung: 0, alignment: 2 },
+    })
+    expect(steps()).toBe(before)
+  })
+
+  it('names the paragraphs in tables inside cells it could not look at', () => {
+    const nested = new HwpDocument(readFileSync(join(__dirname, 'fixtures', 'nested-form.hwp')))
+    const { plugin } = open(nested)
+    const result = plugin.editStyle('바탕글', { format: { align: 'left', indent: 'mark' } })
+    expect(result).toMatchObject({ ok: true })
+    expect((result as { hang: { unread: number } }).hang.unread).toBeGreaterThan(0)
+  })
+
+  it('counts formatting in a table inside a cell against a plain look', () => {
+    const nested = new HwpDocument(readFileSync(join(__dirname, 'fixtures', 'nested-form.hwp')))
+    const { plugin } = open(nested)
+    expect(plugin.documentShape().plain.tables).toBe(true)
+    plugin.formatText('평가 종류', null, false, { bold: true })
+    expect(plugin.documentShape().plain.tables).toBe(false)
+  })
+
+  it('marks a rule whose lines were all left out on purpose', () => {
+    const { plugin } = open(blank(['○○ 사업 담당자', '본문 한 줄']))
+    expect(
+      plugin.styleParagraphs({
+        styles: [{ name: '항목', format: { bold: true } }],
+        apply: [{ style: '항목', startsWith: '○' }],
+      }),
+    ).toMatchObject({ rules: [{ style: '항목', paragraphs: 0, skipped: 1 }] })
   })
 })
 
