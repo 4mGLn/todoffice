@@ -917,6 +917,193 @@ describe('styleParagraphs', () => {
   })
 })
 
+/** Long enough to run onto a second line of an A4 page at 13 pt. */
+const LONG =
+  '연수 기간 동안 신규 직원은 부서별 실습과 멘토 면담을 거쳐 직무 기본 역량을 갖추고 수료 발표로 마무리한다'
+
+/**
+ * Where the words after the mark (character `at`) of body paragraph `para` are drawn on its
+ * first line, and where its second line starts, in page pixels, as the engine lays page 1 out.
+ */
+function linesOf(doc: HwpDocument, para: number, at: number) {
+  const { runs } = JSON.parse(doc.getPageTextLayout(0)) as {
+    runs: {
+      text: string
+      x: number
+      y: number
+      charX: number[]
+      paraIdx: number
+      charStart: number
+    }[]
+  }
+  const own = runs.filter((run) => run.paraIdx === para)
+  const top = Math.min(...own.map((run) => run.y))
+  const holder = own.find(
+    (run) => run.y === top && run.charStart <= at && at < run.charStart + [...run.text].length,
+  )
+  const second = own.find((run) => run.y > top + 1)
+  return {
+    text: holder ? holder.x + holder.charX[at - holder.charStart]! : NaN,
+    second: second?.x ?? null,
+  }
+}
+
+const indentOf = (doc: HwpDocument, para: number) =>
+  (JSON.parse(doc.getParaPropertiesAt(0, para)) as { indent: number }).indent
+
+describe('indent "mark"', () => {
+  it('hangs each paragraph by its own mark, the style by the width most have', () => {
+    const lines = [`1. ${LONG}`, `9. ${LONG}`, `10. ${LONG}`, `가. ${LONG}`]
+    const { plugin, doc } = open(blank(lines))
+    const result = plugin.styleParagraphs({
+      styles: [
+        { name: '번호', format: { size: 13, indent: 'mark' } },
+        { name: '가나', format: { size: 13, marginLeft: 20, indent: 'mark' } },
+      ],
+      apply: [
+        { style: '번호', numbered: '1.' },
+        { style: '가나', numbered: '가.' },
+      ],
+    })
+    expect(result).toMatchObject({ ok: true, paragraphs: 4, hungApart: 1 })
+    for (const [para, mark] of [
+      [0, 3],
+      [1, 3],
+      [2, 4],
+      [3, 3],
+    ]) {
+      const { text, second } = linesOf(doc(), para, mark)
+      expect(second, `paragraph ${para} runs onto a second line`).not.toBeNull()
+      // a tenth of a point at most: the width is read off the line as it is drawn
+      expect(Math.abs((second as number) - text), `paragraph ${para}`).toBeLessThan(0.2)
+    }
+    const style = (name: string) =>
+      (JSON.parse(doc().getStyleList()) as { id: number; name: string }[]).find(
+        (candidate) => candidate.name === name,
+      )!
+    // 1. and 9. follow the style; 10. is wider and has an indent of its own
+    expect(indentOf(doc(), 0)).toBe(indentOf(doc(), 1))
+    expect(indentOf(doc(), 2)).toBeLessThan(indentOf(doc(), 0))
+    const shapes = [0, 1, 2].map(
+      (para) =>
+        (JSON.parse(doc().getParaPropertiesAt(0, para)) as { paraShapeId: number }).paraShapeId,
+    )
+    expect(shapes[0]).toBe(shapes[1])
+    expect(shapes[2]).not.toBe(shapes[0])
+    expect(style('번호').id).toBeGreaterThan(0)
+  })
+
+  it('follows a later change of the font size when asked again, and a style edit', () => {
+    const { plugin, doc } = open(blank([`가. ${LONG}`, `나. ${LONG}`]))
+    plugin.styleParagraphs({
+      styles: [{ name: '가나', format: { size: 11, indent: 'mark' } }],
+      apply: [{ style: '가나', numbered: '가.' }],
+    })
+    const small = indentOf(doc(), 0)
+    const edited = plugin.editStyle('가나', { format: { size: 16, indent: 'mark' } })
+    expect(edited).toMatchObject({ ok: true })
+    expect(indentOf(doc(), 0)).toBeLessThan(small)
+    const { text, second } = linesOf(doc(), 1, 3)
+    expect(Math.abs((second as number) - text)).toBeLessThan(0.2)
+  })
+
+  it('hangs one paragraph by its mark with formatParagraph', () => {
+    const { plugin, doc } = open(blank([`□ ${LONG}`]))
+    expect(plugin.formatParagraph('□ 연수', null, { size: 14, indent: 'mark' })).toMatchObject({
+      ok: true,
+    })
+    const { text, second } = linesOf(doc(), 0, 2)
+    expect(Math.abs((second as number) - text)).toBeLessThan(0.2)
+  })
+
+  it('refuses another word, and a new style with nothing to measure', () => {
+    const { plugin, steps } = open()
+    const before = steps()
+    expect(() =>
+      plugin.styleParagraphs({ styles: [{ name: '새', format: { indent: 'makr' } }] }),
+    ).toThrow(/indent must be -100 to 100 points, or "mark"/)
+    expect(() => plugin.createStyle({ name: '새', format: { indent: 'mark' } })).toThrow(
+      /a new style has none/,
+    )
+    expect(steps()).toBe(before)
+  })
+})
+
+describe('the lines a style rule takes', () => {
+  const LINES_OF_RULES = [
+    '○○ 사업 담당자: 홍길동',
+    '○ ○○초등학교 강당에서 진행',
+    '○ 일시: 11. 12.(목)',
+    '- 준비물: 필기도구',
+    '- -5℃ 이하에서는 야외 활동 금지',
+    '- - - 절취선 - - -',
+    '11. 12.(목) 09:00 개회',
+    '3. 0.5의 역수를 구하시오.',
+    '가.접수 기간',
+    '본문 한 줄',
+  ]
+
+  it('leaves a placeholder, a cut line and a date alone, and names what it left', () => {
+    const { plugin, doc } = open(blank(LINES_OF_RULES))
+    const result = plugin.styleParagraphs({
+      styles: [
+        { name: '항목', format: { bold: true } },
+        { name: '줄표', format: { marginLeft: 10 } },
+        { name: '번호', format: { italic: true } },
+        { name: '가나', format: { size: 12 } },
+      ],
+      apply: [
+        { style: '항목', startsWith: '○' },
+        { style: '줄표', startsWith: '-' },
+        { style: '번호', numbered: '1.' },
+        { style: '가나', numbered: '가.' },
+      ],
+    })
+    expect(result).toMatchObject({
+      ok: true,
+      madeStyles: ['항목', '줄표', '번호', '가나'],
+      changedStyles: [],
+      unmatched: 5,
+      withoutSpace: ['가.접수 기간'],
+      rules: [
+        { style: '항목', paragraphs: 2 },
+        { style: '줄표', paragraphs: 2 },
+        { style: '번호', paragraphs: 1 },
+        { style: '가나', paragraphs: 0 },
+      ],
+    })
+    expect([0, 5, 6, 8, 9].map((para) => styleOf(doc(), para))).toEqual(Array(5).fill('바탕글'))
+    expect(
+      plugin.styleParagraphs({ apply: [{ style: '줄표', startsWith: '- - -' }] }),
+    ).toMatchObject({ ok: true, paragraphs: 1, madeStyles: [], changedStyles: [] })
+    expect(styleOf(doc(), 5)).toBe('줄표')
+  })
+
+  it('names a style it changed by the name the document has', () => {
+    const { plugin } = open(blank(['□ 첫째', '○ 둘째', '본문']))
+    plugin.createStyle({ name: '항목', format: { size: 12 } })
+    expect(
+      plugin.styleParagraphs({
+        styles: [
+          { name: '항목', format: { bold: true } },
+          { name: '소항목', format: { marginLeft: 14 } },
+        ],
+        apply: [
+          { style: '항목', startsWith: '□' },
+          { style: '소항목', startsWith: '○' },
+        ],
+      }),
+    ).toMatchObject({
+      ok: true,
+      made: 1,
+      changed: 1,
+      madeStyles: ['소항목'],
+      changedStyles: ['항목'],
+      unmatched: 1,
+    })
+  })
+})
+
 describe('insertTitleBox', () => {
   it('turns the title paragraph into a box with bands of colour, its words inside', () => {
     const { plugin, doc, steps } = open()

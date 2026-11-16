@@ -493,11 +493,12 @@ const HANGUL_ORDER = '가나다라마바사아자차카타파하'
 /**
  * How the numbered levels of a Korean official document start, named by the first number of
  * each level (Ⅰ, 1., 가., 1), 가), (1), (가), ①), as the first characters of a paragraph tell
- * it, leading spaces aside. "1." is not the start of a decimal (1.5) or of a year (2026.).
+ * it, leading spaces aside. "1." is not the start of a decimal (1.5), of a year (2026.) or
+ * of a date: a month, a day and then a bracket, a tilde or the end of the line (11. 12.(목)).
  */
 export const NUMBERED_MARKS = {
   Ⅰ: /^(?:[Ⅰ-Ⅻ]+(?:[.\s]|$)|[IVX]{1,4}\.(?:\s|$))/,
-  '1.': /^\d{1,2}\.(?!\d)/,
+  '1.': /^(?!(?:0?[1-9]|1[0-2])\.\s+(?:0?[1-9]|[12]\d|3[01])\.(?!\d)\s*(?:\(|~|$))\d{1,2}\.(?!\d)/,
   '가.': new RegExp(`^[${HANGUL_ORDER}]\\.(?:\\s|$)`),
   '1)': /^\d{1,2}\)/,
   '가)': new RegExp(`^[${HANGUL_ORDER}]\\)`),
@@ -513,6 +514,63 @@ export function numberedMarkOf(text) {
     if (mark.test(head)) return name
   }
   return null
+}
+
+/** A 가. line with no space after its mark (가.접수), which is not taken for the level. */
+export const NUMBERED_WITHOUT_SPACE = { '가.': new RegExp(`^[${HANGUL_ORDER}]\\.(?=\\S)`) }
+
+/** A cut line: dashes and spaces round a short text, six dashes or more (- - - 절취선 - - -). */
+function isCutLine(line) {
+  const text = line.trim()
+  const dashes = (text.match(/-/g) ?? []).length
+  const rest = [...text.replace(/[-\s]/g, '')].length
+  return dashes >= 6 && rest <= 6 && text.startsWith('-') && text.endsWith('-')
+}
+
+/**
+ * Whether paragraph text `head` (leading spaces aside) is named by a rule that gives a style
+ * to the lines starting with `mark`. A mark of one character skips a line where the same
+ * character follows it with no space between (○○ 사업, a placeholder) and a cut line; a
+ * longer mark names the line as it is given.
+ */
+export function startsWithMark(head, mark) {
+  if (!head.startsWith(mark)) return false
+  if ([...mark].length !== 1) return true
+  return !head.slice(mark.length).startsWith(mark) && !isCutLine(head)
+}
+
+/** A mark at the start of a line that is not a numbered level: □, ○, -, ※ and the like. */
+const SYMBOL_MARK = /^[^\p{L}\p{N}\s]{1,3}(?=\s)/u
+/** A letter with a dot or a bracket as a mark: ㄱ. ㄴ. or a) b). */
+const LETTER_MARK = /^\p{L}[.)](?=\s)/u
+
+/**
+ * How many characters of `text` come before the words its first line hangs under: the
+ * leading spaces, the mark and the spaces after it; 0 when the line has no mark. `rule` says
+ * what the mark is when a style rule named the line (`{ startsWith }` or `{ numbered }`);
+ * without one, a numbered level, a symbol or a letter with a dot or bracket is taken.
+ */
+export function markLengthOf(text, rule = null) {
+  const line = String(text ?? '')
+  const head = line.trimStart()
+  let mark = 0
+  if (typeof rule?.startsWith === 'string') {
+    mark = head.startsWith(rule.startsWith) ? rule.startsWith.length : 0
+  } else {
+    const patterns = rule?.numbered
+      ? [NUMBERED_MARKS[rule.numbered]]
+      : [...Object.values(NUMBERED_MARKS), SYMBOL_MARK, LETTER_MARK]
+    for (const pattern of patterns) {
+      const found = pattern.exec(head)
+      if (found) {
+        mark = found[0].length
+        break
+      }
+    }
+  }
+  if (mark === 0) return 0
+  const after = head.slice(mark)
+  return line.length - head.length + mark + (after.length - after.trimStart().length)
 }
 
 /** Most columns a section's text is laid out in. */

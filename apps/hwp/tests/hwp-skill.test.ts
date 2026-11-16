@@ -328,6 +328,9 @@ function setup(
       ok: true as const,
       made: 2,
       changed: 0,
+      madeStyles: ['중제목', '본문항목'],
+      changedStyles: [],
+      unmatched: 1,
       paragraphs: 5,
       rules: [
         { style: '중제목', paragraphs: 2 },
@@ -3098,6 +3101,9 @@ describe('the look of a document', () => {
         ok: true as const,
         made: 1,
         changed: 0,
+        madeStyles: ['중제목'],
+        changedStyles: [],
+        unmatched: 3,
         paragraphs: 0,
         rules: [{ style: '중제목', paragraphs: 0 }],
         standIn: [{ asked: 'HY헤드라인M', used: '맑은 고딕' }],
@@ -3109,6 +3115,73 @@ describe('the look of a document', () => {
     })
     expect(result.output).toContain('No paragraph matched the rule(s) for 중제목')
     expect(result.output).toContain('맑은 고딕 was written for HY헤드라인M')
+  })
+
+  it('names the styles it made and changed, what no rule matched and what hangs apart', async () => {
+    const { call } = setup({
+      styleParagraphs: vi.fn(async () => ({
+        ok: true as const,
+        made: 1,
+        changed: 1,
+        madeStyles: ['소항목'],
+        changedStyles: ['항목'],
+        unmatched: 2,
+        withoutSpace: ['가.접수 기간'],
+        hungApart: 1,
+        paragraphs: 3,
+        rules: [
+          { style: '항목', paragraphs: 2 },
+          { style: '소항목', paragraphs: 1 },
+        ],
+      })),
+    })
+    const result = await call('style_paragraphs', {
+      styles: [
+        { name: '항목', bold: true },
+        { name: '소항목', margin_left: 14, indent: 'mark' },
+      ],
+      apply: [
+        { style: '항목', starts_with: '□' },
+        { style: '소항목', numbered: '가.' },
+      ],
+    })
+    expect(result.output).toContain(
+      'Made 1 style(s) ("소항목"), changed 1 ("항목", which the document had)',
+    )
+    expect(result.output).toContain('2 body paragraph(s) with text matched no rule')
+    expect(result.output).toContain('no space follows the mark: “가.접수 기간”')
+    expect(result.output).toContain('1 paragraph(s) have a mark of another width')
+  })
+
+  it('takes indent "mark" and a number written as text, and leaves another word to the editor', async () => {
+    const { call, bridge, skill } = setup()
+    await call('style_paragraphs', {
+      styles: [
+        { name: '가', indent: 'mark' },
+        { name: '나', indent: '-14' },
+        { name: '다', indent: 'makr' },
+      ],
+    })
+    expect(bridge.styleParagraphs).toHaveBeenCalledWith({
+      styles: [
+        { name: '가', format: { indent: 'mark' } },
+        { name: '나', format: { indent: -14 } },
+        { name: '다', format: { indent: 'makr' } },
+      ],
+      apply: [],
+    })
+    for (const name of [
+      'style_paragraphs',
+      'format_paragraph',
+      'create_style',
+      'edit_style',
+      'format_look',
+    ]) {
+      const tool = skill.tools.find((candidate) => candidate.name === name)!
+      expect(JSON.stringify(tool.inputSchema), name).toContain(
+        '"indent":{"type":["number","string"]',
+      )
+    }
   })
 
   it('refuses a style_paragraphs rule that names its paragraphs both ways or neither', async () => {

@@ -419,9 +419,9 @@ const PARAGRAPH_FORMAT_SCHEMA = {
   },
   line_spacing: { type: 'number', description: 'line spacing in percent, for example 160' },
   indent: {
-    type: 'number',
+    type: ['number', 'string'],
     description:
-      'indent in points (-100 to 100). Positive: the first line starts that much further in. Negative is the hanging indent of Hangul (내어쓰기): the first line stays at margin_left and the lines after it start that much further in. So a mark or a number at the left edge with its text hanging under itself is margin_left 0 and indent minus the width of the mark and its space',
+      'indent in points (-100 to 100), or "mark". Positive: the first line starts that much further in. Negative is the hanging indent of Hangul (내어쓰기): the first line stays at margin_left and the lines after it start that much further in. "mark" hangs each paragraph by the width of its mark and the space after it (□, ○, 1., 가.), measured in its own font and size, so that its second line starts under its text',
   },
   margin_left: {
     type: 'number',
@@ -2804,7 +2804,9 @@ function describeFormat(
     ['spacingBefore', 'aiFmtSpaceBefore'],
     ['spacingAfter', 'aiFmtSpaceAfter'],
   ] as const) {
-    if (format[key] !== undefined) parts.push(`${label(name)} ${format[key]}pt`)
+    const value = format[key]
+    if (value === 'mark') parts.push(label(name))
+    else if (value !== undefined) parts.push(`${label(name)} ${value}pt`)
   }
   if (format.list !== undefined) {
     const name = label(LIST_LABELS[format.list])
@@ -2992,6 +2994,18 @@ function styleStrings<K extends string>(
 }
 
 /** What a run of format calls says about paragraphs that kept their own look under a style. */
+/** What indent "mark" left as it was, when a first line could not be measured. */
+const unmeasuredNote = (count: number | undefined): string =>
+  count
+    ? ` ${count} paragraph(s) to hang by their mark could not be measured on their first line and keep the indent they had.`
+    : ''
+
+/** Paragraphs indent "mark" gave an indent of their own over their style. */
+const hungApartNote = (count: number | undefined): string =>
+  count
+    ? ` ${count} paragraph(s) have a mark of another width than most of their style's and got an indent of their own: a later indent given to the style does not reach them.`
+    : ''
+
 const keptOwnLookNote = (count: number | undefined): string =>
   count
     ? ` ${count === 1 ? 'The paragraph' : `${count} paragraphs`} took the style but kept the paragraph formatting ${count === 1 ? 'it' : 'they'} had set differently from ${count === 1 ? 'its' : 'their'} former style; the rest follows the style. Read the style with read_style and pass its properties if the user wants its plain look.`
@@ -4023,7 +4037,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Formatted the paragraph${result.inTable ? ' in the table cell' : ''}.${keptOwnLookNote(result.keptOwnLook)}`,
+          output: `Formatted the paragraph${result.inTable ? ' in the table cell' : ''}.${keptOwnLookNote(result.keptOwnLook)}${unmeasuredNote(result.unmeasured)}`,
           mutated: true,
           summary: label('aiToolFormat', { text: quote(find) }),
         }
@@ -4155,7 +4169,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Formatted the selected text (${result.count} paragraph(s)).${keptOwnLookNote(result.keptOwnLook)}`,
+          output: `Formatted the selected text (${result.count} paragraph(s)).${keptOwnLookNote(result.keptOwnLook)}${unmeasuredNote(result.unmeasured)}`,
           mutated: true,
           summary: label('aiToolFormat', { text: quote(text) }),
         }
@@ -4508,7 +4522,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             ? ' Text this style was applied to changed with it.'
             : ' Every paragraph that uses it changed with it, in tables, text boxes, headers, footers and notes too; what a paragraph had set differently from the style stayed.'
         return {
-          output: `Changed the ${result.kind} style "${result.name}".${Object.keys(format).length > 0 ? reach : ''}`,
+          output: `Changed the ${result.kind} style "${result.name}".${Object.keys(format).length > 0 ? reach : ''}${hungApartNote(result.hungApart)}${unmeasuredNote(result.unmeasured)}`,
           mutated: true,
           summary: label('aiToolStyleEdit', { name: quote(result.name) }),
         }
@@ -5498,12 +5512,21 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           count: Math.max(1, result.paragraphs),
           ...(result.place ? { place: result.place } : {}),
         })
+        const noSpace = result.withoutSpace ?? []
         return {
           output:
-            `Made ${result.made} style(s), changed ${result.changed}, and styled ${result.paragraphs} paragraph(s): ${result.rules.map((rule) => `${rule.style} ${rule.paragraphs}`).join(', ') || 'none'}.` +
+            `Made ${result.made} style(s)${result.made > 0 ? ` (${quoted(result.madeStyles)})` : ''}, changed ${result.changed}${result.changed > 0 ? ` (${quoted(result.changedStyles)}, which the document had)` : ''}, and styled ${result.paragraphs} paragraph(s): ${result.rules.map((rule) => `${rule.style} ${rule.paragraphs}`).join(', ') || 'none'}.` +
+            (rules.length > 0
+              ? ` ${result.unmatched} body paragraph(s) with text matched no rule and kept their look.`
+              : '') +
             (unmatched.length > 0
               ? ` No paragraph matched the rule(s) for ${unmatched.map((rule) => rule.style).join(', ')}: check how those lines start (find_text shows the exact characters).`
               : '') +
+            (noSpace.length > 0
+              ? ` Left out because no space follows the mark: ${noSpace.map((line) => `“${quote(line)}”`).join(', ')}.`
+              : '') +
+            hungApartNote(result.hungApart) +
+            unmeasuredNote(result.unmeasured) +
             keptOwnLookNote(result.keptOwnLook) +
             standInNote(result.standIn),
           mutated: true,
@@ -5942,7 +5965,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Formatted ${result.paragraphs} paragraph(s) of that look.${keptOwnLookNote(result.keptOwnLook)} These paragraphs have a new look id now; the other looks keep theirs.`,
+          output: `Formatted ${result.paragraphs} paragraph(s) of that look.${keptOwnLookNote(result.keptOwnLook)}${unmeasuredNote(result.unmeasured)} These paragraphs have a new look id now; the other looks keep theirs.`,
           mutated: true,
           summary: label('aiToolFormatLook', { count: result.paragraphs }),
         }
