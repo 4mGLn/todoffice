@@ -134,6 +134,127 @@ function tellUser(message) {
   }
 }
 
+/**
+ * The table commands that name their table by the outermost table's numbers: the caret's
+ * parentParaIndex/controlIndex/cellIndex, or a cell block's or a selected table's sec/ppi/ci.
+ * In a table inside a cell or a text box those numbers are the outer table's, so the command
+ * changed the outer table (a row in the form, a merge of its cells). Until a command takes the
+ * inner table by its path it is refused there with the reason, through the studio's dispatcher
+ * (studio-nested-table-refusal); a table in the body takes it as before.
+ *
+ * The editing commands, which are to take the inner table by its path one by one (each is lifted
+ * from this list when it does).
+ */
+export const NESTED_TABLE_EDITS = Object.freeze([
+  // rows and columns: the menu and right-click items, Alt+Insert/Alt+Enter and Alt+Delete
+  'table:insert-row-col',
+  'table:delete-row-col',
+  'table:insert-row-above',
+  'table:insert-row-below',
+  'table:insert-col-left',
+  'table:insert-col-right',
+  'table:delete-row',
+  'table:delete-col',
+  'ieum:table-insert-row-below',
+  // merge (M) and split (S)
+  'table:cell-merge',
+  'table:cell-split',
+  // a cell's border and fill: the studio's dialogs and a cell block's L/C/B/F
+  'table:border-each',
+  'table:border-one',
+  'ieum:cell-border-each',
+  'ieum:cell-background-each',
+  'ieum:cell-border-one',
+  'ieum:cell-background-one',
+  // 표/셀 속성 (P), from a cell, a cell block or a selected table, and its L/C on a selected table
+  'table:cell-props',
+  'format:object-properties',
+  'ieum:table-border-each',
+  'ieum:table-border-background',
+  // equal sizes (H/W) and the sizing keys (Ctrl/Alt/Shift+arrow on a block, Shift+arrow on a table)
+  'table:cell-height-equal',
+  'table:cell-width-equal',
+  'ieum:table-block-resize',
+  'ieum:table-row-column-resize',
+  'ieum:table-cell-resize',
+  'ieum:table-resize',
+])
+
+/** The table commands that stay refused in a table inside a cell or a text box. */
+export const NESTED_TABLE_LATER = Object.freeze([
+  // split (Ctrl+N,A) and attach (Ctrl+N,Z)
+  'table:split',
+  'table:attach',
+  'table:caption-toggle',
+  // formulas and the number formats of a cell
+  'table:formula',
+  'table:block-formula',
+  'table:thousand-sep',
+  'table:decimal-add',
+  'table:decimal-remove',
+  // transposing
+  'table:transpose-copy',
+  'table:transpose-paste',
+  'ieum:table-transpose',
+  // a selected table's order and text wrap (Shift+PageUp/Down, Shift+Home/End)
+  'ieum:table-order',
+  'ieum:table-wrap',
+])
+
+const NESTED_TABLE_REFUSED = new Set([...NESTED_TABLE_EDITS, ...NESTED_TABLE_LATER])
+
+/** Commands that act on a table only with the table selected as an object (a picture's own otherwise). */
+const TABLE_OBJECT_ONLY = new Set(['format:object-properties'])
+
+const depthOf = (path) => (Array.isArray(path) ? path.length : 0)
+
+/**
+ * Whether the table a command would act on is inside a cell ('cell') or a text box ('textBox'),
+ * or null for a table in the body. A selected table counts by its own path, a cell block by its
+ * table's, the caret by the cell it is in. Headers, footers and notes are left as they were.
+ */
+export function nestedTableAt(ih) {
+  const cursor = ih?.cursor
+  if (!cursor) return null
+  if (cursor.isInHeaderFooter?.() || cursor.isInFootnote?.()) return null
+  let depth
+  if (cursor.isInTableObjectSelection?.()) {
+    depth = depthOf(cursor.getSelectedTableRef?.()?.cellPath)
+  } else if (cursor.isInCellSelectionMode?.()) {
+    depth = depthOf(cursor.getCellTableContext?.()?.cellPath)
+  } else {
+    const pos = cursor.getPosition?.() ?? ih.getCursorPosition?.()
+    depth = pos?.parentParaIndex === undefined ? 0 : depthOf(pos.cellPath)
+  }
+  if (depth < 2) return null
+  return cursor.isInTextBox?.() ? 'textBox' : 'cell'
+}
+
+function nestedTableNotice(where) {
+  if (where === 'textBox') {
+    return koreanUi
+      ? '글상자 안의 표에서는 아직 할 수 없습니다.'
+      : 'This cannot be done in a table inside a text box yet.'
+  }
+  return koreanUi
+    ? '표 안의 표에서는 아직 할 수 없습니다.'
+    : 'This cannot be done in a table inside a table yet.'
+}
+
+/**
+ * The studio's dispatcher asks this before it runs an enabled command: true (the reason told)
+ * when the command would change the outer table instead of the one inside a cell or a text box.
+ */
+export function refuseInNestedTable(commandId, services) {
+  if (!NESTED_TABLE_REFUSED.has(commandId)) return false
+  const ih = services?.getInputHandler?.()
+  if (TABLE_OBJECT_ONLY.has(commandId) && !ih?.cursor?.isInTableObjectSelection?.()) return false
+  const where = nestedTableAt(ih)
+  if (!where) return false
+  tellUser(nestedTableNotice(where))
+  return true
+}
+
 const digitOf = (n) => String(n % 10)
 
 /**
@@ -578,6 +699,15 @@ export function hancomTableObjectKey(ih, e) {
   if (e.key === 'F5' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault()
     firstCellOfSelectedTable(ih)
+    return true
+  }
+  // A plain arrow moves the selected table, by the outer table's numbers: for a table inside
+  // a cell or a text box it would move the outer one, so the key stops here with the reason.
+  if (ARROWS[e.key] && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const where = nestedTableAt(ih)
+    if (!where) return false
+    e.preventDefault()
+    tellUser(nestedTableNotice(where))
     return true
   }
   // Shift+arrow resizes the table, Shift+PageUp/Down changes its order, Shift+Home/End
