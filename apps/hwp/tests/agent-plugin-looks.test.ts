@@ -6,6 +6,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
+import JSZip from 'jszip'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -18,6 +19,7 @@ import {
   type AgentPluginHost,
 } from '../studio-plugin/agent-plugin.mjs'
 import { installFontPresence } from '../studio-plugin/pc-fonts.mjs'
+import { EXAM_PAPER, examChoiceStops, examColumnWidthMm } from '../studio-plugin/document-looks.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -2176,6 +2178,27 @@ describe('equations, a diagonal, the page border, tab stops, the size of a pictu
     expect(() => plugin.setPageBorder({ line: 'solid', color: 'navy' })).toThrow(/color/)
   })
 
+  it('stores every tab stop a whole unit doubled, as Hangul reads a .hwp stop', () => {
+    const lines = ['① 다섯	②	③	④	⑤', '① 셋	②	③', '① 둘	②', '성명	(인)']
+    const { plugin, doc } = open(blank(lines))
+    const places = [...examChoiceStops(5), ...examChoiceStops(3), ...examChoiceStops(2)]
+    expect(places).toContain(25.8)
+    plugin.formatParagraph('① 다섯', null, {
+      tabs: examChoiceStops(5).map((atMm) => ({ atMm })),
+    })
+    plugin.formatParagraph('① 셋', null, {
+      tabs: [...examChoiceStops(3), 33.33, 0.7].map((atMm) => ({ atMm })),
+    })
+    plugin.formatParagraph('① 둘', null, { tabs: examChoiceStops(2).map((atMm) => ({ atMm })) })
+    plugin.formatParagraph('성명', null, { marginRight: 10.125, tabs: [{ leader: 'dots' }] })
+    for (const saved of [doc(), new HwpDocument(doc().exportHwp())]) {
+      const stored = [0, 1, 2, 3].flatMap((para) => tabsOf(saved, para).map((tab) => tab.position))
+      expect(stored).toHaveLength(places.length + 3)
+      for (const position of stored) expect(position % 2).toBe(0)
+    }
+    expect(tabsOf(doc(), 0)[0]!.position).toBe(14626)
+  })
+
   it('sets tab stops with a leader: the right edge of the text unless a place is given', () => {
     const lines = ['차례', '제1장 추진 배경\t3', '제2장 세부 계획\t12', '성명: 홍길동\t(인)', '끝']
     const { plugin, doc, steps } = open(blank(lines))
@@ -2201,8 +2224,8 @@ describe('equations, a diagonal, the page border, tab stops, the size of a pictu
       tabs: [{ leader: 'line' }, { atMm: 60, align: 'center' }, { atMm: 30.5, align: 'decimal' }],
     })
     expect(tabsOf(doc(), 3)).toEqual([
-      { position: Math.round(((30.5 * 7200) / 25.4) * 2), type: 3, fill: 0 },
-      { position: Math.round(((60 * 7200) / 25.4) * 2), type: 2, fill: 0 },
+      { position: 2 * Math.round((30.5 * 7200) / 25.4), type: 3, fill: 0 },
+      { position: 2 * Math.round((60 * 7200) / 25.4), type: 2, fill: 0 },
       { position: edge, type: 1, fill: 1 },
     ])
     for (const saved of [doc().exportHwp(), doc().exportHwpx()]) {
@@ -3212,5 +3235,772 @@ describe('what a change leaves on the pages', () => {
     )
     expect(made).toMatchObject({ ok: true })
     expect(plugin.checkLayout(null, null).wrapped).toEqual([])
+  })
+})
+
+describe('a test paper in two columns', () => {
+  const QUESTIONS = Array.from({ length: 100 }, (_, i) => `문항 ${i + 1} 본문 한 줄`)
+  const HEAD = [
+    ['시험 이름', '과목', '수학', '결재', '계', '부장', '교감', '교장'],
+    ['일시', '학년', '2', '결재', '', '', '', ''],
+    ['유의 사항', '쪽수', '2', '문항 수', '20', '만점', '100', ''],
+  ]
+
+  /** Where the first body line of each column of page 1 starts, and the foot of the head. */
+  function columnStarts(doc: HwpDocument) {
+    const info = JSON.parse(doc.getPageInfo(0)) as { columns: { x: number; width: number }[] }
+    const runs = (
+      JSON.parse(doc.getPageTextLayout(0)) as {
+        runs: { x: number; y: number; text: string; cellPath?: unknown }[]
+      }
+    ).runs.filter((run) => !run.cellPath && run.text.trim() !== '')
+    const head = (
+      JSON.parse(doc.getPageControlLayout(0)) as {
+        controls: { type: string; y: number; h: number }[]
+      }
+    ).controls.find((control) => control.type === 'table')!
+    return {
+      foot: head.y + head.h,
+      starts: info.columns.map((column) =>
+        Math.min(
+          ...runs
+            .filter((run) => run.x >= column.x - 1 && run.x < column.x + column.width)
+            .map((run) => run.y),
+        ),
+      ),
+    }
+  }
+
+  it.each([
+    ['text, columns, head', ['text', 'columns', 'head']],
+    ['columns, text, head', ['columns', 'text', 'head']],
+    ['text, head, columns', ['text', 'head', 'columns']],
+  ])('keeps every column below the head after its cell text grew (%s)', (_name, order) => {
+    const { plugin, doc } = open(blank(['']))
+    for (const step of order) {
+      if (step === 'text') plugin.insertParagraphs('', null, 'end', QUESTIONS)
+      if (step === 'columns') plugin.setColumns({ count: 2 })
+      if (step === 'head') {
+        expect(
+          plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true }),
+        ).toMatchObject({ ok: true, acrossColumns: true })
+      }
+    }
+    const head = tableIn(doc(), 0)
+    const before = columnStarts(doc())
+    expect(
+      plugin.formatCells(1, [{ row: 1, col: 1 }], { text: { size: 30, bold: true } }),
+    ).toMatchObject({
+      ok: true,
+    })
+    const grown = columnStarts(doc())
+    expect(grown.foot).toBeGreaterThan(before.foot + 50)
+    expect(grown.starts).toHaveLength(2)
+    for (const start of grown.starts) expect(start).toBeGreaterThanOrEqual(grown.foot)
+    expect(Math.abs(grown.starts[0]! - grown.starts[1]!)).toBeLessThan(1)
+    expect(head.cell(8).height).toBe(tableIn(doc(), 0).cell(8).height)
+    for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
+      const again = columnStarts(new HwpDocument(bytes))
+      for (const start of again.starts) expect(start).toBeGreaterThanOrEqual(again.foot)
+    }
+  })
+
+  it('keeps every column below the head after new text grew one of its cells', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.fillCells(
+      1,
+      [{ row: 2, col: 5, text: '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄' }],
+      false,
+    )
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  /** The stored height of every cell of the document's first table. */
+  function storedHeights(doc: HwpDocument) {
+    const table = tableIn(doc, 0)
+    return Array.from({ length: table.cells }, (_, index) => table.cell(index).height)
+  }
+
+  /** The highest stored height of each row of the document's first table, by its cells' rows. */
+  function rowHeights(doc: HwpDocument) {
+    const table = tableIn(doc, 0)
+    const boxes = JSON.parse(doc.getTableCellBboxes(0, 0, table.control)) as {
+      row: number
+      rowSpan: number
+      cellIdx: number
+    }[]
+    const rows: number[] = []
+    for (const box of boxes) {
+      if (box.rowSpan !== 1) continue
+      rows[box.row] = Math.max(rows[box.row] ?? 0, table.cell(box.cellIdx).height)
+    }
+    return rows
+  }
+
+  const TALL = '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄'
+
+  /** A test paper in two columns under a head table whose second row was raised for its text. */
+  function raisedHead() {
+    const opened = open(blank(['']))
+    opened.plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    opened.plugin.setColumns({ count: 2 })
+    opened.plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    opened.plugin.fillCells(1, [{ row: 2, col: 5, text: TALL }], true)
+    return opened
+  }
+
+  it('keeps a head row raised once its text needs less, and says so', () => {
+    const { plugin, doc } = raisedHead()
+    const raised = rowHeights(doc())
+    expect(raised[1]).toBeGreaterThan(raised[0]! * 3)
+    const shrunk = plugin.fillCells(1, [{ row: 2, col: 5, text: '계' }], true)
+    expect(rowHeights(doc())).toEqual(raised)
+    expect(shrunk).toMatchObject({ ok: true, tallerRows: [{ table: 1, row: 2 }] })
+    const [row] = (shrunk as { tallerRows: { heightMm: number; needsMm: number }[] }).tallerRows
+    expect(row!.needsMm).toBeLessThan(row!.heightMm / 3)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+    expect(plugin.fillCells(1, [{ row: 2, col: 5, text: '부' }], true)).not.toHaveProperty(
+      'tallerRows',
+    )
+    expect(plugin.fillCells(1, [{ row: 1, col: 3, text: '영어' }], true)).not.toHaveProperty(
+      'tallerRows',
+    )
+  })
+
+  it('keeps the height row_height_mm set on a row when a row above it is removed', () => {
+    const raised = rowHeights(raisedHead().doc())[1]!
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.formatCells(
+      1,
+      { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 },
+      { heightMm: (raised * 25.4) / 7200 },
+    )
+    plugin.fillCells(1, [{ row: 2, col: 5, text: TALL }], true)
+    expect(rowHeights(doc()).slice(1)).toEqual([raised, raised])
+    plugin.removeTableLines(1, 'rows', 1, 1)
+    plugin.fillCells(1, [{ row: 1, col: 5, text: '계' }], true)
+    expect(rowHeights(doc())).toEqual([raised, raised])
+  })
+
+  it('gives a row added next to a raised head row the height of the lowest row of the table', () => {
+    const { plugin, doc } = raisedHead()
+    const raised = rowHeights(doc())
+    expect(plugin.addTableLines(1, 'rows', 2, 'after', 1)).toMatchObject({ ok: true })
+    const now = rowHeights(doc())
+    expect(now).toHaveLength(4)
+    expect([now[0], now[1], now[3]]).toEqual(raised)
+    expect(now[2]).toBe(Math.min(...raised))
+    const head = tableIn(doc(), 0)
+    const drawn = (
+      JSON.parse(doc().getTableCellBboxes(0, 0, head.control)) as { row: number; h: number }[]
+    ).find((box) => box.row === 2)!
+    expect(Math.abs(drawn.h * 75 - now[2]!)).toBeLessThan(75)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('says when row_height_mm leaves a head row lower than its text', () => {
+    const { plugin, doc } = raisedHead()
+    expect(
+      plugin.formatCells(1, { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 }, { heightMm: 8 }),
+    ).toMatchObject({ ok: true, overflowingRows: [2] })
+    expect(rowHeights(doc())[1]).toBe(Math.round((8 * 7200) / 25.4))
+    expect(
+      plugin.formatCells(1, { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 }, { heightMm: 15 }),
+    ).not.toHaveProperty('overflowingRows')
+  })
+
+  /** The engine calls `fn` makes on `doc` that read the layout or write a cell. */
+  function layoutCalls(doc: HwpDocument, fn: () => unknown) {
+    const names = [
+      'getTableCellBboxes',
+      'getCursorRectByPathNear',
+      'getCursorRectInCell',
+      'setCellProperties',
+    ]
+    const calls: string[] = []
+    const target = doc as unknown as Record<string, (...args: unknown[]) => unknown>
+    const kept = names.map((name) => target[name]!)
+    names.forEach((name, index) => {
+      target[name] = (...args: unknown[]) => {
+        calls.push(name)
+        return kept[index]!.apply(doc, args)
+      }
+    })
+    try {
+      fn()
+    } finally {
+      names.forEach((name, index) => {
+        target[name] = kept[index]!
+      })
+    }
+    return calls
+  }
+
+  it('neither reads nor writes the head table on a change of the body', () => {
+    const { plugin, doc } = raisedHead()
+    const heights = storedHeights(doc())
+    expect(
+      layoutCalls(doc(), () =>
+        expect(plugin.replaceText('문항 30 본문', '문항 30 본문 글')).toMatchObject({ ok: true }),
+      ),
+    ).toEqual([])
+    expect(
+      layoutCalls(doc(), () =>
+        plugin.insertParagraphs(QUESTIONS[50]!, null, 'after', ['새 문항 한 줄']),
+      ),
+    ).toEqual([])
+    expect(storedHeights(doc())).toEqual(heights)
+  })
+
+  it('gives a row added next to a plain head row the height of the lowest row of the table', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    const plain = rowHeights(doc())
+    expect(plugin.addTableLines(1, 'rows', 2, 'after', 1)).toMatchObject({ ok: true })
+    expect(rowHeights(doc())).toEqual([plain[0], plain[1], plain[1], plain[2]])
+  })
+
+  it('gives a row added under a merged head cell a height, never none', () => {
+    const { plugin, doc } = raisedHead()
+    plugin.mergeCells(1, { row: 2, col: 1 }, { row: 3, col: 1 })
+    plugin.fillCells(1, [{ row: 2, col: 1, text: TALL }], true)
+    const lowest = Math.min(...rowHeights(doc()).filter((height) => height > 0))
+    expect(plugin.addTableLines(1, 'rows', 2, 'after', 1)).toMatchObject({ ok: true })
+    const head = tableIn(doc(), 0)
+    const added = (
+      JSON.parse(doc().getTableCellBboxes(0, 0, head.control)) as {
+        row: number
+        rowSpan: number
+        cellIdx: number
+      }[]
+    ).filter((box) => box.row === 2 && box.rowSpan === 1)
+    expect(added.length).toBeGreaterThan(0)
+    for (const box of added) expect(head.cell(box.cellIdx).height).toBeGreaterThanOrEqual(lowest)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('names no row the user set taller than its text when its text shrinks', () => {
+    const { plugin } = raisedHead()
+    plugin.formatCells(1, { fromRow: 3, fromCol: 1, toRow: 3, toCol: 8 }, { heightMm: 30 })
+    plugin.fillCells(1, [{ row: 3, col: 1, text: '서명\n(인)' }], true)
+    expect(plugin.fillCells(1, [{ row: 3, col: 1, text: '서명 (인)' }], true)).not.toHaveProperty(
+      'tallerRows',
+    )
+  })
+
+  it('names the row a merged head cell raised once its text needs less', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.mergeCells(1, { row: 2, col: 1 }, { row: 3, col: 1 })
+    plugin.fillCells(1, [{ row: 2, col: 1, text: `${TALL}\n여섯째\n일곱째` }], true)
+    const raised = rowHeights(doc())
+    expect(raised[2]).toBeGreaterThan(raised[0]! * 3)
+    const shrunk = plugin.fillCells(1, [{ row: 2, col: 1, text: '마' }], true) as {
+      tallerRows?: { row: number }[]
+    }
+    expect(shrunk.tallerRows?.map((row) => row.row)).toContain(3)
+    expect(rowHeights(doc())).toEqual(raised)
+  })
+
+  it('counts the spacing of the paragraphs of a head cell in what its text needs', () => {
+    const { plugin, doc } = raisedHead()
+    expect(plugin.formatParagraph('첫째 줄', null, { spacingBefore: 6 })).not.toHaveProperty(
+      'tallerRows',
+    )
+    expect(plugin.formatParagraph('다섯째 줄', null, { spacingAfter: 6 })).not.toHaveProperty(
+      'tallerRows',
+    )
+    const spaced = rowHeights(doc())[1]!
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+    expect(
+      plugin.formatCells(
+        1,
+        { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 },
+        { heightMm: (spaced * 25.4) / 7200 },
+      ),
+    ).not.toHaveProperty('overflowingRows')
+    expect(plugin.fillCells(1, [{ row: 2, col: 5, text: '계' }], true)).toMatchObject({
+      ok: true,
+      tallerRows: [{ table: 1, row: 2 }],
+    })
+  })
+
+  it('names the only row of a head once its text needs less', () => {
+    const { plugin } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', [HEAD[0]!], { acrossColumns: true })
+    plugin.fillCells(1, [{ row: 1, col: 1, text: TALL }], true)
+    expect(plugin.fillCells(1, [{ row: 1, col: 1, text: '가' }], true)).toMatchObject({
+      ok: true,
+      tallerRows: [{ table: 1, row: 1 }],
+    })
+  })
+
+  it('says a head row overflows only when its text runs past it once the change is done', () => {
+    const tall = raisedHead()
+    expect(
+      tall.plugin.formatCells(
+        1,
+        { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 },
+        { heightMm: 5, text: { size: 24 } },
+      ),
+    ).not.toHaveProperty('overflowingRows')
+    for (const start of columnStarts(tall.doc()).starts)
+      expect(start).toBeGreaterThanOrEqual(columnStarts(tall.doc()).foot)
+    const { plugin } = raisedHead()
+    expect(
+      plugin.formatCells(1, { fromRow: 1, fromCol: 3, toRow: 1, toCol: 4 }, { heightMm: 14 }),
+    ).not.toHaveProperty('overflowingRows')
+    plugin.fillCells(
+      1,
+      [{ row: 2, col: 1, text: '가나다라마바사아자차카타파하 가나다라마바사' }],
+      true,
+    )
+    expect(
+      plugin.formatCells(
+        1,
+        { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 },
+        { heightMm: 5, columnWidths: [5, 20, 20, 20, 20, 20, 20, 20] },
+      ),
+    ).not.toHaveProperty('overflowingRows')
+  })
+
+  type Step = {
+    name: string
+    run: (plugin: ReturnType<typeof open>['plugin']) => unknown
+    /** for each row after the step, the row it was before it (null: new, or set by the step) */
+    rows?: (row: number) => number | null
+  }
+  const short = (row: number): Step => ({
+    name: `shorten row ${row}`,
+    run: (plugin) => plugin.fillCells(1, [{ row, col: 1, text: '마' }], true),
+  })
+  const SEQUENCES: [string, Step[]][] = [
+    [
+      'a row added before the raised one',
+      [
+        {
+          name: 'add before',
+          run: (plugin) => plugin.addTableLines(1, 'rows', 2, 'before', 1),
+          rows: (row) => (row < 1 ? row : row === 1 ? null : row - 1),
+        },
+        short(3),
+        short(3),
+      ],
+    ],
+    [
+      'a row added after the raised one',
+      [
+        {
+          name: 'add after',
+          run: (plugin) => plugin.addTableLines(1, 'rows', 2, 'after', 1),
+          rows: (row) => (row < 2 ? row : row === 2 ? null : row - 1),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'a row removed above the raised one',
+      [
+        {
+          name: 'remove row 1',
+          run: (plugin) => plugin.removeTableLines(1, 'rows', 1, 1),
+          rows: (row) => row + 1,
+        },
+        short(1),
+      ],
+    ],
+    [
+      'a cell of the first row split',
+      [{ name: 'split', run: (plugin) => plugin.splitCell(1, 1, 1, 1, 2) }, short(2)],
+    ],
+    [
+      'two cells of the first row merged',
+      [
+        {
+          name: 'merge',
+          run: (plugin) => plugin.mergeCells(1, { row: 1, col: 1 }, { row: 1, col: 2 }),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'the raised row merged down',
+      [
+        {
+          name: 'merge down',
+          run: (plugin) => plugin.mergeCells(1, { row: 2, col: 1 }, { row: 3, col: 1 }),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'row_height_mm on the raised row, then more text, then less',
+      [
+        {
+          name: 'row_height_mm',
+          run: (plugin) =>
+            plugin.formatCells(1, { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 }, { heightMm: 12 }),
+          rows: (row) => (row === 1 ? null : row),
+        },
+        {
+          name: 'more text',
+          run: (plugin) =>
+            plugin.fillCells(1, [{ row: 2, col: 1, text: `${TALL}\n여섯째\n일곱째` }], true),
+        },
+        short(2),
+      ],
+    ],
+    [
+      'one column and two again',
+      [
+        { name: 'one column', run: (plugin) => plugin.setColumns({ count: 1 }) },
+        { name: 'two columns', run: (plugin) => plugin.setColumns({ count: 2 }) },
+        short(2),
+      ],
+    ],
+  ]
+
+  it.each(SEQUENCES)('lowers no head row: %s', (_name, steps) => {
+    const { plugin, doc } = raisedHead()
+    for (const step of steps) {
+      const before = rowHeights(doc())
+      expect(step.run(plugin), step.name).toMatchObject({ ok: true })
+      const after = rowHeights(doc())
+      after.forEach((height, row) => {
+        const was = step.rows ? step.rows(row) : row
+        if (was !== null && before[was] !== undefined)
+          expect(height, `${step.name}: row ${row + 1}`).toBeGreaterThanOrEqual(before[was]!)
+      })
+    }
+  })
+
+  it('leaves the rows of a table laid across a page of one column as they are stored', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 8))
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD.slice(1), { acrossColumns: true })
+    const heights = storedHeights(doc())
+    const foot = () => {
+      const head = tableIn(doc(), 0)
+      return (JSON.parse(doc().getTableBBox(0, 0, head.control)) as { height: number }).height
+    }
+    const short = foot()
+    plugin.fillCells(1, [{ row: 1, col: 5, text: '담당\n김교사\n(서명)\n2026. 11. 16.' }], true)
+    expect(foot()).toBeGreaterThan(short + 20)
+    expect(storedHeights(doc())).toEqual(heights)
+    plugin.fillCells(1, [{ row: 1, col: 5, text: '담당' }], true)
+    expect(Math.abs(foot() - short)).toBeLessThan(1)
+  })
+
+  it('keeps every column below a head whose text grew while it lay in one column', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true })
+    plugin.fillCells(
+      1,
+      [{ row: 2, col: 5, text: '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄' }],
+      true,
+    )
+    plugin.setColumns({ count: 2 })
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('lays a head made in one column across the columns set after it', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    expect(
+      plugin.insertTable(QUESTIONS[0]!, null, 'before', HEAD, { acrossColumns: true }),
+    ).toMatchObject({ ok: true, acrossColumns: true })
+    const head = tableIn(doc(), 0)
+    const props = JSON.parse(doc().getTableProperties(0, 0, head.control)) as {
+      treatAsChar: boolean
+      horzRelTo: string
+      tableWidth: number
+    }
+    expect(props).toMatchObject({ treatAsChar: false, horzRelTo: 'Page' })
+    plugin.setColumns({ count: 2 })
+    const page = JSON.parse(doc().getPageDef(0)) as {
+      width: number
+      marginLeft: number
+      marginRight: number
+    }
+    expect(
+      Math.abs(props.tableWidth - (page.width - page.marginLeft - page.marginRight)),
+    ).toBeLessThan(7200 / 25.4)
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+  })
+
+  it('makes a one-cell box added after the columns one column wide, and names one made before', () => {
+    const { plugin, doc } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 30))
+    plugin.setColumns({ count: 2 })
+    expect(
+      plugin.insertTable(QUESTIONS[10]!, null, 'after', [['〈보기〉 ㄱ. ㄴ. ㄷ.']], false),
+    ).toMatchObject({ ok: true })
+    const column = JSON.parse(doc().getPageInfo(0)).columns[0].width as number
+    const box = tableIn(doc(), 11)
+    const width = JSON.parse(doc().getTableBBox(0, 11, box.control)).width as number
+    expect(width).toBeLessThanOrEqual(column + 1)
+
+    const before = open(blank(['']))
+    before.plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 30))
+    before.plugin.insertTable(QUESTIONS[10]!, null, 'after', [['〈보기〉 ㄱ. ㄴ. ㄷ.']], false)
+    expect(before.plugin.setColumns({ count: 2 })).toMatchObject({ ok: true, wide: [1] })
+  })
+
+  it('draws a line between the columns, reads it back, keeps it through both formats and takes it away', () => {
+    const { plugin, doc, steps } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    const before = steps()
+    expect(plugin.setColumns({ count: 2, line: 'solid' })).toMatchObject({
+      ok: true,
+      count: 2,
+      line: 'solid',
+    })
+    expect(steps()).toBe(before + 1)
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 8, line: 'solid' })
+    expect(doc().renderPageSvgWithProfile(0, 'print')).toMatch(/<line /)
+    for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
+      const again = JSON.parse(new HwpDocument(bytes).getColumnDef(0)) as { separatorType: number }
+      expect(again.separatorType).toBe(1)
+    }
+    // set again without the line: it stays, and the answer says so
+    expect(plugin.setColumns({ count: 2, gapMm: 10 })).toMatchObject({
+      line: 'solid',
+      lineKept: true,
+    })
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 10, line: 'solid' })
+    expect(() => plugin.setColumns({ count: 1, line: 'solid' })).toThrow(/count 1 leaves none/)
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 10, line: 'solid' })
+    expect(plugin.setColumns({ count: 1 })).toMatchObject({
+      count: 1,
+      line: 'solid',
+      lineKept: true,
+    })
+    expect(plugin.setColumns({ count: 2 })).toMatchObject({ line: 'solid', lineKept: true })
+    plugin.setColumns({ count: 2, line: 'none' })
+    expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 8 })
+    expect(() => plugin.setColumns({ count: 2, line: 'double' as never })).toThrow(/line must be/)
+  })
+
+  it('reads back every line a document may have between its columns', () => {
+    const { plugin, doc } = open(blank(QUESTIONS.slice(0, 20)))
+    plugin.setColumns({ count: 2 })
+    const names = ['solid', 'dashed', 'dotted', 'dash-dot', 'dash-dot-dot', 'long-dash', 'circles']
+    names.forEach((name, index) => {
+      doc().setColumnSeparator(0, JSON.stringify({ type: index + 1 }))
+      expect(plugin.pageLayout().columns).toEqual({ count: 2, gapMm: 8, line: name })
+    })
+  })
+
+  it('says when a later part of the document runs in other columns, and not for a new section', async () => {
+    // a head in one column over a body in two, as a test-paper form sets it in Hangul
+    const zip = await JSZip.loadAsync(blank(QUESTIONS.slice(0, 6)).exportHwpx())
+    const name = Object.keys(zip.files).find((file) => /section0.xml$/.test(file))!
+    const xml = await zip.file(name)!.async('string')
+    const at = xml.indexOf('<hp:t>문항 3 ')
+    const run = xml.lastIndexOf('<hp:run ', at)
+    const opened = xml.indexOf('>', run) + 1
+    const zone =
+      '<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="2" sameSz="1" sameGap="2268"/></hp:ctrl>'
+    zip.file(name, xml.slice(0, opened) + zone + xml.slice(opened))
+    const form = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }))
+    const { plugin, doc } = open(form)
+    expect(plugin.pageLayout().columns).toEqual({
+      count: 1,
+      gapMm: 0,
+      changesWithin: true,
+    })
+    const box = [['〈보기〉 ㄱ. ㄴ. ㄷ.']]
+    expect(plugin.insertTable(QUESTIONS[4]!, null, 'after', box, false)).toMatchObject({
+      ok: true,
+    })
+    const inColumn = drawnTable(doc(), 5)
+    expect(inColumn.w).toBeLessThan(inColumn.columns[0]!.width * 0.55)
+    expect(plugin.insertTable(QUESTIONS[0]!, null, 'after', box, false)).toMatchObject({
+      ok: true,
+    })
+    expect(drawnTable(doc(), 1).w).toBeGreaterThan(inColumn.columns[0]!.width * 0.9)
+    const sections = new HwpDocument(
+      readFileSync(join(__dirname, 'fixtures', 'master-page-next-section.hwpx')),
+    )
+    expect(sections.getSectionCount()).toBe(2)
+    expect(open(sections).plugin.pageLayout().columns).toEqual({ count: 1, gapMm: 0 })
+  })
+
+  const LONG = Array.from({ length: 200 }, (_, i) => `문항 ${i + 1} 본문 한 줄`)
+
+  /** A blank document of `lines` whose columns change at the line starting `at` to `cols`. */
+  async function zoned(lines: string[], zones: { at: string; cols: number }[]) {
+    const zip = await JSZip.loadAsync(blank(lines).exportHwpx())
+    const name = Object.keys(zip.files).find((file) => /section0.xml$/.test(file))!
+    let xml = await zip.file(name)!.async('string')
+    for (const { at, cols } of zones) {
+      const run = xml.lastIndexOf('<hp:run ', xml.indexOf(`<hp:t>${at}`))
+      const opened = xml.indexOf('>', run) + 1
+      const zone = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="${cols}" sameSz="1" sameGap="2268"/></hp:ctrl>`
+      xml = xml.slice(0, opened) + zone + xml.slice(opened)
+    }
+    zip.file(name, xml)
+    return new HwpDocument(await zip.generateAsync({ type: 'uint8array' }))
+  }
+
+  /** The drawn width and left of the table a body paragraph holds, in pixels. */
+  function drawnTable(doc: HwpDocument, para: number) {
+    for (let page = 0; page < doc.pageCount(); page++) {
+      const found = (
+        JSON.parse(doc.getPageControlLayout(page)).controls as {
+          type: string
+          paraIdx: number
+          x: number
+          w: number
+        }[]
+      ).find((control) => control.type === 'table' && control.paraIdx === para)
+      if (found) {
+        const columns = (
+          JSON.parse(doc.getPageInfo(page)) as { columns: { x: number; width: number }[] }
+        ).columns
+        return { ...found, page, columns }
+      }
+    }
+    throw new Error(`no table in paragraph ${para}`)
+  }
+
+  it('makes a table and a title box one column wide in columns set part way, read from a page that starts in them', async () => {
+    const { plugin, doc } = open(await zoned(LONG, [{ at: '문항 3 ', cols: 2 }]))
+    expect(doc().pageCount()).toBeGreaterThan(1)
+    expect(plugin.pageLayout().columns).toMatchObject({ changesWithin: true })
+    expect(
+      plugin.insertTable(QUESTIONS[4]!, null, 'after', [['〈보기〉 ㄱ. ㄴ. ㄷ.']], false),
+    ).toMatchObject({
+      ok: true,
+    })
+    const table = drawnTable(doc(), 5)
+    expect(table.page).toBe(0)
+    const column = JSON.parse(doc().getPageInfo(1)).columns[0] as { x: number; width: number }
+    expect(Math.abs(table.w - column.width)).toBeLessThan(2)
+    expect(plugin.insertTitleBox(QUESTIONS[10]!, null, { look: 'box' })).toMatchObject({ ok: true })
+    const box = drawnTable(doc(), 11)
+    expect(box.w).toBeGreaterThan(column.width - 10)
+    expect(box.x + box.w).toBeLessThanOrEqual(column.x + column.width + 1)
+  })
+
+  it('makes a table as wide as the text where columns set part way go back to one', async () => {
+    const { plugin, doc } = open(
+      await zoned(LONG, [
+        { at: '문항 3 ', cols: 2 },
+        { at: '문항 100 ', cols: 1 },
+      ]),
+    )
+    expect(plugin.insertTable(LONG[194]!, null, 'after', [['가', '나']], false)).toMatchObject({
+      ok: true,
+    })
+    const table = drawnTable(doc(), 195)
+    expect(table.w).toBeGreaterThan(table.columns[0]!.width * 0.9)
+    expect(table.columns).toHaveLength(1)
+  })
+
+  it('reads the columns of a part no page starts in from where its lines are laid out', async () => {
+    const { plugin, doc } = open(await zoned(QUESTIONS.slice(0, 6), [{ at: '문항 3 ', cols: 2 }]))
+    const text = (JSON.parse(doc().getPageInfo(0)) as { columns: { width: number }[] }).columns[0]!
+    expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toMatchObject({ ok: true })
+    const box = drawnTable(doc(), 4)
+    expect(box.w).toBeLessThan(text.width * 0.55)
+    plugin.formatParagraph(QUESTIONS[1]!, null, { list: 'number' })
+    expect(plugin.insertTitleBox(QUESTIONS[1]!, null, { look: 'box' })).toEqual({
+      ok: false,
+      reason: 'numbered',
+      count: 1,
+    })
+    expect(() => tableIn(doc(), 1)).toThrow()
+  })
+
+  it('keeps a title box on an indented paragraph inside its column', async () => {
+    const { plugin, doc } = open(await zoned(QUESTIONS.slice(0, 6), [{ at: '문항 3 ', cols: 2 }]))
+    plugin.formatParagraph(QUESTIONS[4]!, null, { marginLeft: 40 })
+    const text = (JSON.parse(doc().getPageInfo(0)) as { columns: { x: number; width: number }[] })
+      .columns[0]!
+    const column = (text.width - (8 * 96) / 25.4) / 2
+    expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toMatchObject({ ok: true })
+    const box = drawnTable(doc(), 4)
+    expect(box.x).toBeGreaterThan(text.x + 40)
+    expect(box.x + box.w).toBeLessThanOrEqual(text.x + column + 2)
+  })
+
+  it.each([
+    ['a left margin', { marginLeft: 40 }],
+    ['a first-line indent', { indent: 15 }],
+  ])(
+    'keeps a title box on a line with %s inside its column in columns the section starts with',
+    (_name, look) => {
+      const { plugin, doc } = open(blank(['']))
+      plugin.insertParagraphs('', null, 'end', QUESTIONS.slice(0, 30))
+      plugin.setColumns({ count: 2 })
+      plugin.formatParagraph(QUESTIONS[4]!, null, look)
+      expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toMatchObject({
+        ok: true,
+      })
+      const box = drawnTable(doc(), 4)
+      const column = box.columns.find((one) => box.x >= one.x - 2 && box.x <= one.x + one.width)!
+      expect(box.x + box.w).toBeLessThanOrEqual(column.x + column.width + 1)
+    },
+  )
+
+  it('takes a table as wide as the text in a part set back to one column no page starts in', async () => {
+    const { plugin, doc } = open(
+      await zoned(QUESTIONS.slice(0, 12), [
+        { at: '문항 3 ', cols: 2 },
+        { at: '문항 8 ', cols: 1 },
+      ]),
+    )
+    expect(plugin.insertTable(QUESTIONS[9]!, null, 'after', [['가', '나']], false)).toMatchObject({
+      ok: true,
+    })
+    const table = drawnTable(doc(), 10)
+    expect(table.w).toBeGreaterThan(table.columns[0]!.width * 0.9)
+  })
+
+  it('gives the test-paper page the column width the skill names', () => {
+    const { plugin, doc } = open(blank(['']))
+    const { page, columns } = EXAM_PAPER
+    plugin.setPageSetup(
+      {
+        paper: page.paper,
+        margins: {
+          left: page.marginLeft,
+          right: page.marginRight,
+          top: page.marginTop,
+          bottom: page.marginBottom,
+          header: page.marginHeader,
+          footer: page.marginFooter,
+        },
+      } as never,
+      null,
+    )
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: columns.count, gapMm: columns.gapMm, line: 'solid' })
+    const drawn = JSON.parse(doc().getPageInfo(0)).columns as { width: number }[]
+    expect(drawn).toHaveLength(2)
+    for (const column of drawn) {
+      expect(Math.abs((column.width * 25.4) / 96 - examColumnWidthMm())).toBeLessThan(0.2)
+    }
   })
 })

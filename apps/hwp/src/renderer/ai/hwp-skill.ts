@@ -18,6 +18,7 @@ import type {
   AgentCellText,
   AgentChangeOptions,
   AgentCutCell,
+  AgentTallerRow,
   AgentEquation,
   AgentCheckBox,
   AgentLayoutCheck,
@@ -266,7 +267,7 @@ const SYSTEM_PROMPT = [
   '## Page setup and lists',
   '- Change the page setup only when the user asks. Margins and paper are in millimetres; say that pages may break differently afterwards.',
   '- A page number is set once for the document with set_page_number (its place, its shape, dashes or not); never type a page number into the text. A header or footer is one line with set_header_footer: {page} stands for the page number and {pages} for the number of pages. Read what is there first (read_page_layout): one laid out by hand, with a table or a picture, is left to the user.',
-  '- Columns (set_columns) are for test papers, newsletters and the like. Set them before adding tables: from then on a table is one column wide, and so is a title box. The head of the page, as wide as the page, is one table with across_columns in front of the first paragraph: put the title into it. insert_break starts a paragraph on a new page or in the next column, for example so that a question is not cut in two.',
+  '- Columns (set_columns) are for test papers, newsletters and the like. Write the text first, then set the columns, then add the tables: text written into columns already set runs past the foot of the page in this editor, and a table or title box added after them is one column wide. The head of the page, as wide as the page, is one table with across_columns in front of the first paragraph: put the title into it. insert_break starts a paragraph on a new page or in the next column, for example so that a question is not cut in two.',
   '- For numbered or bulleted paragraphs use list on the paragraphs instead of typing 1. or ● into their text. Korean official documents often type their level marks (□, ㅇ, -, 1., 가.) as text: keep that scheme when the document uses it.',
   '',
   "## Copying another document's formatting",
@@ -293,17 +294,17 @@ const SYSTEM_PROMPT = [
   '- When you write a document from scratch (an empty document, or one whose text is all in the default look) and neither a template nor a skill fixes its look, give it the look that kind of document has, without being asked: a run of default text is not a finished report. Decide the look from what the document is and who reads it, and keep it through the whole document.',
   '- A report or a plan inside a public office, a school or a company (보고서, 계획서, written in 개조식): a title box; heading lines marked □ in a heavy gothic of 15 to 16 pt with space above; items marked ○ in a serif text face of 13 to 15 pt; sub-items marked - and notes marked ※ a little smaller; line spacing of 160 to 180 percent; each level set further in with margin_left (the top level at 0, where the text of the page starts) and given a negative indent as wide as its mark and the space after it, so that a second line starts under the text and not under the mark; tables with a shaded header row.',
   '- Numbered levels, when the user asks for them or the organisation writes that way (Ⅰ, 1., 가., 1), 가), (1), (가), ① from the top level down, the order of Korean official documents): type the number as text at the start of each paragraph, and count each level from its first value again under a new parent. Give each level a style of its own and apply it with one rule by numbered ("1." is every 1. 2. 3. … paragraph, "가." every 가. 나. 다. …): the top level heaviest and largest and at margin_left 0, each level below lighter and with a margin_left about two characters larger than the one above, and each with a negative indent as wide as its number so that a second line starts under the text. Bold is for levels that hold short headings: a level whose lines are sentences stays regular.',
-  '- A test paper or a worksheet (시험지, 평가지, 학습지): two columns (set_columns) before anything else; after the text, a head across the columns as a table (insert_table with across_columns, where "before" the first paragraph; no title box) that holds the school and the name of the test, the subject, and blanks for grade, class, number and name; questions numbered 1. 2. 3. in a text face of 10 to 11 pt at about 150 to 160 percent, the question line bold (a style applied by numbered "1.") and starting at the left edge of the column like a passage above it (margin_left 0, a negative indent as wide as the number), each choice ① to ⑤ on a line of its own set in by the width of the question number, the points in brackets at the end of the question, and an empty line between questions. Leave the answers out unless the user asks for them.',
+  '- A test paper (시험지, 평가, 고사), from scratch or in a form that is open: read the skill hwp-exam-paper with use_skill before the first change, and follow it. A worksheet (학습지) or a quiz sheet is an ordinary document: the test-paper form (B4, approval box, points, page border, end mark) only when asked.',
   '- A notice or a letter to people outside (안내문, 가정통신문): a centred title with a frame or lines, full sentences in one text face of 11 to 12 pt at about 160 percent, the date and the sender centred or right-aligned at the end, and little decoration. A reply slip goes under a cut line: one paragraph of dashes with 절취선 in the middle, centred (type it as "- - - 절취선 - - -": the app writes as many dashes on each side as fit one line), and is a table of plain grid lines with the blanks to fill in.',
   '- An official letter (공문): no decoration; its fixed parts in one text face of 12 to 13 pt.',
   '- The Ministry of the Interior and Safety guideline format (행안부 형식), or when the user asks for a plain document: no title box, no shading and no colour, prose paragraphs, fonts every PC has. A skill that says how the document must look is followed before these lines.',
   '- Anything else (minutes, a proposal, a paper): what such documents usually look like; when unsure, a centred bold title, bold headings and body text of 10 to 11 pt.',
-  '- Build it in this order: set_columns when the look has columns; all the text with insert_paragraphs; the tables with insert_table (look, header_color, column_widths, size); then one style_paragraphs call that makes the styles (those of headings with keep_with_next, so that a heading is not left alone at the foot of a page) and applies each by the mark or the number its lines start with (and the title by find); then insert_title_box when the look has one; then read_page_layout, which says how many pages the document has now and what is left alone at the foot of a page, and set_page_number when it runs over one page. A few calls style the whole document: do not format it paragraph by paragraph.',
+  '- Build it in this order: all the text with insert_paragraphs; set_columns when the look has columns; the tables with insert_table (look, header_color, column_widths, size); then one style_paragraphs call that makes the styles (those of headings with keep_with_next, so that a heading is not left alone at the foot of a page) and applies each by the mark or the number its lines start with (and the title by find); then insert_title_box when the look has one; then read_page_layout, which says how many pages the document has now and what is left alone at the foot of a page, and set_page_number when it runs over one page. A few calls style the whole document: do not format it paragraph by paragraph.',
   '- Fonts: the context says which document fonts this PC has. Offices write headings in HY헤드라인M and text in 휴먼명조, which come with Hancom Office only: use them when the PC has them. Where it lacks them use a font of the same kind that it has: a gothic in bold (맑은 고딕) for headings, a serif face (함초롬바탕, else 바탕) for text. style_paragraphs, insert_title_box and insert_table make this swap themselves and report it as a stand-in. When the user names a font, use that font.',
-  '- Boxes and lines are paragraph borders: a box round a few lines (the 〈보기〉 of a test, a summary, a note to mind) is border with sides box on each of those paragraphs, with margin_left and margin_right of 6 to 10 pt so that the words do not touch the lines, and a pale background when it should stand out (space above its first paragraph and below its last is room inside the box; room outside it belongs to the paragraphs around it); a line under a heading is border with sides bottom; a note set off from the text is a band at the left (sides left, 1 to 1.5 mm wide) with margin_left 8 to 10 pt and a pale background. Put them into the styles of style_paragraphs. An approval box (결재란) is a small table at the right: insert_table with width_percent 30 to 45 and place right, its first column merged for the word 결재 (merge_cells) and the signing row made high (format_cells row_height_mm). Text in table cells is formatted with format_cells (align, bold, size) on a block, not cell by cell. Narrow or space characters (char_width, letter_spacing) only to fit a line, as official documents do: 90 to 100 percent and 0 to -5.',
+  '- Boxes and lines are paragraph borders: a box round a few lines (a summary, a note to mind) is border with sides box on each of those paragraphs, with margin_left and margin_right of 6 to 10 pt so that the words do not touch the lines, and a pale background when it should stand out (space above its first paragraph and below its last is room inside the box; room outside it belongs to the paragraphs around it); a line under a heading is border with sides bottom; a note set off from the text is a band at the left (sides left, 1 to 1.5 mm wide) with margin_left 8 to 10 pt and a pale background. Put them into the styles of style_paragraphs. An approval box (결재란) is a small table at the right: insert_table with width_percent 30 to 45 and place right, its first column merged for the word 결재 (merge_cells) and the signing row made high (format_cells row_height_mm). Text in table cells is formatted with format_cells (align, bold, size) on a block, not cell by cell. Narrow or space characters (char_width, letter_spacing) only to fit a line, as official documents do: 90 to 100 percent and 0 to -5.',
   '- Something at the right end of a line (the page of a contents line you type yourself, the price of an item, the time in a programme, "(인)" after a name) is one paragraph with a tab character between the two parts (written \\t in the text you pass) and a tab stop on it: tabs [{ "leader": "dots" }] puts what follows the tab at the right edge of the text with dots leading up to it, and without leader the way stays empty. Never fill the way with typed dots or spaces. A table of contents of the headings of the document itself is insert_toc, not this.',
   '- Formulas are equations (insert_equations), not typed characters: in a mathematics or science paper write every expression as an equation, a short one too, so that all of them look alike. Write the text with a placeholder where each one goes, [[1]], [[2]], and put them all in with one call after style_paragraphs, so that each is as large as the text it stands in.',
-  '- A line round the page (set_page_border) is for a certificate, an award, a cover or a notice to post: a double line, or a heavy one in the accent colour. A report, a letter or a test paper has none. The corner cell of a timetable or a cross table that names both its rows and its columns takes a diagonal (format_cells with diagonal down) and no words (pass "" for it in rows), and a cell that does not apply is crossed out with diagonal both.',
+  '- A line round the page (set_page_border) is for a certificate, an award, a cover or a notice to post: a double line, or a heavy one in the accent colour. A report or a letter has none. The corner cell of a timetable or a cross table that names both its rows and its columns takes a diagonal (format_cells with diagonal down) and no words (pass "" for it in rows), and a cell that does not apply is crossed out with diagonal both.',
   '- Colour sparingly: one accent colour for the title box and the table header at most (a dark blue or a grey, unless the user or the organisation has its own); body text stays black.',
   '- Tell the user in a line or two which look you gave the document and which fonts stood in, so that they can ask for another.',
   '',
@@ -771,7 +772,7 @@ const TOOLS: HwpToolDef[] = [
         across_columns: {
           type: 'boolean',
           description:
-            'where the text runs in columns (set_columns): make the table as wide as the page, lying across the columns at the top of the first page, as the head of a test paper does. Only with where "before" and an anchor in the first paragraph of the document. Without it a table there is one column wide',
+            'make the table as wide as the page, lying across the top of the first page over the columns (those there are and those set_columns makes later), as the head of a test paper does. Only with where "before" and an anchor in the first paragraph of the document. Without it a table in columns is one column wide',
         },
       },
       required: ['where', 'rows'],
@@ -1576,14 +1577,14 @@ const TOOLS: HwpToolDef[] = [
     name: 'read_page_layout',
     edits: false,
     description:
-      'Show how many pages the document has and where its body falls on them as printed: first what to mind (a heading or caption left alone at the foot of a page, tables past the foot or over two pages, text past the foot, empty pages), then per page the first words of its first and of its last paragraph on it ("continues" when that paragraph began on the page before). Also the columns its text runs in, the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
+      'Show how many pages the document has and where its body falls on them as printed: first what to mind (a heading or caption left alone at the foot of a page, tables past the foot or over two pages, text past the foot, empty pages), then per page the first words of its first and of its last paragraph on it ("continues" when that paragraph began on the page before). Also the columns its text starts in and the line between them (changes_within: a later part, such as the body under the head of a test-paper form, runs in other columns), the line round its pages, its page number (place, shape, dashes or not) and the text of its header and footer; plain says whether set_header_footer may rewrite it.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
     name: 'set_columns',
     edits: true,
     description:
-      'Lay the body text out in columns of one width (다단), in the whole document; count 1 takes the columns away. Call it before adding tables: a table added afterwards is one column wide, and tables that are already there keep their width. A line between the columns cannot be drawn.',
+      'Lay the body text out in columns of one width (다단), in the whole document; count 1 takes the columns away. Call it after writing the text and before adding tables: a table added afterwards is one column wide, and tables that are already there keep their width.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1591,6 +1592,12 @@ const TOOLS: HwpToolDef[] = [
         gap_mm: {
           type: 'number',
           description: 'the gap between the columns in millimetres; default 8',
+        },
+        line: {
+          type: 'string',
+          enum: ['none', 'solid', 'dashed', 'dotted'],
+          description:
+            'a thin line down the middle of each gap, as a test paper has; none takes it away; left out, the line stays as it is',
         },
       },
       required: ['count'],
@@ -1821,6 +1828,7 @@ const DECLARED_NAME_OF_READ_KEY = new Map([
   ['numberFormat', 'number_format'],
   ['startNumber', 'start_number'],
   ['gapMm', 'gap_mm'],
+  ['changesWithin', 'changes_within'],
 ])
 
 const DECLARED_NAME_OF_OLD_ARGUMENT = new Map([...DECLARED_NAME_OF_READ_KEY, ['atMm', 'at_mm']])
@@ -2267,6 +2275,15 @@ const rowsOf = (cells: { row: number }[] | AgentCellBlock | null): [from: number
   const rows = Array.isArray(cells) ? cells.map((cell) => cell.row) : [cells.fromRow, cells.toRow]
   return [Math.min(...rows), Math.max(...rows)]
 }
+
+const columnLineNote = (line: string | undefined, kept: boolean): string =>
+  line === undefined
+    ? ''
+    : line === 'none'
+      ? ' and no line'
+      : kept
+        ? `; the ${line} line down the middle of each gap was there and stays (line "none" takes it away)`
+        : `, a ${line} line down the middle of each gap`
 
 const wideTablesNote = (wide: readonly number[] | undefined): string => {
   if (!wide || wide.length === 0) return ''
@@ -2797,6 +2814,14 @@ function describeFormat(
 }
 
 /** Why a paragraph edit did nothing, as the model reads it. */
+/** Why a table or box is not made where the width of a column cannot be read. */
+function columnsUnknownRefusal(what: 'table' | 'box'): string {
+  return `Nothing was changed: this part of the document runs in columns set part way through it, as the body of a test-paper form under its head, and the paragraph is not laid out on a page yet, so this editor cannot read how wide one of its columns is and the ${what} would stand over the line between the columns. Make a box there as paragraphs with a border (format_paragraph border, sides box) instead.`
+}
+
+const NUMBERED_TITLE_HELP =
+  'Nothing was changed: that paragraph is numbered or bulleted by its paragraph format, and a title box would leave the number alone on a line above the box. Give the paragraph a border with format_paragraph instead, or take the number away first (format_paragraph list "none") and write it into the title.'
+
 function placeRefusal(result: AgentPlaceRefusal): string {
   switch (result.reason) {
     case 'ambiguous':
@@ -2890,6 +2915,27 @@ function linesArgs(
 
 const LINES_HELP =
   'table and at must be numbers (from list_tables and read_table), and what "rows" or "columns".'
+
+/** The rows of a head across the columns that a change left taller than their text needs. */
+function tallerRowsOf(result: unknown): AgentTallerRow[] {
+  const rows =
+    typeof result === 'object' && result !== null
+      ? (result as { tallerRows?: unknown }).tallerRows
+      : undefined
+  return Array.isArray(rows) ? (rows as AgentTallerRow[]) : []
+}
+
+function tallerRowsNote(rows: AgentTallerRow[]): string {
+  if (rows.length === 0) return ''
+  const named = rows
+    .map(
+      (row) =>
+        `row ${row.row} of table ${row.table} (${row.heightMm} mm, its text needs ${row.needsMm} mm)`,
+    )
+    .join(', ')
+  const verb = rows.length === 1 ? 'keeps its height' : 'keep their height'
+  return ` ${named.charAt(0).toUpperCase()}${named.slice(1)} ${verb}, which only format_cells row_height_mm lowers.`
+}
 
 function noSuchTable(table: number, count: number): string {
   return count === 0
@@ -3052,6 +3098,8 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
   /** delete_paragraph calls (find, occurrence) refused for hitting one of those, this run */
   let refusedDeletes = new Set<string>()
   let cutAtStart: number | 'unmeasured' | 'unknown' = 'unmeasured'
+  // what the change of the call being run said about the rows of a head across the columns
+  let tallerRows: AgentTallerRow[] = []
   const cutCellsNow = async (): Promise<AgentCutCell[] | null> => {
     try {
       return await bridge.cutCells()
@@ -3103,12 +3151,14 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
     retry: (options: AgentChangeOptions) => Promise<T>,
   ): Promise<ChangeOutcome<T>> => {
     const firstResult = await first()
+    tallerRows = tallerRowsOf(firstResult)
     if (!isMemoRemovalRefusal(firstResult)) return { kind: 'done', result: firstResult }
     const approved = await deps.confirmMemoRemoval(firstResult)
     if (!approved) return { kind: 'declined', refusal: firstResult }
     // only the memos the user saw may go: if the document changed meanwhile and the change
     // would now take another one, it is refused again and nothing is changed
     const second = await retry({ approvedMemoIds: firstResult.memos.map((memo) => memo.id) })
+    tallerRows = tallerRowsOf(second)
     if (isMemoRemovalRefusal(second)) return { kind: 'changed', refusal: second }
     return { kind: 'done', result: second }
   }
@@ -3755,6 +3805,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
               'Nothing was changed: a table across the columns is the head of the document. Pass where "before" with an anchor in the first paragraph of the document, or leave across_columns out for a table one column wide.',
             )
           }
+          if (result.reason === 'columns_unknown') {
+            return bad(call, columnsUnknownRefusal('table'))
+          }
           return bad(call, placeRefusal(result))
         }
         deps.onChange({
@@ -3776,7 +3829,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         }
         if (tableLook.acrossColumns && !result.acrossColumns) {
           unused.push(
-            ' across_columns did nothing: the text runs in one column, so the table is as wide as the text. For a head across columns, call set_columns first and add the table after it.',
+            ' across_columns did nothing: only a table in front of the first paragraph of the document (where "before") lies across the page.',
           )
         }
         const fixedAcross = [
@@ -3792,7 +3845,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           ? ' The words of the header row were written white to show on its fill.'
           : ''
         return {
-          output: `Added a table of ${result.rows} row(s) and ${result.cols} column(s)${result.acrossColumns ? ', lying across the columns of the page' : ''}.${headerText}${unused.join('')}${standInNote(result.standIn)}${OCCURRENCE_SHIFT_NOTE}${tableNumberNote(result)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
+          output: `Added a table of ${result.rows} row(s) and ${result.cols} column(s)${result.acrossColumns ? ', lying across the top of the page over the columns' : ''}.${headerText}${unused.join('')}${standInNote(result.standIn)}${OCCURRENCE_SHIFT_NOTE}${tableNumberNote(result)}${result.table === undefined ? '' : await cutNote(result.table, 1, result.rows)}`,
           mutated: true,
           summary: label('aiToolTable', { rows: result.rows, cols: result.cols }),
         }
@@ -4615,6 +4668,9 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
               : '') +
             (result.crossed
               ? ` The diagonal runs through the words of ${result.crossed.map((cell) => `${cell.row}.${cell.col}`).join(', ')}: empty those cells with fill_cells (text "") unless the user wants the words kept.`
+              : '') +
+            (result.overflowingRows
+              ? ` The text of ${result.overflowingRows.length === 1 ? 'row' : 'rows'} ${result.overflowingRows.join(', ')} needs more height than row_height_mm gives, so it overflows the row and column 2 starts over the head table.`
               : '') +
             (fillOnly ? '' : await cutNote(table, ...rowsOf(cells))),
           mutated: true,
@@ -5485,7 +5541,13 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (!result.ok) {
           return bad(
             call,
-            result.reason === 'in_table' ? titleInTableRefusal(result.table) : placeRefusal(result),
+            result.reason === 'in_table'
+              ? titleInTableRefusal(result.table)
+              : result.reason === 'columns_unknown'
+                ? columnsUnknownRefusal('box')
+                : result.reason === 'numbered'
+                  ? NUMBERED_TITLE_HELP
+                  : placeRefusal(result),
           )
         }
         deps.onChange({
@@ -5516,6 +5578,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         const spec = {
           count,
           ...(typeof call.input.gap_mm === 'number' ? { gapMm: call.input.gap_mm } : {}),
+          ...(typeof call.input.line === 'string' ? { line: call.input.line as never } : {}),
         }
         const outcome = await changeWithMemoApproval(
           () => bridge.setColumns(spec),
@@ -5534,8 +5597,8 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         return {
           output:
             result.count > 1
-              ? `The text now runs in ${result.count} columns with ${result.gapMm} mm between them. A table added from now on is one column wide; pass across_columns for one as wide as the page. Tables that were already there kept their width.${wideTablesNote(result.wide)}`
-              : 'The text runs in one column again.',
+              ? `The text now runs in ${result.count} columns with ${result.gapMm} mm between them${columnLineNote(result.line, result.lineKept === true)}. A table added from now on is one column wide; pass across_columns for one as wide as the page. Tables that were already there kept their width.${wideTablesNote(result.wide)}`
+              : `The text runs in one column again.${result.lineKept ? ` The ${result.line} line between columns stays stored and comes back with the columns (line "none" takes it away).` : ''}`,
           mutated: true,
           summary: label('aiToolColumnsSet', { count: result.count }),
         }
@@ -5942,9 +6005,10 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             cutAtStart = (await cutCellsNow())?.length ?? 'unknown'
           }
           const pagesBefore = tool.edits ? await pagesNow() : null
+          tallerRows = []
           const done = await run(withDoubledEscapesUndone(call), signal)
           if (done.isError) return done
-          const output = done.output + unusedNote(tool, prepared)
+          const output = done.output + unusedNote(tool, prepared) + tallerRowsNote(tallerRows)
           // read once the change returned: the editor pages the document when it commits
           const pages = pagesBefore !== null && done.mutated ? await pagesNow() : null
           if (pages === null || pages === pagesBefore) return { ...done, output }

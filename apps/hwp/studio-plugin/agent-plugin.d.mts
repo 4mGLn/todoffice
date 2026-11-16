@@ -258,6 +258,10 @@ export type AgentTitleBoxResult =
   | AgentPlaceRefusal
   /** the title is inside a table cell, where a box cannot be made: `table` is its number */
   | { ok: false; reason: 'in_table'; count: number; table?: number }
+  /** the title runs in columns set part way through its section and is not laid out yet */
+  | { ok: false; reason: 'columns_unknown'; count: number }
+  /** the paragraph is numbered or bulleted: the number would stay on its own line */
+  | { ok: false; reason: 'numbered'; count: number }
 
 /** Which fonts Korean documents use this PC has and lacks; both are empty when that is not known. */
 export interface AgentDocumentFonts {
@@ -318,8 +322,11 @@ export interface AgentPageLayout {
   pages: number
   /** the line drawn round every page; null when there is none */
   pageBorder: { line: string; color: string } | null
-  /** the columns the text of the first section runs in */
-  columns: { count: number; gapMm: number }
+  /**
+   * the columns the text of the first section starts in; `line` the line between them when
+   * there is one; `changesWithin` when a later part of the document sets other columns
+   */
+  columns: { count: number; gapMm: number; line?: AgentColumnLineDrawn; changesWithin?: true }
   pageNumber: AgentPageNumber | null
   header: AgentHeaderFooterState
   footer: AgentHeaderFooterState
@@ -377,9 +384,29 @@ export interface AgentTablePastFoot {
   taller?: true
 }
 
+/** The lines setColumns draws between columns. */
+export type AgentColumnLine = 'solid' | 'dashed' | 'dotted'
+
+/** Every line a document may have between its columns. */
+export type AgentColumnLineDrawn =
+  AgentColumnLine | 'dash-dot' | 'dash-dot-dot' | 'long-dash' | 'circles'
+
 export type AgentColumnsResult =
-  /** `wide`: the tables, as listTables numbers them, wider than a column now; absent when none is */
-  | { ok: true; count: number; gapMm: number; was: number; sections: number; wide?: number[] }
+  /**
+   * `wide`: the tables, as listTables numbers them, wider than a column now; absent when none is.
+   * `line`: the line asked for, when one was; or, with `lineKept`, the line that was
+   * there and stays because none was asked for
+   */
+  | {
+      ok: true
+      count: number
+      gapMm: number
+      was: number
+      sections: number
+      wide?: number[]
+      line?: AgentColumnLineDrawn | 'none'
+      lineKept?: true
+    }
   | AgentMemoRemovalRefusal
 
 /** The line round every page: as a cell's border line is told; line "none" takes it away. */
@@ -480,6 +507,11 @@ export type AgentTableResult =
   | { ok: false; reason: 'in_table'; count: number }
   /** a table across the columns goes before the first paragraph of the document only */
   | { ok: false; reason: 'not_at_start'; count: number }
+  /**
+   * the place runs in columns set part way through its section and is not laid out yet, so
+   * their width is not known
+   */
+  | { ok: false; reason: 'columns_unknown'; count: number }
 
 /** A picture put into the document: where it now sits. */
 export type AgentPictureResult =
@@ -677,6 +709,11 @@ export type AgentFormatCellsResult =
       crossed?: { row: number; col: number }[]
       /** the widths of the columns now, in millimetres, when columnWidths was given */
       columnWidthsMm?: number[]
+      /**
+       * rows (from 1) of a head across the columns whose text needs more than the height
+       * set: the text runs past the row, and the other columns start over the head
+       */
+      overflowingRows?: number[]
     }
   | { ok: false; reason: 'no_such_table'; count: number }
   /** columnWidths does not give one number for each of the `cols` columns */
@@ -740,6 +777,18 @@ export interface AgentLayoutOverflow {
 
 /** A cut-off cell as cutCells lists it: its table, as listTables numbers them, row and column. */
 export type AgentCutCell = Pick<AgentLayoutOverflow, 'table' | 'row' | 'col'>
+
+/**
+ * A row of a table across the columns at the head of the document that a change left
+ * taller than its text needs (it needed more before): it keeps its height. Any change's
+ * answer may carry them as `tallerRows`.
+ */
+export interface AgentTallerRow {
+  table: number
+  row: number
+  heightMm: number
+  needsMm: number
+}
 
 /** A place in the tables to measure from: 1-based table (as listTables) and row. */
 export interface AgentLayoutPlace {
@@ -1792,7 +1841,7 @@ export interface AgentPluginSurface {
   /** the page number, header and footer of the document */
   pageLayout(): AgentPageLayout
   setColumns(
-    spec: { count: number; gapMm?: number | null },
+    spec: { count: number; gapMm?: number | null; line?: AgentColumnLine | 'none' | null },
     options?: AgentChangeOptions,
   ): AgentColumnsResult
   insertBreak(
