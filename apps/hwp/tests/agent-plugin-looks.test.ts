@@ -1425,6 +1425,32 @@ describe('the shape the context tells', () => {
     expect(plugin.documentShape().plain).toEqual({ body: false, tables: false })
   })
 
+  it('reads formatting in a table nested deeper than the list of tables goes', () => {
+    const start = blank(['표 앞'])
+    const made = JSON.parse(start.createTable(0, 0, 0, 2, 2)) as {
+      paraIdx: number
+      controlIdx: number
+    }
+    let path = [{ controlIndex: made.controlIdx, cellIndex: 0, cellParaIndex: 0 }]
+    for (let level = 1; level <= 4; level++) {
+      const inner = JSON.parse(
+        start.createTableInCellByPath(
+          0,
+          made.paraIdx,
+          JSON.stringify(path),
+          0,
+          JSON.stringify({ rowCount: 1, colCount: 2 }),
+        ),
+      ) as { cellPath: typeof path }
+      path = inner.cellPath
+    }
+    start.insertTextInCellByPath(0, made.paraIdx, JSON.stringify(path), 0, '깊은 칸 굵은 글')
+    const { plugin, doc } = open(start)
+    expect(plugin.documentShape().plain.tables).toBe(true)
+    doc().applyCharFormatInCellByPath(0, made.paraIdx, JSON.stringify(path), 0, 4, '{"bold":true}')
+    expect(plugin.documentShape().plain.tables).toBe(false)
+  })
+
   it('names a later section on another paper', () => {
     const sections = new HwpDocument(
       readFileSync(join(__dirname, 'fixtures', 'master-page-next-section.hwpx')),

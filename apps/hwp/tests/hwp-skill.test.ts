@@ -3758,6 +3758,21 @@ describe('the look of a document', () => {
     expect(tablesOnly.skill.buildContext!()).toContain(
       'Look: the body text is in the default look (바탕글, nothing formatted); text in tables or title boxes has formatting.',
     )
+    const deep = setup({
+      documentShape: vi.fn(async () => ({
+        pages: 1,
+        paper: 'A4',
+        width: 210,
+        height: 297,
+        orientation: 'portrait' as const,
+        columns: 1,
+        plain: { body: true, tables: true, unread: true },
+      })),
+    })
+    await deep.refreshContext()
+    expect(deep.skill.buildContext!()).toContain(
+      'Look: all text is in the default look (바탕글, nothing formatted); some tables inside table cells were not read.',
+    )
     const unread = setup({ documentShape: vi.fn(async () => Promise.reject(new Error('gone'))) })
     await unread.refreshContext()
     expect(unread.skill.buildContext!()).toContain('Length:')

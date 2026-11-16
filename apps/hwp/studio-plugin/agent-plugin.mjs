@@ -2082,6 +2082,8 @@ function missingStyle(doc, spec) {
  * paragraphs, `tables` for the cells of its tables, tables inside cells included (title
  * boxes are tables too; null without a table). The engine cannot tell the style of a
  * paragraph in a table inside a cell, so there its paragraph and character shapes decide.
+ * `unread`: the tables read so far are plain, but the budget for finding tables inside cells
+ * ran out before all were read.
  */
 function plainLookOf(doc) {
   const base = parse(doc.getStyleList())[0]
@@ -2106,7 +2108,7 @@ function plainLookOf(doc) {
       )
     }
   }
-  const { tables } = tablesOf(doc)
+  const { tables, partial } = tablesOf(doc, Infinity)
   let cells = tables.length > 0 ? true : null
   for (const table of tables) {
     const control = table.path[table.path.length - 1].controlIndex
@@ -2141,7 +2143,7 @@ function plainLookOf(doc) {
     }
     if (!cells) break
   }
-  return { body, tables: cells }
+  return { body, tables: cells, ...(partial && cells ? { unread: true } : {}) }
 }
 
 // eslint-disable-next-line no-control-regex
@@ -2469,7 +2471,7 @@ function paragraphsOfStyle(doc, styleId) {
  */
 function nestedTableItems(doc) {
   const items = []
-  for (const table of tablesOf(doc).tables) {
+  for (const table of tablesOf(doc, Infinity).tables) {
     if (table.path.length < 2) continue
     for (let cell = 0; cell < table.cells; cell++) {
       const at = (k) => JSON.stringify(cellAt(table.path, cell, k))
@@ -4610,9 +4612,10 @@ const tableKey = (sec, para, path) =>
  * Every table of the document in reading order, a table inside a cell right after the table
  * it sits in. The engine lists the objects of a body paragraph but not those of a cell
  * paragraph, so a table inside a cell is found by asking for it; `partial` says the budget
- * for that ran out and tables inside cells may be missing from the end of the list.
+ * for that ran out and tables inside cells may be missing from the end of the list. Tables
+ * are followed `depth` deep, MAX_TABLE_DEPTH unless asked for more.
  */
-function tablesOf(doc) {
+function tablesOf(doc, depth = MAX_TABLE_DEPTH) {
   const tables = []
   let lookups = MAX_NESTED_LOOKUPS
   const dimensions = (sec, para, path) => {
@@ -4623,7 +4626,7 @@ function tablesOf(doc) {
       return null
     }
   }
-  const add = (sec, para, path, dims, parent, depth) => {
+  const add = (sec, para, path, dims, parent, level) => {
     const index = tables.length
     tables.push({
       sec,
@@ -4634,7 +4637,7 @@ function tablesOf(doc) {
       cells: dims.cellCount,
       parent,
     })
-    if (depth >= MAX_TABLE_DEPTH) return
+    if (level >= depth) return
     for (let cell = 0; cell < dims.cellCount && lookups > 0; cell++) {
       const paragraphs = doc.getCellParagraphCountByPath(
         sec,
@@ -4649,7 +4652,7 @@ function tablesOf(doc) {
             { controlIndex: inner, cellIndex: 0, cellParaIndex: 0 },
           ]
           const innerDims = dimensions(sec, para, innerPath)
-          if (innerDims) add(sec, para, innerPath, innerDims, index, depth + 1)
+          if (innerDims) add(sec, para, innerPath, innerDims, index, level + 1)
         }
       }
     }

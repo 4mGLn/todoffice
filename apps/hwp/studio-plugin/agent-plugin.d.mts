@@ -1258,9 +1258,10 @@ export interface AgentDocumentShape extends AgentPaper {
   columnsChangeWithin?: true
   /**
    * whether the text is plain 바탕글, formatted nowhere: in the body, and in the table cells
-   * (title boxes included; null without a table)
+   * (title boxes included; null without a table); `unread` when tables inside cells were left
+   * unread by the budget for finding them
    */
-  plain: { body: boolean; tables: boolean | null }
+  plain: { body: boolean; tables: boolean | null; unread?: boolean }
 }
 
 /**
