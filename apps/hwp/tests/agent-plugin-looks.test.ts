@@ -3794,15 +3794,15 @@ describe('a test paper in two columns', () => {
       changesWithin: true,
     })
     const box = [['〈보기〉 ㄱ. ㄴ. ㄷ.']]
-    expect(plugin.insertTable(QUESTIONS[4]!, null, 'after', box, false)).toEqual({
-      ok: false,
-      reason: 'columns_unknown',
-      count: 1,
+    expect(plugin.insertTable(QUESTIONS[4]!, null, 'after', box, false)).toMatchObject({
+      ok: true,
     })
-    expect(() => tableIn(doc(), 5)).toThrow()
+    const inColumn = drawnTable(doc(), 5)
+    expect(inColumn.w).toBeLessThan(inColumn.columns[0]!.width * 0.55)
     expect(plugin.insertTable(QUESTIONS[0]!, null, 'after', box, false)).toMatchObject({
       ok: true,
     })
+    expect(drawnTable(doc(), 1).w).toBeGreaterThan(inColumn.columns[0]!.width * 0.9)
     const sections = new HwpDocument(
       readFileSync(join(__dirname, 'fixtures', 'master-page-next-section.hwpx')),
     )
@@ -3863,7 +3863,8 @@ describe('a test paper in two columns', () => {
     expect(Math.abs(table.w - column.width)).toBeLessThan(2)
     expect(plugin.insertTitleBox(QUESTIONS[10]!, null, { look: 'box' })).toMatchObject({ ok: true })
     const box = drawnTable(doc(), 11)
-    expect(Math.abs(box.w - column.width)).toBeLessThan(2)
+    expect(box.w).toBeGreaterThan(column.width - 10)
+    expect(box.x + box.w).toBeLessThanOrEqual(column.x + column.width + 1)
   })
 
   it('makes a table as wide as the text where columns set part way go back to one', async () => {
@@ -3881,14 +3882,12 @@ describe('a test paper in two columns', () => {
     expect(table.columns).toHaveLength(1)
   })
 
-  it('refuses a title box where the width of the columns cannot be read, and on a numbered paragraph', async () => {
+  it('reads the columns of a part no page starts in from where its lines are laid out', async () => {
     const { plugin, doc } = open(await zoned(QUESTIONS.slice(0, 6), [{ at: '문항 3 ', cols: 2 }]))
-    expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toEqual({
-      ok: false,
-      reason: 'columns_unknown',
-      count: 1,
-    })
-    expect(() => tableIn(doc(), 4)).toThrow()
+    const text = (JSON.parse(doc().getPageInfo(0)) as { columns: { width: number }[] }).columns[0]!
+    expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toMatchObject({ ok: true })
+    const box = drawnTable(doc(), 4)
+    expect(box.w).toBeLessThan(text.width * 0.55)
     plugin.formatParagraph(QUESTIONS[1]!, null, { list: 'number' })
     expect(plugin.insertTitleBox(QUESTIONS[1]!, null, { look: 'box' })).toEqual({
       ok: false,
@@ -3896,6 +3895,32 @@ describe('a test paper in two columns', () => {
       count: 1,
     })
     expect(() => tableIn(doc(), 1)).toThrow()
+  })
+
+  it('keeps a title box on an indented paragraph inside its column', async () => {
+    const { plugin, doc } = open(await zoned(QUESTIONS.slice(0, 6), [{ at: '문항 3 ', cols: 2 }]))
+    plugin.formatParagraph(QUESTIONS[4]!, null, { marginLeft: 40 })
+    const text = (JSON.parse(doc().getPageInfo(0)) as { columns: { x: number; width: number }[] })
+      .columns[0]!
+    const column = (text.width - (8 * 96) / 25.4) / 2
+    expect(plugin.insertTitleBox(QUESTIONS[4]!, null, { look: 'box' })).toMatchObject({ ok: true })
+    const box = drawnTable(doc(), 4)
+    expect(box.x).toBeGreaterThan(text.x + 40)
+    expect(box.x + box.w).toBeLessThanOrEqual(text.x + column + 2)
+  })
+
+  it('takes a table as wide as the text in a part set back to one column no page starts in', async () => {
+    const { plugin, doc } = open(
+      await zoned(QUESTIONS.slice(0, 12), [
+        { at: '문항 3 ', cols: 2 },
+        { at: '문항 8 ', cols: 1 },
+      ]),
+    )
+    expect(plugin.insertTable(QUESTIONS[9]!, null, 'after', [['가', '나']], false)).toMatchObject({
+      ok: true,
+    })
+    const table = drawnTable(doc(), 10)
+    expect(table.w).toBeGreaterThan(table.columns[0]!.width * 0.9)
   })
 
   it('gives the test-paper page the column width the skill names', () => {

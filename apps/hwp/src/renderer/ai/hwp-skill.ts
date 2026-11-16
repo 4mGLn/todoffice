@@ -2816,7 +2816,7 @@ function describeFormat(
 /** Why a paragraph edit did nothing, as the model reads it. */
 /** Why a table or box is not made where the width of a column cannot be read. */
 function columnsUnknownRefusal(what: 'table' | 'box'): string {
-  return `Nothing was changed: this part of the document runs in columns set part way through it, as the body of a test-paper form under its head, and no page starts in those columns, so this editor cannot read how wide one is there and the ${what} would stand over the line between the columns. Make a box there as paragraphs with a border (format_paragraph border, sides box) instead.`
+  return `Nothing was changed: this part of the document runs in columns set part way through it, as the body of a test-paper form under its head, and the paragraph is not laid out on a page yet, so this editor cannot read how wide one of its columns is and the ${what} would stand over the line between the columns. Make a box there as paragraphs with a border (format_paragraph border, sides box) instead.`
 }
 
 const NUMBERED_TITLE_HELP =

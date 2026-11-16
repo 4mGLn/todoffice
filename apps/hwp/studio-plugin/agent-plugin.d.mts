@@ -258,7 +258,7 @@ export type AgentTitleBoxResult =
   | AgentPlaceRefusal
   /** the title is inside a table cell, where a box cannot be made: `table` is its number */
   | { ok: false; reason: 'in_table'; count: number; table?: number }
-  /** the title runs in columns set part way through its section, whose width is not known */
+  /** the title runs in columns set part way through its section and is not laid out yet */
   | { ok: false; reason: 'columns_unknown'; count: number }
   /** the paragraph is numbered or bulleted: the number would stay on its own line */
   | { ok: false; reason: 'numbered'; count: number }
@@ -508,7 +508,7 @@ export type AgentTableResult =
   /** a table across the columns goes before the first paragraph of the document only */
   | { ok: false; reason: 'not_at_start'; count: number }
   /**
-   * the place runs in columns set part way through its section where no page starts, so
+   * the place runs in columns set part way through its section and is not laid out yet, so
    * their width is not known
    */
   | { ok: false; reason: 'columns_unknown'; count: number }

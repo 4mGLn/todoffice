@@ -5880,17 +5880,16 @@ function columnsChangeWithin(doc) {
 }
 
 /**
- * The columns the text runs in at body paragraph `para` of section `sec`: how many, how wide
- * one is and the gap between them, in points; null where that cannot be read. A section
- * starts in the columns getColumnDef reads. No engine call reads a column definition set
- * part way through it (as a test-paper form sets two columns under a head in one), but a
- * page that starts after it, before the next one, is laid out in its columns, and getPageInfo
- * gives those: where no page starts so, its columns are not known.
+ * The columns the text runs in at body paragraph `para` of section `sec`: how many and how
+ * wide one is, in points, and `lineWidthPt`, how wide the paragraph's first line may run
+ * where it is laid out; null where that cannot be read. A section starts in the columns
+ * getColumnDef reads. No engine call reads a column definition set part way through it (as
+ * a test-paper form sets two columns under a head in one), so after one the columns are
+ * read from where the paragraph's lines are laid out (columnsWhereLaid).
  */
 function columnsAt(doc, sec, para) {
   let first = 0
   for (let s = 0; s < sec; s++) first += doc.getParagraphCount(s)
-  const paragraphs = doc.getParagraphCount(sec)
   let controls = []
   try {
     controls = parse(doc.getControls())
@@ -5900,43 +5899,63 @@ function columnsAt(doc, sec, para) {
   const starts = new Set(
     controls.filter((control) => control.ctrlId === 'secd').map((control) => control.para),
   )
-  const marks = controls
-    .filter(
-      (control) =>
-        control.ctrlId === 'cold' &&
-        control.list === 0 &&
-        !starts.has(control.para) &&
-        control.para > first &&
-        control.para < first + paragraphs,
-    )
-    .map((control) => control.para - first)
-  const from = Math.max(-1, ...marks.filter((mark) => mark <= para))
-  if (from < 0) {
-    const { count, gapPt } = columnsOf(doc, sec)
-    return { count, gapPt, widthPt: columnWidthPt(doc, sec) }
-  }
-  const to = Math.min(paragraphs, ...marks.filter((mark) => mark > from))
-  let page = 0
+  const laterDefinition = controls.some(
+    (control) =>
+      control.ctrlId === 'cold' &&
+      control.list === 0 &&
+      !starts.has(control.para) &&
+      control.para > first &&
+      control.para <= first + para,
+  )
+  if (laterDefinition) return columnsWhereLaid(doc, sec, para)
+  return { count: columnsOf(doc, sec).count, widthPt: columnWidthPt(doc, sec) }
+}
+
+/**
+ * The columns body paragraph `para` of section `sec` is laid out in, read from its page:
+ * each part of a page that runs in other columns has columns of its own from where it
+ * starts, so the paragraph's are those of the last part that starts above its first line,
+ * and the one of them its first line stands in. A part narrower than the text area runs in
+ * columns. Null where the paragraph has no layout.
+ */
+function columnsWhereLaid(doc, sec, para) {
+  let caret
+  let tree
   try {
-    page = parse(doc.getCursorRect(sec, from, 0)).pageIndex
+    caret = parse(doc.getCursorRect(sec, para, 0))
+    tree = parse(doc.getPageRenderTree(caret.pageIndex))
   } catch {
-    // a paragraph the caret cannot stand in (one that holds only a table): look from the start
+    return null
   }
-  for (const pages = doc.pageCount(); page < pages; page++) {
-    const at = parse(doc.getPositionOfPage(page))
-    if (!at.ok || at.sec !== sec || at.para >= to) break
-    // a page that starts with the paragraph holding the definition may still be laid out
-    // in the columns before it
-    if (at.para <= from) continue
-    const columns = parse(doc.getPageInfo(page)).columns
-    if (!Array.isArray(columns) || columns.length === 0) return null
-    const pt = (px) => (px * 72) / 96
-    const gapPt =
-      columns.length > 1 ? Math.max(0, pt(columns[1].x - columns[0].x - columns[0].width)) : 0
-    const widthPt = Math.floor(pt(Math.min(...columns.map((column) => column.width))))
-    return { count: columns.length, gapPt, widthPt }
+  let body = null
+  const columns = []
+  const gather = (node, column) => {
+    if (node.type === 'Table' || node.type === 'Header' || node.type === 'Footer') return
+    if (node.type === 'Body' && node.bbox) body = node.bbox
+    if (node.type === 'Column' && node.bbox) {
+      column = { ...node.bbox, lines: [] }
+      columns.push(column)
+    }
+    if (node.type === 'TextLine' && column && node.bbox) column.lines.push(node.bbox)
+    for (const child of node.children ?? []) gather(child, column)
   }
-  return null
+  gather(tree, null)
+  const above = columns.filter((column) => column.y <= caret.y + 1)
+  if (!body || above.length === 0) return null
+  const top = Math.max(...above.map((column) => column.y))
+  const part = above.filter((column) => Math.abs(column.y - top) < 1)
+  const here = part.find((column) => caret.x >= column.x - 1 && caret.x <= column.x + column.w + 1)
+  if (!here) return null
+  const line = here.lines.find(
+    (box) => box.y <= caret.y + caret.height && box.y + Math.max(box.h, 1) >= caret.y,
+  )
+  const pt = (px) => (px * 72) / 96
+  return {
+    // a column with no line on the page has no box of its own
+    count: here.w < body.w - 1 ? Math.max(2, part.length) : 1,
+    widthPt: Math.floor(pt(Math.min(...part.map((column) => column.w)))),
+    ...(line ? { lineWidthPt: Math.floor(pt(Math.min(line.w, here.x + here.w - line.x))) } : {}),
+  }
 }
 
 /**
@@ -9643,7 +9662,15 @@ export const agentPlugin = {
                     rowCount: layout.rows,
                     colCount: 1,
                     treatAsChar: true,
-                    ...(inColumns ? { colWidths: [Math.round(columns.widthPt * 100)] } : {}),
+                    ...(inColumns
+                      ? {
+                          colWidths: [
+                            Math.round(
+                              Math.min(columns.widthPt, columns.lineWidthPt ?? Infinity) * 100,
+                            ),
+                          ],
+                        }
+                      : {}),
                   }),
                 ),
               )
@@ -9651,6 +9678,25 @@ export const agentPlugin = {
                 throw fail('ENGINE', 'the title box could not be made')
               }
               const control = made.controlIdx
+              if (inColumns) {
+                // the box stands its outer margins further in than its line starts: as wide
+                // as the line less them, it ends inside the column
+                const { outerLeft, outerRight } = parse(doc.getTableProperties(sec, k, control))
+                const margins = (outerLeft ?? 0) + (outerRight ?? 0)
+                if (margins > 0) {
+                  expectOk(
+                    doc.resizeTableCells(
+                      sec,
+                      k,
+                      control,
+                      JSON.stringify(
+                        layout.cells.map((_, cellIdx) => ({ cellIdx, widthDelta: -margins })),
+                      ),
+                    ),
+                    'fit the title box in its column',
+                  )
+                }
+              }
               // a title cell as high as its lines and some air: the engine does not grow a
               // row whose height is set, so the height follows the lines the title takes
               const titleHeight = (lines, spacing) =>

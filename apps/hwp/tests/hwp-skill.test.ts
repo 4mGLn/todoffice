@@ -3186,7 +3186,7 @@ describe('the look of a document', () => {
     }).call('insert_table', { where: 'after', anchor: '3. 문항', rows: [['〈보기〉']] })
     expect(unknown.isError).toBe(true)
     expect(unknown.output).toContain('the table would stand over the line between the columns')
-    expect(unknown.output).toContain('no page starts in those columns')
+    expect(unknown.output).toContain('is not laid out on a page yet')
     for (const [reason, says] of [
       ['columns_unknown', 'the box would stand over the line between the columns'],
       ['numbered', 'leave the number alone on a line above the box'],
@@ -3921,7 +3921,9 @@ describe('the skill as the model sees it', () => {
     expect(skill).toContain(
       "one column wide where it can read that column's width, and refuses where it cannot",
     )
-    expect(skill).toContain('Then give the line under the box space_before 6 with `format_paragraph`')
+    expect(skill).toContain(
+      'Then give the line under the box space_before 6 with `format_paragraph`',
+    )
     const { page, columns, body, questionIndentPt } = EXAM_PAPER
     expect(skill).toContain(
       `paper "${page.paper}", margin_left ${page.marginLeft}, margin_right ${page.marginRight}, margin_top ${page.marginTop}, margin_bottom ${page.marginBottom}, margin_header ${page.marginHeader} and margin_footer ${page.marginFooter}`,
