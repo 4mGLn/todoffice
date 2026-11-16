@@ -165,11 +165,16 @@
  *   moves objects by its 격자 설정 step (3 mm unless set); once the user sets that step it stays
  *   theirs, so the studio's setter marks that it was set.
  *
- * studio-hancom-object-alt-click
+ * studio-hancom-object-mouse, studio-object-duplicate
  *   Hangul's Alt+click selects the object under the pointer even when another lies over it or
  *   it lies behind the text, and the next one down on each further click (help: 개체 선택). The
  *   studio's mousedown hands an Alt+click to hancomAltClickObject before its own picture
  *   handling, which would start dragging the selected object or open a text box for typing.
+ *   A move drag that ends with Ctrl held goes to copyObjectDrag first: the object goes back and
+ *   a copy lands where the drag ended, through the engine call of vendor/rhwp-core patch 0054,
+ *   which the bridge gains (studio-object-duplicate). A picture's Shift+corner crops it
+ *   (cropDragBox, cropChange, in studio-hancom-object-drag; the engine keeps the crop in the
+ *   resize undo since patch 0052).
  */
 
 import { CLIPBOARD_HTML_MODULE } from '../studio-plugin/clipboard-html.mjs'
@@ -1273,7 +1278,7 @@ const PATCHES = {
         find: "import { computeArrowResize, MIN_SIZE_HWP, type ArrowKey } from './picture-resize';",
         replace: [
           "import { computeArrowResize, MIN_SIZE_HWP, type ArrowKey } from './picture-resize';",
-          `import { axisLockedPoint, dragKeepsRatio, ratioResizedBox } from '${HANCOM_KEYS_MODULE}';`,
+          `import { axisLockedPoint, cropChange, cropDragBox, dragKeepsRatio, ratioResizedBox } from '${HANCOM_KEYS_MODULE}';`,
         ].join('\n'),
       },
       // one object: the studio's diagonal sizing of a turned picture, for every kept ratio
@@ -1281,6 +1286,40 @@ const PATCHES = {
         find: '  if (isRotatedImageCornerResize(state, angleDeg)) {',
         replace:
           '  if (isRotatedImageCornerResize(state, angleDeg) || dragKeepsRatio(state, e.shiftKey)) {',
+      },
+      // a picture's Shift+corner crops it: the frame follows the crop (cropDragBox), live and at
+      // the end, and the crop amounts are written with the frame (cropChange)
+      {
+        find: [
+          '  const newBbox = state.multiRefs',
+          '    ? this.calcResizedBbox(e, zoom)',
+          '    : calcResizedBboxRotated(state, e, zoom);',
+        ].join('\n'),
+        replace: [
+          '  const newBbox = state.multiRefs',
+          '    ? this.calcResizedBbox(e, zoom)',
+          '    : (cropDragBox(this, state, e, zoom) ?? calcResizedBboxRotated(state, e, zoom));',
+        ].join('\n'),
+      },
+      {
+        find: '        vertOffset: beforeVertOffset + (newVertOffset - origVertOffset),\n      });',
+        replace:
+          '        vertOffset: beforeVertOffset + (newVertOffset - origVertOffset),\n        ...cropChange(state),\n      });',
+      },
+      {
+        find: [
+          '  // 단일 선택 리사이즈 (회전 반영: pivot 고정, 위치도 갱신)',
+          '  const newBbox = calcResizedBboxRotated(state, e, zoom);',
+        ].join('\n'),
+        replace: [
+          '  // 단일 선택 리사이즈 (회전 반영: pivot 고정, 위치도 갱신)',
+          '  const newBbox = cropDragBox(this, state, e, zoom) ?? calcResizedBboxRotated(state, e, zoom);',
+        ].join('\n'),
+      },
+      {
+        find: '    if (Object.keys(updated).length > 0) {',
+        replace:
+          '    Object.assign(updated, cropChange(state));\n    if (Object.keys(updated).length > 0) {',
       },
       // several objects: their common box
       {
@@ -1323,14 +1362,14 @@ const PATCHES = {
   },
   // Hangul's Alt+click selects the object under the pointer, and the next one down on the
   // next click (hancomAltClickObject)
-  'studio-hancom-object-alt-click': {
+  'studio-hancom-object-mouse': {
     file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-mouse\.ts$/,
     edits: [
       {
         find: "import { shouldStartPersistentTableResize } from './table-resize-updates';",
         replace: [
           "import { shouldStartPersistentTableResize } from './table-resize-updates';",
-          `import { hancomAltClickObject } from '${HANCOM_KEYS_MODULE}';`,
+          `import { copyObjectDrag, hancomAltClickObject } from '${HANCOM_KEYS_MODULE}';`,
         ].join('\n'),
       },
       {
@@ -1344,7 +1383,33 @@ const PATCHES = {
           '  if (this.cursor.isInPictureObjectSelection()) {',
         ].join('\n'),
       },
+      // Hangul's Ctrl+drag: the object stays and a copy lands where the drag ends
+      {
+        find: '  // 그림 이동 드래그 종료\n  if (this.isPictureMoveDragging) {',
+        replace:
+          '  // 그림 이동 드래그 종료\n  if (copyObjectDrag(this, _e)) return;\n  if (this.isPictureMoveDragging) {',
+      },
     ],
+  },
+  // the engine call of vendor/rhwp-core patch 0054 (copyObjectDrag)
+  'studio-object-duplicate': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]core[\\/]wasm-bridge\.ts$/,
+    find: '  changeShapeZOrder(\n',
+    replace: [
+      '  /** A floating picture or shape copied into its own paragraph, moved by (dx, dy) HWPUNIT. */',
+      '  duplicateFloatingControl(',
+      '    sec: number,',
+      '    para: number,',
+      '    ci: number,',
+      '    dx: number,',
+      '    dy: number,',
+      '  ): { ok: boolean; paraIdx?: number; controlIdx?: number } {',
+      "    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');",
+      '    return JSON.parse((this.doc as any).duplicateFloatingControl(sec, para, ci, dx, dy));',
+      '  }',
+      '',
+      '  changeShapeZOrder(\n',
+    ].join('\n'),
   },
   // Esc while dragging an object puts it back, before any other use of the key
   'studio-hancom-object-drag-cancel': {
@@ -1415,7 +1480,8 @@ export const STUDIO_PATCHES = /** @type {const} */ ([
   'studio-hancom-object-drag',
   'studio-hancom-object-drag-cancel',
   'studio-hancom-object-step',
-  'studio-hancom-object-alt-click',
+  'studio-hancom-object-mouse',
+  'studio-object-duplicate',
 ])
 
 /** Whether a patch is written against this file. */
@@ -1612,6 +1678,8 @@ export const hancomHooks = [
       // Alt+click (hancomAltClickObject)
       'private virtualScroll: VirtualScroll,',
       'private viewportManager: ViewportManager,',
+      // Ctrl+drop copies the object and selects the copy (copyObjectDrag)
+      'selectPictureObject(sec: number, ppi: number, ci: number,',
     ],
   },
   {

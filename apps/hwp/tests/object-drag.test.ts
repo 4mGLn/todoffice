@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   axisLockedPoint,
   cancelObjectDrag,
+  copyObjectDrag,
+  cropChange,
+  cropDragBox,
+  croppedBox,
+  cropsPicture,
   dragKeepsRatio,
   ratioResizedBox,
 } from '../studio-plugin/object-drag.mjs'
@@ -10,11 +15,20 @@ const picture = { sec: 0, ppi: 1, ci: 0, type: 'image' }
 const shape = { sec: 0, ppi: 2, ci: 0, type: 'shape' }
 
 describe('which drags keep the ratio (help: 개체 크기 조절)', () => {
-  it("keeps a picture's on a corner handle, with or without Shift", () => {
+  it("keeps a picture's on a corner handle; Shift crops it instead", () => {
     for (const dir of ['nw', 'ne', 'sw', 'se']) {
       expect(dragKeepsRatio({ dir, ref: picture }, false)).toBe(true)
-      expect(dragKeepsRatio({ dir, ref: picture }, true)).toBe(true)
+      expect(dragKeepsRatio({ dir, ref: picture }, true)).toBe(false)
+      expect(cropsPicture({ dir, ref: picture }, true)).toBe(true)
     }
+    // a turned picture, or several, cannot crop with its frame: Shift keeps the ratio there
+    expect(dragKeepsRatio({ dir: 'se', ref: picture, rotationAngle: 30 }, true)).toBe(true)
+    expect(cropsPicture({ dir: 'se', ref: picture, rotationAngle: 30 }, true)).toBe(false)
+    expect(cropsPicture({ dir: 'se', ref: picture, multiRefs: [picture, picture] }, true)).toBe(
+      false,
+    )
+    expect(cropsPicture({ dir: 'e', ref: picture }, true)).toBe(false)
+    expect(cropsPicture({ dir: 'se', ref: shape }, true)).toBe(false)
   })
 
   it("keeps a drawing object's on a corner handle only with Shift", () => {
@@ -186,5 +200,213 @@ describe('Esc while dragging an object', () => {
     expect(cancelObjectDrag(ih)).toBe(true)
     expect(ih.cleanupPictureResizeDrag).toHaveBeenCalled()
     expect(ih.renderPictureObjectSelection).toHaveBeenCalled()
+  })
+})
+
+describe("a picture's Shift+corner crops it (help: 개체 크기 조절, 그림 자르기)", () => {
+  // a 100x50 px frame showing all of a 3000x1500 image (crop units), so 1 px = 30 units
+  const box = { x: 10, y: 20, w: 100, h: 50 }
+  const whole = {
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    extentW: 3000,
+    extentH: 1500,
+    width: 7500,
+    height: 3750,
+  }
+
+  it('cuts off what the frame gives up, at the same scale, and holds the opposite corner', () => {
+    const se = croppedBox(box, 'se', -40, -10, whole)!
+    expect(se.box).toEqual({ x: 10, y: 20, width: 60, height: 40 })
+    expect(se.crop).toEqual({ cropLeft: 0, cropRight: 1200, cropTop: 0, cropBottom: 300 })
+
+    const nw = croppedBox(box, 'nw', 30, 5, whole)!
+    expect(nw.box).toEqual({ x: 40, y: 25, width: 70, height: 45 })
+    expect(nw.crop).toEqual({ cropLeft: 900, cropRight: 0, cropTop: 150, cropBottom: 0 })
+  })
+
+  it('brings a cut side back, but no further than the image goes', () => {
+    const cut = { ...whole, right: 1500, width: 3750 } // 50 px showing the left half
+    const back = croppedBox({ ...box, w: 50 }, 'se', 20, 0, cut)!
+    expect(back.box.width).toBe(70)
+    expect(back.crop.cropRight).toBe(900)
+    const past = croppedBox({ ...box, w: 50 }, 'se', 500, 0, cut)!
+    expect(past.box.width).toBe(100)
+    expect(past.crop.cropRight).toBe(0)
+  })
+
+  it('reads the crop once, from the picture, and writes only what changed', () => {
+    const ih = {
+      getObjectProperties: vi.fn(() => ({
+        width: 7500,
+        height: 3750,
+        cropLeft: 0,
+        cropTop: 0,
+        cropRight: 0,
+        cropBottom: 0,
+        cropExtentWidth: 3000,
+        cropExtentHeight: 1500,
+      })),
+    }
+    const state: Record<string, unknown> = {
+      dir: 'se',
+      ref: picture,
+      bbox: box,
+      startClientX: 0,
+      startClientY: 0,
+    }
+    const pointer = (x: number, y: number, shiftKey = true) => ({
+      clientX: x,
+      clientY: y,
+      shiftKey,
+    })
+    expect(cropDragBox(ih, state, pointer(-40, 0), 1)).toEqual({
+      x: 10,
+      y: 20,
+      width: 60,
+      height: 50,
+    })
+    expect(cropChange(state)).toEqual({ cropRight: 1200 })
+    expect(cropDragBox(ih, state, pointer(-20, 0), 1)).toEqual({
+      x: 10,
+      y: 20,
+      width: 80,
+      height: 50,
+    })
+    // written once, every amount goes with each step
+    expect(cropChange(state)).toEqual({ cropLeft: 0, cropTop: 0, cropRight: 600, cropBottom: 0 })
+    expect(ih.getObjectProperties).toHaveBeenCalledTimes(1)
+    // Shift let go: a plain corner drag again, and the crop goes back to where it began
+    expect(cropDragBox(ih, state, pointer(-20, 0, false), 1)).toBeNull()
+    expect(cropChange(state)).toEqual({ cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0 })
+  })
+
+  it('crops nothing until a step does, and writes nothing then', () => {
+    const ih = {
+      getObjectProperties: () => ({
+        width: 7500,
+        height: 3750,
+        cropExtentWidth: 3000,
+        cropExtentHeight: 1500,
+      }),
+    }
+    const state: Record<string, unknown> = {
+      dir: 'se',
+      ref: picture,
+      bbox: box,
+      startClientX: 0,
+      startClientY: 0,
+    }
+    expect(cropDragBox(ih, state, { clientX: 0, clientY: 0, shiftKey: true }, 1)).not.toBeNull()
+    expect(cropChange(state)).toEqual({})
+    expect(cropDragBox(ih, state, { clientX: 0, clientY: 0, shiftKey: false }, 1)).toBeNull()
+    expect(cropChange(state)).toEqual({})
+  })
+
+  it('takes the scale from the frame the drag began with, not one the studio sized since', () => {
+    // the studio sized the picture to half before Shift went down; the drag began at 100 px wide
+    const ih = {
+      getObjectProperties: () => ({
+        width: 3750,
+        height: 1875,
+        cropExtentWidth: 3000,
+        cropExtentHeight: 1500,
+      }),
+    }
+    const state: Record<string, unknown> = {
+      dir: 'se',
+      ref: picture,
+      bbox: box,
+      origWidth: 7500,
+      origHeight: 3750,
+      startClientX: 0,
+      startClientY: 0,
+    }
+    cropDragBox(ih, state, { clientX: -40, clientY: 0, shiftKey: true }, 1)
+    expect(cropChange(state)).toEqual({ cropRight: 1200 })
+  })
+
+  it('leaves a picture whose image size the engine does not give alone', () => {
+    const ih = { getObjectProperties: () => ({ width: 100, height: 100, cropExtentWidth: 0 }) }
+    const state = { dir: 'se', ref: picture, bbox: box, startClientX: 0, startClientY: 0 }
+    expect(cropDragBox(ih, state, { clientX: 5, clientY: 5, shiftKey: true }, 1)).toBeNull()
+  })
+})
+
+describe('Ctrl while moving copies the object (help: 개체 복사하기/붙이기)', () => {
+  function mover(
+    stateExtra: Record<string, unknown> = {},
+    done = { ok: true, paraIdx: 1, controlIdx: 1 },
+  ) {
+    const bridge = { duplicateFloatingControl: vi.fn(() => done) }
+    const ih = {
+      isPictureMoveDragging: true,
+      pictureMoveState: {
+        ref: picture,
+        origHorzOffset: 1000,
+        origVertOffset: 2000,
+        totalDeltaH: 750,
+        totalDeltaV: 300,
+        pageIndex: 0,
+        dropPage: 0,
+        ...stateExtra,
+      } as Record<string, unknown> | null,
+      dragRafId: 0,
+      container: { style: { cursor: 'move' } },
+      wasm: { ...bridge, updateConnectorsInSection: vi.fn() },
+      setObjectProperties: vi.fn(),
+      getCursorPosition: () => ({ sectionIndex: 0, paragraphIndex: 1, charOffset: 0 }),
+      executeOperation: vi.fn((desc: { operation: (b: unknown) => unknown }) =>
+        desc.operation(bridge),
+      ),
+      selectPictureObject: vi.fn(),
+    }
+    return { ih, bridge }
+  }
+
+  it('puts the object back and drops a copy where the drag ended, selected', () => {
+    const { ih, bridge } = mover()
+    expect(copyObjectDrag(ih, { ctrlKey: true })).toBe(true)
+    expect(ih.setObjectProperties).toHaveBeenCalledWith(picture, {
+      horzOffset: 1000,
+      vertOffset: 2000,
+    })
+    expect(bridge.duplicateFloatingControl).toHaveBeenCalledWith(0, 1, 0, 750, 300)
+    expect(ih.executeOperation).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'snapshot', operationType: 'copyObjectDrag' }),
+    )
+    expect(ih.selectPictureObject).toHaveBeenCalledWith(0, 1, 1, 'image')
+    expect(ih.isPictureMoveDragging).toBe(false)
+    expect(ih.pictureMoveState).toBeNull()
+  })
+
+  it('leaves a plain drop, an unmoved one, another page and an object in a cell to the move', () => {
+    for (const [extra, ctrlKey] of [
+      [{}, false],
+      [{ totalDeltaH: 0, totalDeltaV: 0 }, true],
+      [{ dropPage: 1 }, true],
+      [
+        { ref: { ...picture, cellPath: [{ controlIndex: 0, cellIndex: 0, cellParaIndex: 0 }] } },
+        true,
+      ],
+      [{ multiRefs: [picture, shape] }, true],
+    ] as const) {
+      const { ih, bridge } = mover(extra as Record<string, unknown>)
+      expect(copyObjectDrag(ih, { ctrlKey }), JSON.stringify(extra)).toBe(false)
+      expect(bridge.duplicateFloatingControl).not.toHaveBeenCalled()
+      expect(ih.isPictureMoveDragging).toBe(true)
+    }
+  })
+
+  it('keeps the move when the engine copies nothing', () => {
+    const { ih } = mover({}, { ok: false } as never)
+    expect(copyObjectDrag(ih, { ctrlKey: true })).toBe(false)
+    expect(ih.setObjectProperties).toHaveBeenLastCalledWith(picture, {
+      horzOffset: 1750,
+      vertOffset: 2300,
+    })
+    expect(ih.selectPictureObject).not.toHaveBeenCalled()
   })
 })

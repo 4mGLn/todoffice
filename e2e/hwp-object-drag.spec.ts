@@ -38,7 +38,13 @@ interface Probe {
     treatAsChar: boolean
     textWrap?: string
     hasCaption?: boolean
+    cropLeft?: number
+    cropTop?: number
+    cropRight?: number
+    cropBottom?: number
+    cropExtentWidth?: number
   } | null
+  paragraphs: number
 }
 
 interface Ref {
@@ -49,6 +55,7 @@ interface StudioServices {
   wasm: {
     getPageControlLayout(page: number): { controls: Box[] }
     getPageInfo(page: number): { width: number }
+    getParagraphCount(section: number): number
   }
   getInputHandler(): {
     cursor: { getSelectedPictureRef(): Ref | null }
@@ -95,6 +102,7 @@ async function probe(frame: Frame, set?: Record<string, unknown>): Promise<Probe
             pageWidth: services.wasm.getPageInfo(0).width,
             selected: ref ? { type: ref.type } : null,
             props: ref ? ih.getObjectProperties(ref) : null,
+            paragraphs: services.wasm.getParagraphCount(0),
           }
         },
       })
@@ -375,6 +383,105 @@ test.describe("HWP keys on a selected picture or text box, as Hangul's", () => {
       // both objects, one after the other, and round to the first again
       expect(new Set(seen.slice(0, 2))).toEqual(new Set(['image', 'shape']))
       expect(seen[2]).toBe(seen[0])
+    } finally {
+      await closeAndSaveVideo(launched, 'hwp-object-drag')
+    }
+  })
+})
+
+// vendor/rhwp-core patches 0052-0054: what Hangul does that needed the engine
+test.describe("HWP object edits that needed the engine, as Hangul's", () => {
+  test.setTimeout(240_000)
+
+  test("a picture's Shift+corner crops it at the same scale, and undo puts it back", async () => {
+    const { launched, hwp, frame } = await openObjects()
+    try {
+      const picture = await select(hwp, frame, 'image')
+      const before = (await probe(frame)).props!
+      expect([before.cropRight, before.cropBottom]).toEqual([0, 0])
+      await drag(
+        hwp,
+        frame,
+        { x: picture.x + picture.w, y: picture.y + picture.h },
+        { x: -30, y: -20 },
+        { shift: true },
+      )
+      const cropped = (await probe(frame)).props!
+      expect(cropped.width).toBeLessThan(before.width)
+      expect(cropped.height).toBeLessThan(before.height)
+      expect(cropped.cropRight).toBeGreaterThan(0)
+      expect(cropped.cropBottom).toBeGreaterThan(0)
+      // the frame shows the image at the scale it had: width per shown image unit
+      const extent = cropped.cropExtentWidth!
+      const scale = (w: number, cut: number) => w / (extent - cut)
+      expect(scale(cropped.width, cropped.cropRight!)).toBeCloseTo(scale(before.width, 0), 1)
+
+      await sendKey(launched, 'Z', ['control'])
+      await expect
+        .poll(async () => {
+          await select(hwp, frame, 'image')
+          const back = (await probe(frame)).props!
+          return [back.width, back.cropRight]
+        })
+        .toEqual([before.width, 0])
+    } finally {
+      await closeAndSaveVideo(launched, 'hwp-object-drag')
+    }
+  })
+
+  test('Ctrl while moving leaves the object and drops a copy, without new paragraphs', async () => {
+    const { launched, hwp, frame } = await openObjects()
+    try {
+      const picture = await select(hwp, frame, 'image')
+      const start = await probe(frame)
+      const before = start.props!
+      const pictures = start.controls.filter((c) => c.type === 'image').length
+      const at = await screen(hwp, frame, picture.x + picture.w / 2, picture.y + picture.h / 2)
+      await hwp.mouse.move(at.x, at.y)
+      await hwp.mouse.down()
+      await hwp.mouse.move(at.x + 20, at.y + 10, { steps: 2 })
+      await hwp.keyboard.down('Control')
+      await hwp.mouse.move(at.x + 120, at.y + 60, { steps: 8 })
+      await hwp.waitForTimeout(100)
+      await hwp.mouse.up()
+      await hwp.keyboard.up('Control')
+
+      await expect
+        .poll(async () => (await probe(frame)).controls.filter((c) => c.type === 'image').length)
+        .toBe(pictures + 1)
+      const after = await probe(frame)
+      expect(after.paragraphs).toBe(start.paragraphs)
+      // the copy is selected, where the drag ended; the object is where it was
+      expect(after.props!.horzOffset).toBeGreaterThan(before.horzOffset)
+      const offsets = after.controls
+        .filter((c) => c.type === 'image')
+        .map((c) => Math.round(c.x))
+        .sort((a, b) => a - b)
+      expect(offsets[0]).toBe(Math.round(picture.x))
+
+      await sendKey(launched, 'Z', ['control'])
+      await expect
+        .poll(async () => (await probe(frame)).controls.filter((c) => c.type === 'image').length)
+        .toBe(pictures)
+    } finally {
+      await closeAndSaveVideo(launched, 'hwp-object-drag')
+    }
+  })
+
+  test('Shift+PageUp brings a picture in front of a text box, Shift+PageDown sends it back', async () => {
+    const { launched, hwp, frame } = await openObjects()
+    try {
+      await select(hwp, frame, 'image')
+      const z = async () => {
+        const controls = (await probe(frame)).controls as (Box & { zOrder?: number })[]
+        const pic = controls.find((c) => c.type === 'image')!
+        const box = controls.find((c) => c.type === 'shape')!
+        return Math.sign((pic.zOrder ?? 0) - (box.zOrder ?? 0))
+      }
+      await sendKey(launched, 'PageDown', ['shift'])
+      await expect.poll(z).toBe(-1)
+      await sendKey(launched, 'PageUp', ['shift'])
+      await expect.poll(z).toBe(1)
     } finally {
       await closeAndSaveVideo(launched, 'hwp-object-drag')
     }

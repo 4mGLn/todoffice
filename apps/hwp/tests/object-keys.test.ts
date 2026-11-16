@@ -161,7 +161,7 @@ describe("a selected object's Hancom keys (개체를 선택한 상태에서)", (
     ])
   })
 
-  it('order a drawing object in one undo step; a picture, which the engine cannot order, stays', () => {
+  it('order a drawing object or a picture in one undo step; an equation stays', () => {
     const box = handler(textBox)
     expect(
       hancomPictureObjectKey(box, key({ key: 'PageUp', code: 'PageUp', shiftKey: true })),
@@ -171,12 +171,19 @@ describe("a selected object's Hancom keys (개체를 선택한 상태에서)", (
     )
     expect(box.bridge.changeShapeZOrder).toHaveBeenCalledWith(0, 3, 0, 'front')
 
+    // vendor/rhwp-core patch 0053 orders pictures with the shapes
     const pic = handler(picture)
+    expect(
+      hancomPictureObjectKey(pic, key({ key: 'PageDown', code: 'PageDown', shiftKey: true })),
+    ).toBe(true)
+    expect(pic.bridge.changeShapeZOrder).toHaveBeenCalledWith(0, 1, 0, 'back')
+
+    const equation = handler({ ...picture, type: 'equation' })
     const e = key({ key: 'PageDown', code: 'PageDown', shiftKey: true })
     // the key is still taken: Shift+PageDown would otherwise scroll the page
-    expect(hancomPictureObjectKey(pic, e)).toBe(true)
+    expect(hancomPictureObjectKey(equation, e)).toBe(true)
     expect(e.preventDefault).toHaveBeenCalled()
-    expect(pic.executeOperation).not.toHaveBeenCalled()
+    expect(equation.executeOperation).not.toHaveBeenCalled()
   })
 
   it('put the object in front of or behind the text with Shift+Home/End', () => {

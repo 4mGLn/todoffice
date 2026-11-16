@@ -1169,6 +1169,14 @@ describe("Hangul's mouse rules for a selected object (help: 개체 크기 조절
     const source = [
       "import { computeArrowResize, MIN_SIZE_HWP, type ArrowKey } from './picture-resize';",
       '  if (isRotatedImageCornerResize(state, angleDeg)) {',
+      '  const newBbox = state.multiRefs',
+      '    ? this.calcResizedBbox(e, zoom)',
+      '    : calcResizedBboxRotated(state, e, zoom);',
+      '        vertOffset: beforeVertOffset + (newVertOffset - origVertOffset),',
+      '      });',
+      '  // 단일 선택 리사이즈 (회전 반영: pivot 고정, 위치도 갱신)',
+      '  const newBbox = calcResizedBboxRotated(state, e, zoom);',
+      '    if (Object.keys(updated).length > 0) {',
       '  return { x, y, width: w, height: h };',
       '  const cx = e.clientX - cr.left;',
       '  const cy = e.clientY - cr.top;',
@@ -1177,9 +1185,20 @@ describe("Hangul's mouse rules for a selected object (help: 개체 크기 조절
     ].join('\n')
     const patched = applyPatch('studio-hancom-object-drag', source)
     expect(patched).toContain(
-      `import { axisLockedPoint, dragKeepsRatio, ratioResizedBox } from '${HANCOM_KEYS_MODULE}';`,
+      `import { axisLockedPoint, cropChange, cropDragBox, dragKeepsRatio, ratioResizedBox } from '${HANCOM_KEYS_MODULE}';`,
     )
     expect(patched).toContain('|| dragKeepsRatio(state, e.shiftKey)) {')
+    // a picture's Shift+corner crops it, live and at the end of the drag
+    expect(patched).toContain(
+      '    : (cropDragBox(this, state, e, zoom) ?? calcResizedBboxRotated(state, e, zoom));',
+    )
+    expect(patched).toContain(
+      '  const newBbox = cropDragBox(this, state, e, zoom) ?? calcResizedBboxRotated(state, e, zoom);',
+    )
+    expect(patched).toContain('        ...cropChange(state),\n      });')
+    expect(patched).toContain(
+      '    Object.assign(updated, cropChange(state));\n    if (Object.keys(updated).length > 0) {',
+    )
     expect(patched).toContain(
       '  if (dragKeepsRatio(s, e.shiftKey)) return ratioResizedBox(s.bbox, dir, dx, dy);',
     )
@@ -1208,19 +1227,39 @@ describe("Hangul's mouse rules for a selected object (help: 개체 크기 조절
     expect(STUDIO_PATCHES).toContain('studio-hancom-object-drag-cancel')
   })
 
-  it("hand an Alt+click to the module before the studio's picture handling", () => {
+  it("hand an Alt+click and a Ctrl+drop to the module before the studio's picture handling", () => {
     const source = [
       "import { shouldStartPersistentTableResize } from './table-resize-updates';",
       '  // 그림/글상자 객체 선택 중 클릭 처리',
       '  if (this.cursor.isInPictureObjectSelection()) {',
+      '  // 그림 이동 드래그 종료',
+      '  if (this.isPictureMoveDragging) {',
       '',
     ].join('\n')
-    const patched = applyPatch('studio-hancom-object-alt-click', source)
-    expect(patched).toContain(`import { hancomAltClickObject } from '${HANCOM_KEYS_MODULE}';`)
+    const patched = applyPatch('studio-hancom-object-mouse', source)
+    expect(patched).toContain(
+      `import { copyObjectDrag, hancomAltClickObject } from '${HANCOM_KEYS_MODULE}';`,
+    )
     expect(patched).toContain(
       '  if (hancomAltClickObject(this, e)) return;\n  // 그림/글상자 객체 선택 중 클릭 처리',
     )
-    expect(STUDIO_PATCHES).toContain('studio-hancom-object-alt-click')
+    expect(patched).toContain(
+      '  // 그림 이동 드래그 종료\n  if (copyObjectDrag(this, _e)) return;\n  if (this.isPictureMoveDragging) {',
+    )
+    expect(STUDIO_PATCHES).toContain('studio-hancom-object-mouse')
+  })
+
+  it("give the bridge the engine's copy of a floating object (vendor/rhwp-core patch 0054)", () => {
+    const source = ['  changeShapeZOrder(', '    sec: number,', ''].join('\n')
+    const patched = applyPatch('studio-object-duplicate', source)
+    expect(patched).toContain('  duplicateFloatingControl(\n    sec: number,')
+    expect(patched).toContain(
+      '    return JSON.parse((this.doc as any).duplicateFloatingControl(sec, para, ci, dx, dy));',
+    )
+    expect(patched.indexOf('duplicateFloatingControl(')).toBeLessThan(
+      patched.indexOf('  changeShapeZOrder('),
+    )
+    expect(STUDIO_PATCHES).toContain('studio-object-duplicate')
   })
 
   it('mark a move step the user set in 격자 설정, which the object keys then keep', () => {

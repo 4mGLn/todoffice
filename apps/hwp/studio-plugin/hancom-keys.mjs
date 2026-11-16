@@ -35,6 +35,11 @@ export { installHanjaKey } from './hanja.mjs'
 export {
   axisLockedPoint,
   cancelObjectDrag,
+  copyObjectDrag,
+  cropChange,
+  cropDragBox,
+  croppedBox,
+  cropsPicture,
   dragKeepsRatio,
   ratioResizedBox,
 } from './object-drag.mjs'
@@ -870,13 +875,12 @@ export function hancomAltClickObject(ih, e) {
 }
 
 /**
- * Shift+PageUp/Down: the selected drawing object goes to the front/back of the objects, in one
- * undo step. The engine orders drawing objects only: a picture stays where it is, as it does
- * from the studio's menu.
+ * Shift+PageUp/Down: the selected picture or drawing object goes to the front/back of the
+ * objects, in one undo step (vendor/rhwp-core patch 0053 orders pictures with the shapes).
  */
 function orderSelectedObject(ih, mode) {
   const ref = ih.cursor.getSelectedPictureRef?.()
-  if (!ref || ref.type === 'image' || ref.type === 'equation') return false
+  if (!ref || ref.type === 'equation') return false
   if ((ref.cellPath?.length ?? 0) > 0 || ref.headerFooter) return false
   let moved = false
   try {
