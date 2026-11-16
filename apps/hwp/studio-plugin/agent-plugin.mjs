@@ -1535,6 +1535,7 @@ function containerOf(doc, hit) {
       }),
       rect: (k, offset) => parse(doc.getCursorRect(sec, k, offset)),
       props: (k) => parse(doc.getParaPropertiesAt(sec, k)),
+      diag: (k) => parse(doc.measureWidthDiagnostic(sec, k)),
       charShapeAt: (k, offset) => parse(doc.getCharPropertiesAt(sec, k, offset)).charShapeId,
     }
   }
@@ -2094,6 +2095,40 @@ const onOneLine = (a, b) =>
 
 /**
  * Note in `advances` the natural advance, in page pixels, of a space of each character shape
+ * (by id) that no last line gave, from the runs of the first line of body paragraph k: the
+ * engine's diagnostic gives a run's natural width, and justification widens only its spaces,
+ * so the run less its characters as drawn, other than spaces, is its spaces' natural width.
+ * Only where the diagnostic's line is the paragraph's text as the carets count it, and only
+ * from a run without a tab, which the diagnostic measures at a default width.
+ */
+function firstLineSpaces(box, k, chars, advances) {
+  const line = box.diag?.(k)?.lines?.[0]
+  if (!line) return
+  const lead = chars.length - [...chars.join('').replace(CONTROL_HEAD, '')].length
+  const text = [...(line.runs ?? []).map((run) => run.text).join('')]
+  if (text.join('') !== chars.slice(lead, lead + text.length).join('')) return
+  let at = lead
+  for (const run of line.runs) {
+    const runChars = [...run.text]
+    const start = at
+    at += runChars.length
+    const spaces = runChars.flatMap((char, i) => (char === ' ' ? [start + i] : []))
+    if (spaces.length === 0 || runChars.includes('\t')) continue
+    const shape = box.charShapeAt(k, spaces[0])
+    if (advances.has(shape) || spaces.some((space) => box.charShapeAt(k, space) !== shape)) {
+      continue
+    }
+    const drawn = box.rect(k, at).x - box.rect(k, start).x
+    const drawnSpaces = spaces.reduce(
+      (sum, space) => sum + box.rect(k, space + 1).x - box.rect(k, space).x,
+      0,
+    )
+    advances.set(shape, (Number(run.width_px) - (drawn - drawnSpaces)) / spaces.length)
+  }
+}
+
+/**
+ * Note in `advances` the natural advance, in page pixels, of a space of each character shape
  * (by id) on the last line of paragraph k, which justification leaves as it is. Engine
  * offsets count characters, as `chars` (the paragraph's text split into characters) does.
  * The caret at the first character of a line reports the end of the line before it, so a
@@ -2203,6 +2238,10 @@ function measureHangs(items) {
   for (const [box, k] of items) {
     const length = box.length(k)
     if (length > 0) lastLineSpaces(box, k, [...box.text(k, length)], natural)
+  }
+  for (const [box, k] of items) {
+    const length = box.length(k)
+    if (length > 0) firstLineSpaces(box, k, [...box.text(k, length)], natural)
   }
   for (const [box, k, rule] of items) {
     const found = markWidthOf(box, k, rule, natural)

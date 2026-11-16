@@ -1175,6 +1175,21 @@ describe('indent "mark" by construction', () => {
     expect(Math.abs(hang('justify') - hang('left'))).toBeLessThan(0.2)
   })
 
+  it('reads the space from the first line where no last line holds one in its size', () => {
+    const line =
+      '가. 연수 기간 동안 신규 직원은 부서별 실습과 멘토 면담을 거쳐 직무 기본 역량을 갖추고 수료 발표로 마무리하며 그 결과를 정리한다'
+    const hang = (align: string) => {
+      const { plugin, doc } = open(blank([line]))
+      const result = plugin.styleParagraphs({
+        styles: [{ name: '소', format: { size: 14, marginLeft: 20, align, indent: 'mark' } }],
+        apply: [{ style: '소', numbered: '가.' }],
+      })
+      expect(result, align).toMatchObject({ hang: { hung: 1, noSpace: 0 } })
+      return indentOf(doc(), 0)
+    }
+    expect(Math.abs(hang('justify') - hang('left'))).toBeLessThan(0.3)
+  })
+
   it('leaves right, centred and spread paragraphs as they are, and says so', () => {
     for (const alignment of ['right', 'center', 'distribute']) {
       const start = blank([`○ ${WRAPPING}`])
