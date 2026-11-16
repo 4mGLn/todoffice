@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   LINUX_FONT_FILE_READS,
   fontFilesToRead,
+  linuxFontFileReads,
   noteFontsApplying,
   refreshPcFonts,
   sameFaces,
@@ -225,5 +226,24 @@ describe('the font files a detection reads', () => {
     expect(reads(LINUX_FONT_FILE_READS - 2)).toBe(true)
     expect(reads(LINUX_FONT_FILE_READS - 1)).toBe(false)
     expect(readCount(listed, 'Linux x86_64')).toBe(LINUX_FONT_FILE_READS)
+  })
+
+  it("reads as many as the app's share of the editor's own open-file limit", () => {
+    const listed = [...many(3000), korean]
+    // a launcher raised the limit (deb, rpm): every file is read
+    const all = fontFilesToRead(listed, 'Linux x86_64', 262144)
+    expect(listed.every((_, index) => all(index))).toBe(true)
+    // a smaller limit: fewer, the Korean one still first
+    const few = fontFilesToRead(listed, 'Linux x86_64', 100)
+    expect(listed.filter((_, index) => few(index))).toHaveLength(100)
+    expect(few(listed.length - 1)).toBe(true)
+  })
+
+  it("takes the share from the editor's address, and the common one without it", () => {
+    expect(linuxFontFileReads('?chrome=embed&lang=ko&fontReads=262144')).toBe(262144)
+    expect(linuxFontFileReads('?chrome=embed&lang=ko')).toBe(LINUX_FONT_FILE_READS)
+    for (const bad of ['0', '-3', '1.5', 'x', '1e400']) {
+      expect(linuxFontFileReads(`?fontReads=${bad}`)).toBe(LINUX_FONT_FILE_READS)
+    }
   })
 })
