@@ -232,6 +232,11 @@ export function nestedTableAt(ih) {
 }
 
 function nestedTableNotice(where) {
+  if (where === 'either') {
+    return koreanUi
+      ? '표 안의 표나 글상자 안의 표에서는 아직 할 수 없습니다.'
+      : 'This cannot be done in a table inside a table or a text box yet.'
+  }
   if (where === 'textBox') {
     return koreanUi
       ? '글상자 안의 표에서는 아직 할 수 없습니다.'
@@ -663,7 +668,8 @@ export function nestedTableCommand(commandId, services) {
  */
 function outsideScope(bridge, cellPath) {
   if (depthOf(cellPath) < 2 || innerTableOf(bridge)) return false
-  tellUser(nestedTableNotice('cell'))
+  // the path alone does not say whether it starts in a text box
+  tellUser(nestedTableNotice('either'))
   return true
 }
 
@@ -1789,10 +1795,15 @@ export function cellBlockCopy(ih) {
   const range = cursor?.getSelectedCellRange?.()
   if (!context || !range) return null
   if ((context.cellPath?.length ?? 0) > 1) {
+    const inTextBox = nestedTableAt(ih) === 'textBox'
     tellUser(
       koreanUi
-        ? '표 안의 표는 아직 복사할 수 없습니다.'
-        : 'A table inside a cell cannot be copied yet.',
+        ? inTextBox
+          ? '글상자 안의 표는 아직 복사할 수 없습니다.'
+          : '표 안의 표는 아직 복사할 수 없습니다.'
+        : inTextBox
+          ? 'A table inside a text box cannot be copied yet.'
+          : 'A table inside a cell cannot be copied yet.',
     )
     return null
   }
@@ -2164,7 +2175,8 @@ export function cellTableFromHtml(html) {
         colSpan,
         // line breaks between tags would read as paragraphs of their own
         content: td.innerHTML.replace(/>\s*\n\s*</g, '><').trim(),
-        look: { ...cssCellLook(td), ...(own && typeof own === 'object' ? own : {}) },
+        // only the keys this editor's copy writes reach the engine, whoever wrote the attribute
+        look: { ...cssCellLook(td), ...(own && typeof own === 'object' ? cellLookOf(own) : {}) },
         width: cellExtent(td, 'width'),
         height: cellExtent(td, 'height'),
       })

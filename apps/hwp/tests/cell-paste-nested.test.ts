@@ -276,6 +276,37 @@ describe('reading copied cells as a table', () => {
   })
 })
 
+describe('a cell look attribute from elsewhere', () => {
+  it('passes on only the keys this editor writes', () => {
+    const look = JSON.stringify({
+      verticalAlign: 'Bottom',
+      fillType: 'gradation',
+      fieldName: 'name',
+      width: 99999,
+    }).replace(/"/g, '&quot;')
+    const html =
+      `<table><tr><td data-ieum-cell="${look}">a</td><td>b</td></tr>` +
+      '<tr><td>c</td><td>d</td></tr></table>'
+    const table = cellTableFromHtml(html)
+    expect(table!.cells[0].look.verticalAlign).toBe('Bottom')
+    expect(table!.cells[0].look).not.toHaveProperty('fieldName')
+    expect(table!.cells[0].look).not.toHaveProperty('width')
+    expect(table!.cells[0].look.fillType).not.toBe('gradation')
+  })
+})
+
+describe('the engine refusal the plugins recognise', () => {
+  it('names drawn borders in words both plugins look for', () => {
+    const patch = readFileSync(
+      join(dirname(require.resolve('@rhwp/core')), 'patches', '0055-nested-table-path-calls.patch'),
+      'utf8',
+    )
+    const message = /const DRAWN_BORDERS: &str = "([^"]+)"/.exec(patch)?.[1] ?? ''
+    expect(message).toContain('칸 테두리를 개체로 그린') // agent-plugin's DRAWN_BORDERS_REFUSAL
+    expect(/경로\[|개체로 그린|캡션/.test(message)).toBe(true) // hancom-keys' INNER_TABLE_REFUSAL
+  })
+})
+
 describe('셀 안에 표로 넣기', () => {
   it('puts the copied cells into the empty caret cell as a table, as Hangul does', async () => {
     const doc = hostDoc()
