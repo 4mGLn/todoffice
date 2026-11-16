@@ -151,10 +151,16 @@ describe('opening a document', () => {
     fileReads.mockClear()
     const contents = await openView(docPath)
     expect(fileReads.mock.calls.filter(([path]) => path === docPath)).toHaveLength(1)
-    // the state it recorded is the file's: an unchanged file is no conflict for a sibling pane
     setOpenPathProbe((path) => path === docPath)
-    const result = await saveThrough(contents, SAVED_BYTES)
-    expect(result).toMatchObject({ ok: true, path: docPath })
+    // another pane's write: the recorded state is there, and an automatic save stands down
+    writeFileSync(docPath, 'v2-sibling')
+    expect((await saveThrough(contents, SAVED_BYTES, true)).ok).toBe(false)
+    // the file as it was read, written again: the recorded state is that content's
+    writeFileSync(docPath, 'v1')
+    expect(await saveThrough(contents, SAVED_BYTES, true)).toMatchObject({
+      ok: true,
+      path: docPath,
+    })
     expect(showMessageBox).not.toHaveBeenCalled()
   })
 })
