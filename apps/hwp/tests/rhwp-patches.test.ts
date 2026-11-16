@@ -745,6 +745,8 @@ describe('the studio source the build fetched', () => {
     'src/engine/input-handler-keyboard.ts',
     'src/engine/input-handler-text.ts',
     'src/engine/input-handler-table.ts',
+    'src/engine/input-handler-mouse.ts',
+    'src/command/dispatcher.ts',
     'src/command/commands/edit.ts',
     'src/command/commands/format.ts',
     'src/command/commands/insert.ts',
