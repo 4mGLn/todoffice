@@ -1246,6 +1246,46 @@ describe('indent "mark" by construction', () => {
   })
 })
 
+describe('indent "mark" on lines that keep their spaces', () => {
+  /**
+   * What edit_style 바탕글 "mark" does to `lines`, paragraph `odd` aligned `align` and the
+   * others `rest`: the answer and each paragraph's indent after it.
+   */
+  const hangs = (lines: string[], odd: number, align: string, rest: string) => {
+    const start = blank(lines)
+    lines.forEach((_, para) =>
+      start.applyParaFormat(0, para, JSON.stringify({ alignment: para === odd ? align : rest })),
+    )
+    const { plugin, doc } = open(start)
+    const result = plugin.editStyle('바탕글', { format: { indent: 'mark' } })
+    return { result, indents: lines.map((_, para) => indentOf(doc(), para)) }
+  }
+  const LINES_OF_MARKS = [
+    `□ 배분 정렬 제목 문단 ${WRAPPING}`,
+    `○ 기준 문단 ${WRAPPING}`,
+    `○ 둘째 문단 ${WRAPPING}`,
+  ]
+
+  it('takes no space from a spread or split paragraph, whichever comes first', () => {
+    for (const align of ['distribute', 'split']) {
+      for (const odd of [0, LINES_OF_MARKS.length - 1]) {
+        const lines = odd === 0 ? LINES_OF_MARKS : [...LINES_OF_MARKS.slice(1), LINES_OF_MARKS[0]!]
+        const justified = hangs(lines, odd, align, 'justify')
+        const left = hangs(lines, odd, align, 'left')
+        expect(justified.result, `${align} ${odd}`).toMatchObject({
+          ok: true,
+          hang: { hung: 2, alignment: 1, outOfRange: 0 },
+        })
+        lines.forEach((_, para) => {
+          if (para === odd) return
+          const off = Math.abs(justified.indents[para]! - left.indents[para]!)
+          expect(off, `${align} ${odd} ${para}`).toBeLessThan(0.2)
+        })
+      }
+    }
+  })
+})
+
 describe('the shape the context tells', () => {
   it('says an empty document is plain and on one paper', () => {
     const empty = HwpDocument.createEmpty()

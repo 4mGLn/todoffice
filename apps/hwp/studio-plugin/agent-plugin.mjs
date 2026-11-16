@@ -2102,7 +2102,7 @@ const onOneLine = (a, b) =>
 /**
  * Note in `advances` the natural advance, in page pixels, of a space of each character shape
  * (by id) that `advances` does not hold yet, from the runs of the first line of body
- * paragraph k: the engine's diagnostic gives a run's natural width, and justification widens
+ * paragraph k, aligned left or justified: the engine's diagnostic gives a run's natural width, and justification widens
  * only its spaces, so the run less its characters as drawn, other than spaces, is its spaces'
  * natural width.
  * Only where the diagnostic's line is the paragraph's text as the carets count it, and only
@@ -2136,7 +2136,8 @@ function firstLineSpaces(box, k, chars, advances) {
 
 /**
  * Note in `advances` the natural advance, in page pixels, of a space of each character shape
- * (by id) on the last line of paragraph k, which justification leaves as it is. Engine
+ * (by id) on the last line of paragraph k, aligned left or justified, which justification
+ * leaves as it is. Engine
  * offsets count characters, as `chars` (the paragraph's text split into characters) does.
  * The caret at the first character of a line reports the end of the line before it, so a
  * space is read only where both of its caret places stand on the last line.
@@ -2243,13 +2244,15 @@ function measureHangs(items) {
   const measured = []
   const outcome = Object.fromEntries(HANG_SKIPS.map((reason) => [reason, 0]))
   const natural = new Map()
-  for (const [box, k] of items) {
-    const length = box.length(k)
-    if (length > 0) lastLineSpaces(box, k, [...box.text(k, length)], natural)
+  // right, centred, spread and split lines move or widen their spaces, even on the last line
+  const sampled = items.filter(
+    ([box, k]) => box.length(k) > 0 && HANGING_ALIGNMENTS.has(box.props(k).alignment),
+  )
+  for (const [box, k] of sampled) {
+    lastLineSpaces(box, k, [...box.text(k, box.length(k))], natural)
   }
-  for (const [box, k] of items) {
-    const length = box.length(k)
-    if (length > 0) firstLineSpaces(box, k, [...box.text(k, length)], natural)
+  for (const [box, k] of sampled) {
+    firstLineSpaces(box, k, [...box.text(k, box.length(k))], natural)
   }
   for (const [box, k, rule] of items) {
     const found = markWidthOf(box, k, rule, natural)
