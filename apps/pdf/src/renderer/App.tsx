@@ -8695,10 +8695,15 @@ export default function App() {
     const family =
       (insert.input.font ? EDIT_FONT_BY_ID.get(insert.input.font)?.css : undefined) ??
       getComputedStyle(document.body).fontFamily
-    const style = `${insert.input.italic ? 'italic ' : ''}${insert.input.bold ? 'bold ' : ''}`
+    // synthetic bold (no explicit face) is a stroke that keeps the regular advances
+    const weight = boldToken(insert.input.bold, !!insert.input.font)
+    const style = `${insert.input.italic ? 'italic ' : ''}${weight ? `${weight} ` : ''}`
     // the preview draws at 0.92 of the size (textInsertPreviewStyle)
     return measureTextWidth(line, `${style}${fontSize * 0.92}px ${family}`)
   }
+  /** a page's current geometry for the marks, or null before its size is known */
+  const markGeom = (origIdx: number): PageGeom | null =>
+    (allSizes[origIdx] ?? blankSizeNow(origIdx)) ? pageGeom(origIdx) : null
 
   /** The changes card of an AI run: what it applied, taking it back, its marks. */
   const aiChanges: PdfAiChanges = {
@@ -8710,7 +8715,7 @@ export default function App() {
       const run = aiRunRef.current
       aiRunRef.current = null
       if (!run || run.snaps.length === 0) return null
-      const marks = runMarks(run.snaps[0]!, snapshot(), measureInsertLine)
+      const marks = runMarks(run.snaps[0]!, snapshot(), measureInsertLine, markGeom)
       setAiMarks(marks.length > 0 ? { run: run.id, marks } : null)
       return { id: run.id, snaps: run.snaps, ops: run.ops }
     },
