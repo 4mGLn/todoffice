@@ -147,6 +147,29 @@
  *   like the page. The aliases keep their place and the list is weighed by its first real
  *   name. Upstream had the same defect (edwardkim/rhwp#9077) and fixed it on devel the same
  *   way (PR #9093); the patch is dropped with the release that has that fix.
+ *
+ * studio-hancom-object-drag, studio-hancom-object-drag-cancel
+ *   The studio sized a picture or drawing object freely from every handle and had no keys
+ *   while dragging one. Hangul keeps a picture's width to height on a corner handle, and a
+ *   drawing object's with Shift; Shift while moving keeps the object on its row or column;
+ *   Esc while dragging puts the object back (help: 개체 크기 조절, 개체 이동하기). The size
+ *   drag asks studio-plugin/object-drag.mjs (dragKeepsRatio) whether to keep the ratio: a
+ *   single object goes through the studio's own diagonal sizing for a turned picture, a
+ *   multiple selection through ratioResizedBox. The move drag holds the pointer on one axis
+ *   (axisLockedPoint), and the key handler hands Esc to cancelObjectDrag before anything else.
+ *
+ * studio-hancom-object-step
+ *   With a picture or drawing object selected, studio-hancom-chords hands the key to
+ *   hancomPictureObjectKey, which takes Hangul's object keys (arrows 0.2 mm, Shift+arrows 1 mm,
+ *   Tab, Shift+PageUp/Down/Home/End, G/U/L/C, Ctrl+E, Ctrl+Insert, Shift+Delete). The studio
+ *   moves objects by its 격자 설정 step (3 mm unless set); once the user sets that step it stays
+ *   theirs, so the studio's setter marks that it was set.
+ *
+ * studio-hancom-object-alt-click
+ *   Hangul's Alt+click selects the object under the pointer even when another lies over it or
+ *   it lies behind the text, and the next one down on each further click (help: 개체 선택). The
+ *   studio's mousedown hands an Alt+click to hancomAltClickObject before its own picture
+ *   handling, which would start dragging the selected object or open a text box for typing.
  */
 
 import { CLIPBOARD_HTML_MODULE } from '../studio-plugin/clipboard-html.mjs'
@@ -678,7 +701,7 @@ const PATCHES = {
         find: "import { matchShortcut, defaultShortcuts } from '@/command/shortcut-map';",
         replace:
           "import { matchShortcut, defaultShortcuts } from '@/command/shortcut-map';\n" +
-          `import { hancomCellBlockKey, hancomCellKey, hancomChordKey, hancomChordStart, hancomContextKey, hancomCtrlKey, hancomTableObjectKey } from '${HANCOM_KEYS_MODULE}';`,
+          `import { hancomCellBlockKey, hancomCellKey, hancomChordKey, hancomChordStart, hancomContextKey, hancomCtrlKey, hancomPictureObjectKey, hancomTableObjectKey } from '${HANCOM_KEYS_MODULE}';`,
       },
       // the second key, first of all (the studio's own Ctrl+K/M/G flags are never set again)
       {
@@ -692,6 +715,7 @@ const PATCHES = {
         find: '  if (this.connectorDrawingMode) {',
         replace:
           '  if (hancomTableObjectKey(this, e)) return;\n' +
+          '  if (hancomPictureObjectKey(this, e)) return;\n' +
           '  if (hancomCellBlockKey(this, e, (ev: KeyboardEvent) => matchShortcut(ev, defaultShortcuts))) return;\n' +
           '  if (hancomCellKey(this, e)) return;\n' +
           '  if (this.connectorDrawingMode) {',
@@ -1240,6 +1264,115 @@ const PATCHES = {
       },
     ],
   },
+  // Hangul's corner handle keeps a picture's ratio, and any object's with Shift; Shift while
+  // moving keeps the object on one axis (studio-plugin/object-drag.mjs)
+  'studio-hancom-object-drag': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-picture\.ts$/,
+    edits: [
+      {
+        find: "import { computeArrowResize, MIN_SIZE_HWP, type ArrowKey } from './picture-resize';",
+        replace: [
+          "import { computeArrowResize, MIN_SIZE_HWP, type ArrowKey } from './picture-resize';",
+          `import { axisLockedPoint, dragKeepsRatio, ratioResizedBox } from '${HANCOM_KEYS_MODULE}';`,
+        ].join('\n'),
+      },
+      // one object: the studio's diagonal sizing of a turned picture, for every kept ratio
+      {
+        find: '  if (isRotatedImageCornerResize(state, angleDeg)) {',
+        replace:
+          '  if (isRotatedImageCornerResize(state, angleDeg) || dragKeepsRatio(state, e.shiftKey)) {',
+      },
+      // several objects: their common box
+      {
+        find: '  return { x, y, width: w, height: h };',
+        replace: [
+          '  if (dragKeepsRatio(s, e.shiftKey)) return ratioResizedBox(s.bbox, dir, dx, dy);',
+          '  return { x, y, width: w, height: h };',
+        ].join('\n'),
+      },
+      {
+        find: [
+          '  const cx = e.clientX - cr.left;',
+          '  const cy = e.clientY - cr.top;',
+          '  // 이동량은 끌기를',
+        ].join('\n'),
+        replace: [
+          '  let cx = e.clientX - cr.left;',
+          '  let cy = e.clientY - cr.top;',
+          '  if (e.shiftKey && this.pictureMoveState) {',
+          '    const ieumFrom = this.pictureMoveState;',
+          '    const ieumPoint = axisLockedPoint({',
+          '      x: this.virtualScroll.getPageLeftResolved(ieumFrom.pageIndex, sc.clientWidth) + ieumFrom.startPageX * zoom,',
+          '      y: this.virtualScroll.getPageOffset(ieumFrom.pageIndex) + ieumFrom.startPageY * zoom,',
+          '    }, { x: cx, y: cy });',
+          '    cx = ieumPoint.x;',
+          '    cy = ieumPoint.y;',
+          '  }',
+          '  // 이동량은 끌기를',
+        ].join('\n'),
+      },
+    ],
+  },
+  // a move step the user set in 격자 설정 is kept for objects; otherwise their arrows take
+  // Hangul's steps (hancomPictureObjectKey)
+  'studio-hancom-object-step': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler\.ts$/,
+    find: '  setGridStep(mm: number): void { this.gridStepMm = mm; }',
+    replace:
+      '  setGridStep(mm: number): void { this.gridStepMm = mm; (this as any).ieumGridStepSet = true; }',
+  },
+  // Hangul's Alt+click selects the object under the pointer, and the next one down on the
+  // next click (hancomAltClickObject)
+  'studio-hancom-object-alt-click': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-mouse\.ts$/,
+    edits: [
+      {
+        find: "import { shouldStartPersistentTableResize } from './table-resize-updates';",
+        replace: [
+          "import { shouldStartPersistentTableResize } from './table-resize-updates';",
+          `import { hancomAltClickObject } from '${HANCOM_KEYS_MODULE}';`,
+        ].join('\n'),
+      },
+      {
+        find: [
+          '  // 그림/글상자 객체 선택 중 클릭 처리',
+          '  if (this.cursor.isInPictureObjectSelection()) {',
+        ].join('\n'),
+        replace: [
+          '  if (hancomAltClickObject(this, e)) return;',
+          '  // 그림/글상자 객체 선택 중 클릭 처리',
+          '  if (this.cursor.isInPictureObjectSelection()) {',
+        ].join('\n'),
+      },
+    ],
+  },
+  // Esc while dragging an object puts it back, before any other use of the key
+  'studio-hancom-object-drag-cancel': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-keyboard\.ts$/,
+    edits: [
+      {
+        find: "import { scrollByPageStep, type PageScrollDirection } from '@/view/page-scroll';",
+        replace: [
+          "import { scrollByPageStep, type PageScrollDirection } from '@/view/page-scroll';",
+          `import { cancelObjectDrag } from '${HANCOM_KEYS_MODULE}';`,
+        ].join('\n'),
+      },
+      {
+        find: [
+          'export function onKeyDown(this: any, e: KeyboardEvent): void {',
+          '  if (!this.active) return;',
+        ].join('\n'),
+        replace: [
+          'export function onKeyDown(this: any, e: KeyboardEvent): void {',
+          '  if (!this.active) return;',
+          "  if (e.key === 'Escape' && cancelObjectDrag(this)) {",
+          '    e.preventDefault();',
+          '    return;',
+          '  }',
+        ].join('\n'),
+      },
+    ],
+  },
 }
 
 /** The patches the studio build applies, in order; the SDK's own is applied by the renderer builds. */
@@ -1279,6 +1412,10 @@ export const STUDIO_PATCHES = /** @type {const} */ ([
   'studio-missing-font-marks',
   'studio-equation-fonts',
   'studio-source-font-alias',
+  'studio-hancom-object-drag',
+  'studio-hancom-object-drag-cancel',
+  'studio-hancom-object-step',
+  'studio-hancom-object-alt-click',
 ])
 
 /** Whether a patch is written against this file. */
@@ -1454,6 +1591,35 @@ export const hancomHooks = [
       'applyHangingIndentAtCursor(): boolean',
       // Hangul's Ctrl+PageUp/PageDown: the studio's Ctrl+Home/End (documentEdgeKey)
       'private handleCtrlKey(e: KeyboardEvent): void',
+      // Esc while dragging an object (cancelObjectDrag in object-drag.mjs)
+      'private isPictureResizeDragging = false;',
+      'private pictureResizeState: {',
+      'private isPictureMoveDragging = false;',
+      'private pictureMoveState: {',
+      'private dragRafId = 0;',
+      'private cleanupPictureResizeDrag(): void {',
+      'private renderPictureObjectSelection(): void {',
+      'private setObjectProperties(ref:',
+      'private container: HTMLElement,',
+      'private eventBus: EventBus,',
+      // a selected picture or drawing object's Hancom keys (hancomPictureObjectKey)
+      'private gridStepMm = 3;',
+      'private moveSelectedPicture(key:',
+      'private resizeSelectedPicture(key:',
+      'private findPictureBbox(',
+      'private getObjectProperties(ref:',
+      'private exitPictureObjectSelectionIfNeeded(): void',
+      // Alt+click (hancomAltClickObject)
+      'private virtualScroll: VirtualScroll,',
+      'private viewportManager: ViewportManager,',
+    ],
+  },
+  {
+    file: 'src/engine/cursor.ts',
+    needles: [
+      'enterPictureObjectSelectionDirect(',
+      'getSelectedPictureRef(): PictureSelectionRef | null',
+      'getSelectedPictureRefs(): PictureSelectionRef[]',
     ],
   },
   {
