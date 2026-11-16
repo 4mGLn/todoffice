@@ -523,6 +523,51 @@ describe('rhwp PC fonts patch', () => {
   })
 })
 
+describe('rhwp font file reads patch', () => {
+  // the studio's text around the patch, as the pinned release has it
+  const localFonts = [
+    "import { setRawCanvasFont } from './canvas-font-raw.ts';",
+    '',
+    'async function collectLocalFontRecords(fontDataList: readonly FontData[]): Promise<LocalFontRecord[]> {',
+    '  const records: Array<LocalFontRecord | null> = new Array(fontDataList.length).fill(null);',
+    '  let nextIndex = 0;',
+    '  const worker = async (): Promise<void> => {',
+    '    while (nextIndex < fontDataList.length) {',
+    '      const index = nextIndex;',
+    '      nextIndex += 1;',
+    '      const fontData = fontDataList[index];',
+    "      records[index] = makeLocalFontRecord(fontData, await readSfntFontNames(fontData), 'local-font-access');",
+    '    }',
+    '  };',
+    '',
+  ].join('\n')
+  const patched = applyPatch('studio-font-file-reads', localFonts)
+
+  it('asks which font files to read once for the list, before the first read', () => {
+    expect(patched).toContain(`import { fontFilesToRead } from '${PC_FONTS_MODULE}';`)
+    expect(patched).toContain(
+      '  let nextIndex = 0;\n  const readsFile = fontFilesToRead(fontDataList);\n  const worker = ',
+    )
+  })
+
+  it('lists a font it does not read by the names the PC gave', () => {
+    expect(patched).toContain(
+      "makeLocalFontRecord(fontData, readsFile(index) ? await readSfntFontNames(fontData) : emptySfntFontNames(), 'local-font-access');",
+    )
+    expect(patched).not.toContain('fontData, await readSfntFontNames(fontData),')
+  })
+
+  it('keeps CRLF sources working, fails when the text is gone, and is in the studio build', () => {
+    expect(applyPatch('studio-font-file-reads', localFonts.replaceAll('\n', '\r\n'))).toContain(
+      'const readsFile = fontFilesToRead(fontDataList);\r\n',
+    )
+    expect(() =>
+      applyPatch('studio-font-file-reads', localFonts.replace('let nextIndex', 'x')),
+    ).toThrow(/studio-font-file-reads/)
+    expect(STUDIO_PATCHES).toContain('studio-font-file-reads')
+  })
+})
+
 describe('rhwp missing font marks patch', () => {
   // the studio's text around the patch, as the pinned release has it
   const toolbar = [
@@ -695,6 +740,7 @@ describe('the studio source the build fetched', () => {
     'src/main.ts',
     'src/embed/protocol.ts',
     'src/core/wasm-bridge.ts',
+    'src/core/local-fonts.ts',
     'src/engine/input-handler.ts',
     'src/engine/input-handler-keyboard.ts',
     'src/engine/input-handler-text.ts',
