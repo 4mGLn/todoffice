@@ -199,13 +199,33 @@ export interface AgentStyleBatch {
 export type AgentStyleParagraphsResult =
   | {
       ok: true
-      /** styles made and styles changed */
+      /** styles made and styles changed, and their names as the document has them */
       made: number
       changed: number
+      madeStyles: string[]
+      changedStyles: string[]
+      /**
+       * with rules by startsWith or numbered: body paragraphs with words still in the default
+       * paragraph style after the call, when there are any
+       */
+      unmatched?: number
+      /** the start of lines a numbered rule left out only for the space missing after the mark */
+      withoutSpace?: string[]
+      /**
+       * lines a rule starts like but leaves out on purpose, by kind: a placeholder (○○), a cut
+       * line, a date (11. 12.(목)); how many and the start of the first
+       */
+      skipped?: Partial<
+        Record<'placeholder' | 'cutLine' | 'date', { count: number; first: string }>
+      >
+      hang?: AgentHangOutcome
       /** paragraphs given a style */
       paragraphs: number
-      /** how many paragraphs each rule gave its style to, in the order of the rules */
-      rules: { style: string; paragraphs: number }[]
+      /**
+       * how many paragraphs each rule gave its style to, in the order of the rules, and how
+       * many paragraphs starting as it names it left out on purpose (skipped)
+       */
+      rules: { style: string; paragraphs: number; skipped?: number }[]
       place?: AgentPlace
       keptOwnLook?: number
       standIn?: AgentStandInFont[]
@@ -571,8 +591,12 @@ export interface AgentParagraphFormat extends AgentTextFormat {
   align?: 'left' | 'center' | 'right' | 'justify'
   /** line spacing in percent of the font height */
   lineSpacing?: number
-  /** indent in points: positive sets the first line further in; negative is Hangul's hanging indent (the first line stays at marginLeft, the lines after it start that much further in) */
-  indent?: number
+  /**
+   * indent in points: positive sets the first line further in; negative is Hangul's hanging
+   * indent (the first line stays at marginLeft, the lines after it start that much further in).
+   * "mark" hangs each paragraph by the width its first line gives its mark and the spaces after it
+   */
+  indent?: number | 'mark'
   /** left and right margins of the paragraph, in points */
   marginLeft?: number
   marginRight?: number
@@ -675,10 +699,21 @@ export interface AgentStyleChanges {
 }
 
 export type AgentStyleResult =
-  | { ok: true; name: string; kind: AgentStyleKind }
+  | {
+      ok: true
+      name: string
+      kind: AgentStyleKind
+      hang?: AgentHangOutcome
+    }
   /** another style already has the name */
   | { ok: false; reason: 'style_exists' }
   | AgentNoSuchStyle
+
+/** What editStyle answers: a style result, or nothing changed for indent "mark" alone. */
+export type AgentEditStyleResult =
+  | AgentStyleResult
+  /** indent "mark" alone, and no paragraph of the style could be hung */
+  | { ok: false; reason: 'not_hung'; hang: AgentHangOutcome }
 
 /** A place in a table, rows and columns from 1. */
 export interface AgentCellPlace {
@@ -758,7 +793,10 @@ export type AgentFormatParagraphResult =
       place: AgentPlace
       /** 1 when the paragraph took the style's name but kept its own look (as in formatSelection) */
       keptOwnLook?: number
+      hang?: AgentHangOutcome
     }
+  /** indent "mark" alone, and the paragraph could not be hung: nothing changed */
+  | { ok: false; reason: 'not_hung'; hang: AgentHangOutcome }
   | AgentPlaceRefusal
   | AgentNoSuchStyle
   | AgentWordsSetApart
@@ -983,6 +1021,7 @@ export type AgentFormatSelectionResult =
        * paragraph's own paragraph formatting whole when it differs from its former style's
        */
       keptOwnLook?: number
+      hang?: AgentHangOutcome
     }
   | { ok: false; reason: 'changed' | 'unsupported_place' }
   | { ok: false; reason: 'has_objects'; count: number }
@@ -1124,6 +1163,17 @@ export interface AgentMissingFontLabels {
  */
 export declare function splitsWord(left: string, right: string): boolean
 
+/**
+ * Every table of the document in reading order, tables inside cells followed `depth` deep;
+ * `budget` engine calls (three for each cell paragraph) are spent looking for those, and
+ * `partial` says a cell paragraph was left unasked when they ran out.
+ */
+export declare function tablesOf(
+  doc: unknown,
+  depth?: number,
+  budget?: number,
+): { tables: { sec: number; para: number; cells: number }[]; partial: boolean }
+
 /** The parts of the editor toolbar's style list (a select element) syncStyleList uses. */
 export interface StyleListElement {
   readonly options: ArrayLike<{ value: string; textContent: string | null }>
@@ -1204,6 +1254,69 @@ export type AgentNoteSettingsResult =
   /** this engine cannot change footnote settings */
   | { ok: false; reason: 'unsupported' }
   | AgentMemoRemovalRefusal
+
+/** A section's paper as the context names it. */
+export interface AgentPaper {
+  /** A3, A4, … when the paper is one of the named sizes */
+  paper: string | null
+  /** the paper, portrait, in millimetres */
+  width: number
+  height: number
+  orientation: 'portrait' | 'landscape'
+}
+
+/** The shape of a document as the context tells it, its first section's paper and columns. */
+export interface AgentDocumentShape extends AgentPaper {
+  pages: number
+  /** later sections (numbered from 1) whose paper differs from the first section's */
+  otherPapers?: (AgentPaper & { section: number })[]
+  columns: number
+  /** a later part of the document sets other columns */
+  columnsChangeWithin?: true
+  /**
+   * whether the text is plain 바탕글, formatted nowhere: in the body, and in the table cells
+   * (title boxes included; null without a table); `unread` when those read are plain but
+   * the budget for finding tables inside cells ran out before every cell paragraph was searched
+   */
+  plain: { body: boolean; tables: boolean | null; unread?: boolean }
+}
+
+/**
+ * What indent "mark" did: paragraphs hung by their marks, those of them given an indent of
+ * their own over their style (another width than most), and those it gave no indent of their
+ * own: no mark at their start, a width it could not read, or a hang past 100 pt or half the
+ * line.
+ */
+export interface AgentHangOutcome {
+  hung: number
+  apart: number
+  noMark: number
+  /** right, centre or spread lines: line 2 is not set under the words there */
+  alignment: number
+  /** a field, its guide or another object is drawn before or inside the mark (in a cell, a field) */
+  object: number
+  /** the mark runs over two lines, or fills the first of several */
+  split: number
+  /** a tab whose stop moves with the first line's indent or a widened space before it */
+  tab: number
+  /** a justified first line with no space whose natural advance is known */
+  noSpace: number
+  /** a width not above 0, past 100 pt or past half the column */
+  outOfRange: number
+  /** paragraphs in tables inside cells not looked at: the engine cannot tell their style */
+  unread?: number
+  /**
+   * paragraphs left unhung, empty ones too, given the indent they had as their own so that
+   * the hang their style took does not reach them
+   */
+  kept?: number
+  /**
+   * drawn shapes other than pictures inside table cells or other shapes, which the editor
+   * cannot look into, given for a style the document had before the call: a paragraph of
+   * that style in one would follow the style's hang
+   */
+  unreachedShapes?: number
+}
 
 /** A section's page setup, in millimetres. */
 export interface AgentPageSetup {
@@ -1321,7 +1434,10 @@ export type AgentFormatLookResult =
       place: AgentPlace
       /** paragraphs that keep some formatting of their own over the new style */
       keptOwnLook?: number
+      hang?: AgentHangOutcome
     }
+  /** indent "mark" alone, and no paragraph of the look could be hung: nothing changed */
+  | { ok: false; reason: 'not_hung'; hang: AgentHangOutcome }
   | {
       ok: false
       reason: 'no_such_look'
@@ -1799,7 +1915,7 @@ export interface AgentPluginSurface {
     name: string,
     changes: AgentStyleChanges,
     options?: AgentChangeOptions,
-  ): AgentStyleResult
+  ): AgentEditStyleResult
   /** pages for printing from `from`, as many as are drawn in about two seconds */
   printPages(from: number): AgentPrintPages
   /** once the start-up look at the PC's fonts is over: whether print can use the screen's fonts */
@@ -1842,6 +1958,7 @@ export interface AgentPluginSurface {
   ): AgentTitleBoxResult
   documentFonts(): AgentDocumentFonts
   pageCount(): number
+  documentShape(): AgentDocumentShape
   /** the page number, header and footer of the document */
   pageLayout(): AgentPageLayout
   setColumns(

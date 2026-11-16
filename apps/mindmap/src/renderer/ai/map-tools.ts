@@ -1314,7 +1314,10 @@ export async function addPictureTopic(
     session.removePicture(entryName)
     throw error
   }
-  if (topicInView(session.view(key).root, node.id)?.image?.entryName !== entryName) {
+  const shown = topicInView(session.view(key).root, node.id)
+  if (shown?.image?.entryName !== entryName) {
+    // a topic that landed without its picture is that step taken back, not an empty topic left on the map
+    if (shown) controller.undo()
     session.removePicture(entryName)
     return null
   }
