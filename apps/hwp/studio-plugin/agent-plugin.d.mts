@@ -1081,6 +1081,17 @@ export interface AgentMissingFontsDetail {
   fonts: string[]
 }
 
+/**
+ * The event fired on the editor's window when the pages come to carry marks of changes or
+ * stop carrying them (a user edit takes them off); `detail` is an AgentMarksDetail.
+ */
+export declare const MARKS_EVENT: 'ieum:marks'
+
+/** Whether the pages carry marks of changes now. */
+export interface AgentMarksDetail {
+  shown: boolean
+}
+
 /** The words of the status bar's character count (showCharCount), in the app's language. */
 export interface AgentCharCountLabels {
   /** shown while nothing is selected; {total} is the document's characters */
@@ -1857,8 +1868,6 @@ export interface AgentPluginSurface {
   ): AgentHeaderFooterResult
   /** take the marks of the changes made so far off the pages */
   clearMarks(): { ok: true }
-  /** whether the pages carry marks of changes now (a user edit takes them off) */
-  hasMarks(): { ok: true; shown: boolean }
   undo(steps: number, expectedForeign: number): AgentUndoResult
   /** the memos of the document in document order, with their pages and anchor rectangles */
   listMemos(): AgentMemoList

@@ -192,6 +192,12 @@ export const EASY_WORDS_EVENT = 'ieum:easy-words'
  * with the fonts of the document that are not on this PC as its detail (`{ fonts }`).
  */
 export const MISSING_FONTS_EVENT = 'ieum:missing-fonts'
+/**
+ * The event fired on the editor's window when the pages come to carry marks of changes or
+ * stop carrying them (`{ shown }`): an AI change marked, the panel cleared them, or an
+ * edit of the user's own took them off.
+ */
+export const MARKS_EVENT = 'ieum:marks'
 /** The command that selects the word under the caret (a double click in the page). */
 const WORD_COMMAND = 'ext:ieum-select-word'
 /** The command that selects the paragraph under the caret (a triple click in the page). */
@@ -6619,27 +6625,97 @@ function markRects(doc, mark) {
     : []
 }
 
-/** Body paragraphs per section. */
-function paragraphCounts(doc) {
-  const counts = []
-  const sections = doc.getSectionCount()
-  for (let sec = 0; sec < sections; sec++) counts.push(doc.getParagraphCount(sec))
-  return counts
+/**
+ * The table cell the `depth`-th step of a path is in, as a key: the body paragraph, the
+ * steps above it with their cell paragraphs, and its own table and cell.
+ */
+function cellKeyOf(sec, para, path, depth) {
+  const steps = path
+    .slice(0, depth + 1)
+    .map((step, k) =>
+      k === depth
+        ? `${step.controlIndex}.${step.cellIndex}`
+        : `${step.controlIndex}.${step.cellIndex}.${step.cellParaIndex}`,
+    )
+  return `${sec}:${para}:${steps.join('/')}`
 }
 
 /**
- * The marks of earlier changes, moved for a change that added or removed body paragraphs:
- * `at` is where it did (the first paragraph it made, or the one it removed). Marks inside
- * table cells keep their place: a change in a cell does not move the body.
+ * Body paragraphs per section, and the paragraphs of each table cell a mark sits in (at
+ * every level of a cell inside a cell), by cellKeyOf; null for a cell that cannot be read.
+ */
+function paragraphCounts(doc, marks) {
+  const body = []
+  const sections = doc.getSectionCount()
+  for (let sec = 0; sec < sections; sec++) body.push(doc.getParagraphCount(sec))
+  const cells = new Map()
+  for (const mark of marks) {
+    const path = Array.isArray(mark.path) ? mark.path : []
+    for (let depth = 0; depth < path.length; depth++) {
+      const key = cellKeyOf(mark.sec, mark.para, path, depth)
+      if (cells.has(key)) continue
+      let count = null
+      try {
+        const first = [...path.slice(0, depth), { ...path[depth], cellParaIndex: 0 }]
+        count = doc.getCellParagraphCountByPath(mark.sec, mark.para, JSON.stringify(first))
+      } catch {
+        // the cell is not there any more
+      }
+      cells.set(key, Number.isInteger(count) ? count : null)
+    }
+  }
+  return { body, cells }
+}
+
+/** An index moved for `delta` paragraphs made (or removed, below zero) at `from`; null if it went. */
+function shiftIndex(index, from, delta) {
+  if (delta > 0) return index >= from ? index + delta : index
+  if (index < from) return index
+  if (index < from - delta) return null
+  return index + delta
+}
+
+/**
+ * The marks of earlier changes, moved for a change that added or removed paragraphs: `at`
+ * is where it did (the first paragraph it made, or the one it removed). A change in the
+ * body moves the body paragraphs after it, with the tables in them; a change in a table
+ * cell moves the paragraphs after it in that cell, with the cells inside them.
  */
 function shiftMarks(marks, before, after, at) {
+  if (!at) return marks
+  const bodyDelta = (after.body[at.sec] ?? 0) - (before.body[at.sec] ?? 0)
+  const atPath = Array.isArray(at.path) && at.path.length > 0 ? at.path : null
+  if (!atPath) {
+    if (bodyDelta === 0) return marks
+    return marks.flatMap((mark) => {
+      if (mark.sec !== at.sec) return [mark]
+      const para = shiftIndex(mark.para, at.para, bodyDelta)
+      return para === null ? [] : [{ ...mark, para }]
+    })
+  }
+  // a change in a cell leaves the body as it is: what moved is in that cell
+  if (bodyDelta !== 0) return marks
+  const depth = atPath.length - 1
+  const key = cellKeyOf(at.sec, at.para, atPath, depth)
+  const was = before.cells.get(key)
+  const now = after.cells.get(key)
+  if (!Number.isInteger(was) || !Number.isInteger(now) || was === now) return marks
+  const from = atPath[depth].cellParaIndex
   return marks.flatMap((mark) => {
-    const delta = (after[mark.sec] ?? 0) - (before[mark.sec] ?? 0)
-    if (delta === 0 || !at || at.sec !== mark.sec) return [mark]
-    if (delta > 0) return [mark.para >= at.para ? { ...mark, para: mark.para + delta } : mark]
-    if (mark.para < at.para) return [mark]
-    if (mark.para < at.para - delta) return []
-    return [{ ...mark, para: mark.para + delta }]
+    const path = Array.isArray(mark.path) ? mark.path : []
+    if (
+      mark.sec !== at.sec ||
+      mark.para !== at.para ||
+      path.length <= depth ||
+      cellKeyOf(mark.sec, mark.para, path, depth) !== key
+    ) {
+      return [mark]
+    }
+    const cellParaIndex = shiftIndex(path[depth].cellParaIndex, from, now - was)
+    if (cellParaIndex === null) return []
+    const moved = [...path]
+    moved[depth] = { ...path[depth], cellParaIndex }
+    return [{ ...mark, path: moved }]
   })
 }
 
@@ -6803,6 +6879,12 @@ export const agentPlugin = {
     let pictures = null
     // the places this plugin changed since the panel last cleared them, as they are now
     let marks = []
+    /** Keep `next` as the marks; the app hears when the pages come to carry some, or none. */
+    const setMarks = (next) => {
+      const was = marks.length > 0
+      marks = next
+      if (was !== marks.length > 0) announce(MARKS_EVENT, { shown: marks.length > 0 })
+    }
     // the memo panel: the memos as last read, whether its anchors are shown, which one is
     // picked, and how many memos the last copy in this editor would bring with it
     let memoKnown = null
@@ -7212,7 +7294,7 @@ export const agentPlugin = {
         foreign += 1
         // an edit of the user's own moves text under the marks: they would point astray
         if (marks.length > 0) {
-          marks = []
+          setMarks([])
           refreshMarks()
         }
         // the user's own edit can take a memo away and moves the memo anchors
@@ -7364,8 +7446,13 @@ export const agentPlugin = {
     const noteChange = (label, result, before, after) => {
       if (!result || result.ok === false) return
       const places = Array.isArray(result.marks) ? result.marks : result.place ? [result.place] : []
-      marks = shiftMarks(marks, before, after, result.shiftAt ?? places[0] ?? result.place ?? null)
-      if (!UNMARKED_CHANGES.has(label)) marks = [...marks, ...places].slice(0, MAX_MARKS)
+      const moved = shiftMarks(
+        marks,
+        before,
+        after,
+        result.shiftAt ?? places[0] ?? result.place ?? null,
+      )
+      setMarks(UNMARKED_CHANGES.has(label) ? moved : [...moved, ...places].slice(0, MAX_MARKS))
       // the memos may have changed with the text, and their anchors may have moved
       syncMemos({ notify: false })
       refreshMemoAnchors()
@@ -7734,7 +7821,9 @@ export const agentPlugin = {
           done = host.transaction(label, (tx) => {
             tx.deferPagination()
             const doc = tx.doc()
-            const before = paragraphCounts(doc)
+            // the marks as they were before: the cells they sit in are counted too
+            const marked = marks
+            const before = paragraphCounts(doc, marked)
             const watched = MEMO_CHANGES.has(label) || allowMemoRemoval ? null : memoEntriesOf(doc)
             const known = headsBefore(doc)
             const changed = fn(doc)
@@ -7760,7 +7849,7 @@ export const agentPlugin = {
                   ? { ...result, tallerRows: taller }
                   : result,
               before,
-              after: paragraphCounts(doc),
+              after: paragraphCounts(doc, marked),
               heads,
             }
           })
@@ -12335,16 +12424,10 @@ export const agentPlugin = {
 
       /** Take the marks of the changes made so far off the pages. */
       clearMarks: guarded(() => {
-        marks = []
+        setMarks([])
         refreshMarks()
         return { ok: true }
       }),
-
-      /**
-       * Whether the pages carry marks of changes now. They go by themselves when the user
-       * edits the document, and the AI panel asks so its button to clear them goes too.
-       */
-      hasMarks: guarded(() => ({ ok: true, shown: marks.length > 0 })),
 
       /**
        * How the editor lays out the tabs a save found without a width (`spots`, from the
