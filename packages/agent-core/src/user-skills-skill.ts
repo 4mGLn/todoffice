@@ -514,25 +514,20 @@ export function createUserSkillsSkill(deps: UserSkillsDeps): AgentSkill {
   const labels = deps.labels ?? DEFAULT_LABELS
   const toolDefs = tools()
   /**
-   * the entry of an id. A bare name (an editor's instructions name a built-in skill so) is the
-   * skill of that name the list puts forward among those that may be used here, so a person's
-   * own copy wins over the built-in and one turned off or set for other editors does not count;
-   * with none such it is one of that name that may not, so the answer says why
+   * the entry of an id. A bare name (an editor's instructions name a built-in skill so) is
+   * matched without case, as one name wins over the others (pickEnabledUserSkills), and never
+   * finds a skill that stands back for another: of those that may be used here, the winner,
+   * else the first; with none such one of that name that may not, so the answer says why
    */
   const find = (id: string) => {
     const all = deps.list()
     const exact = all.find((s) => s.id === id)
     if (exact || id.includes(':')) return exact
-    const named = all.filter((s) => s.name === id)
-    const usable = named.filter(
-      (s) => !entryRefusal(s, s.id, deps.editor) && !skillStandsBack(s, all, deps.editor),
+    const named = all.filter(
+      (s) => s.name.toLowerCase() === id.toLowerCase() && !skillStandsBack(s, all, deps.editor),
     )
-    if (usable.length > 0) {
-      const own = usable.filter((s) => !!deps.editor && !!skillEditorsOf(s.editors))
-      return own.length === 1 ? own[0] : usable.length === 1 ? usable[0] : undefined
-    }
-    const forward = named.filter((s) => !skillStandsBack(s, all, deps.editor))
-    if (forward.length === 1) return forward[0]
+    const usable = named.filter((s) => !entryRefusal(s, s.id, deps.editor))
+    if (usable.length > 0) return usable.find((s) => !s.shadowedBy) ?? usable[0]
     return named.find((s) => skillUsedIn(s.editors, deps.editor)) ?? named[0]
   }
   /** the entry, reading the list again once when the snapshot does not have it yet */

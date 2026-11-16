@@ -572,14 +572,13 @@ describe('a skill named by its bare name', () => {
     expect(fileReads).toEqual([['user:hwp-exam-paper', 'reference/tone.md']])
   })
 
-  it('refuses a name two listed skills share, and an unknown source', async () => {
-    const { deps, reads } = depsOf([view('user:letter'), view('codex:letter')])
-    const skill = createUserSkillsSkill(deps)
-    for (const id of ['letter', 'builtin:letter']) {
-      const result = await skill.executeTool(call(USE_SKILL_TOOL, { id }))
-      expect(result.isError).toBe(true)
-      expect(result.output).toBe(`No skill with id ${id}. Use an id from the skills list.`)
-    }
+  it('refuses a source no listed skill of the name has', async () => {
+    const { deps, reads } = depsOf([view('user:letter')])
+    const result = await createUserSkillsSkill(deps).executeTool(
+      call(USE_SKILL_TOOL, { id: 'builtin:letter' }),
+    )
+    expect(result.isError).toBe(true)
+    expect(result.output).toBe('No skill with id builtin:letter. Use an id from the skills list.')
     expect(reads).toEqual([])
   })
 
@@ -608,14 +607,35 @@ describe('a skill named by its bare name', () => {
       'builtin:hwp-exam-paper',
     ],
     [
-      'one for every editor beside one set for this one',
-      [view('user:letter', { editors: undefined }), view('codex:letter')],
-      'codex:letter',
+      'the one the list puts forward, set for every editor, over one set for this one',
+      [
+        view('user:letter', { editors: undefined }),
+        view('codex:letter', { shadowedBy: 'user:letter' }),
+      ],
+      'user:letter',
+    ],
+    [
+      'a skill whose name differs in case from the one asked for, that won the name',
+      [
+        view('project:HWP-Exam-Paper', { editors: undefined }),
+        view('builtin:hwp-exam-paper', { shadowedBy: 'project:HWP-Exam-Paper' }),
+      ],
+      'project:HWP-Exam-Paper',
+    ],
+    [
+      'the first usable one where the winner is set for another editor',
+      [
+        view('app:hwp-exam-paper', { editors: ['docs'] }),
+        view('builtin:hwp-exam-paper', { enabled: false }),
+        view('user:hwp-exam-paper', { editors: undefined, shadowedBy: 'app:hwp-exam-paper' }),
+        view('codex:hwp-exam-paper', { editors: undefined, shadowedBy: 'app:hwp-exam-paper' }),
+      ],
+      'user:hwp-exam-paper',
     ],
   ])('reads the one skill of a bare name that may be used here: %s', async (_name, views, id) => {
     const { deps, reads, fileReads } = depsOf(views)
     const skill = createUserSkillsSkill(deps)
-    const name = id.split(':')[1]!
+    const name = id.split(':')[1]!.toLowerCase()
     const used = await skill.executeTool(call(USE_SKILL_TOOL, { id: name }))
     expect(used.isError).toBeFalsy()
     expect(used.output).toContain(`<skill id="${id}"`)
