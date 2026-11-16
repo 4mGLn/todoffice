@@ -31,13 +31,20 @@ export interface SaveDiskState {
   hash: string
 }
 
-const sha256Hex = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+const sha256Hex = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 
-/** stat + content hash of the file, or null when it is not a readable file. */
-export async function recordDiskState(path: string): Promise<SaveDiskState | null> {
+/**
+ * stat + content hash of the file, or null when it is not a readable file. A
+ * caller that has just read the file hands its content over as `read`, so the
+ * file is not read a second time for the hash.
+ */
+export async function recordDiskState(
+  path: string,
+  read?: Uint8Array,
+): Promise<SaveDiskState | null> {
   try {
     const info = await stat(path)
-    const bytes = await readFile(path)
+    const bytes = read ?? (await readFile(path))
     return { mtimeMs: info.mtimeMs, size: info.size, hash: sha256Hex(bytes) }
   } catch {
     return null

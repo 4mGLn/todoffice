@@ -12,6 +12,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+/** every whole-file read the main process makes, by path */
+const fileReads = vi.fn()
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  const readFile = ((...args: Parameters<typeof actual.readFile>) => {
+    fileReads(args[0])
+    return actual.readFile(...args)
+  }) as typeof actual.readFile
+  return { ...actual, default: { ...actual, readFile }, readFile }
+})
+
 type Handler = (event: unknown, ...args: unknown[]) => unknown
 const handlers = new Map<string, Handler>()
 const showMessageBox = vi.fn(async (..._args: unknown[]) => ({ response: 1 }))
@@ -133,6 +144,20 @@ async function saveThrough(
     auto: auto === true,
   })
 }
+
+describe('opening a document', () => {
+  it('reads the file once: its content also gives the recorded disk state', async () => {
+    writeFileSync(docPath, 'v1')
+    fileReads.mockClear()
+    const contents = await openView(docPath)
+    expect(fileReads.mock.calls.filter(([path]) => path === docPath)).toHaveLength(1)
+    // the state it recorded is the file's: an unchanged file is no conflict for a sibling pane
+    setOpenPathProbe((path) => path === docPath)
+    const result = await saveThrough(contents, SAVED_BYTES)
+    expect(result).toMatchObject({ ok: true, path: docPath })
+    expect(showMessageBox).not.toHaveBeenCalled()
+  })
+})
 
 describe('same-document save guard', () => {
   it('does not ask for a file open nowhere else, whatever the disk holds', async () => {

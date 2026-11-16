@@ -60,8 +60,18 @@ describe('recordDiskState', () => {
     })
   })
 
+  it('hashes the content a caller has just read instead of reading the file again', async () => {
+    const state = await recordDiskState(doc, Buffer.from('as read'))
+    expect(state).toEqual({
+      mtimeMs: expect.any(Number),
+      size: 2,
+      hash: createHash('sha256').update('as read').digest('hex'),
+    })
+  })
+
   it('answers null when the path is not a readable file', async () => {
     expect(await recordDiskState(join(dir, 'missing.docx'))).toBeNull()
+    expect(await recordDiskState(join(dir, 'missing.docx'), Buffer.from('as read'))).toBeNull()
   })
 })
 
