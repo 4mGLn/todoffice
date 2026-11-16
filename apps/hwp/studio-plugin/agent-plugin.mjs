@@ -2005,7 +2005,6 @@ function missingStyle(doc, spec) {
 /**
  * Whether every body paragraph that holds words is in the default look: the document's
  * first paragraph style (바탕글), with no paragraph or character formatting of its own.
- * False at the first paragraph that is not.
  */
 function plainBody(doc) {
   const base = parse(doc.getStyleList())[0]
@@ -2027,8 +2026,6 @@ function plainBody(doc) {
   return true
 }
 
-/** Characters of a paragraph read to find its mark: the longest rule text and its spaces. */
-const MARK_TEXT_READ = 160
 // eslint-disable-next-line no-control-regex
 const CONTROL_HEAD = /^[\u0000-\u001f]+/
 
@@ -2041,7 +2038,7 @@ const CONTROL_HEAD = /^[\u0000-\u001f]+/
 function markWidthOf(box, k, rule) {
   const length = box.length(k)
   if (length <= 0) return 0
-  const text = box.text(k, Math.min(length, MARK_TEXT_READ))
+  const text = box.text(k, Math.min(length, MAX_STARTS_WITH * 3))
   const lead = text.length - text.replace(CONTROL_HEAD, '').length
   const count = markLengthOf(text.slice(lead), rule)
   if (count === 0) return 0
@@ -9613,8 +9610,6 @@ export const agentPlugin = {
               withoutSpace: rule.numbered ? (NUMBERED_WITHOUT_SPACE[rule.numbered] ?? null) : null,
             }))
             .filter((rule) => rule.text !== null || rule.mark !== null)
-          // body paragraphs with words that no rule names, and lines left out only for the
-          // space missing after a numbered mark
           let unmatched = 0
           const withoutSpace = []
           const sections = doc.getSectionCount()
@@ -9733,8 +9728,6 @@ export const agentPlugin = {
                 }
                 marks.push(box.place(k, length))
               }
-              // the widths are read once every paragraph has its font and size; a paragraph
-              // that had the style before this call hangs by its mark too
               let hungApart = 0
               let unmeasured = 0
               for (const { id, hangByMark } of looks.values()) {

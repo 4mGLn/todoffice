@@ -4033,9 +4033,13 @@ describe('the skill as the model sees it', () => {
       texts.flatMap((text) => [...text.matchAll(/\b[a-z]+(?:_[a-z]+)+\b/g)].map((m) => m[0])),
     )
     expect(words.size).toBeGreaterThan(40)
-    // a tool of the loop, offered beside these, and a key of the read_page_layout answer
-    const elsewhere = new Set(['use_skill', 'changes_within'])
-    expect([...words].filter((word) => !known.has(word) && !elsewhere.has(word))).toEqual([])
+    const loopTools = new Set(['use_skill'])
+    const answerKeys = new Set(['changes_within'])
+    expect(
+      [...words].filter(
+        (word) => !known.has(word) && !loopTools.has(word) && !answerKeys.has(word),
+      ),
+    ).toEqual([])
   })
 
   it('says the limits of one call and that the rest goes into the next', () => {

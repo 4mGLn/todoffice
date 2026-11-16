@@ -3010,7 +3010,6 @@ function styleStrings<K extends string>(
   return out
 }
 
-/** What a run of format calls says about paragraphs that kept their own look under a style. */
 /** What indent "mark" left as it was, when a first line could not be measured. */
 const unmeasuredNote = (count: number | undefined): string =>
   count
@@ -3023,6 +3022,7 @@ const hungApartNote = (count: number | undefined): string =>
     ? ` ${count} paragraph(s) have a mark of another width than most of their style's and got an indent of their own: a later indent given to the style does not reach them.`
     : ''
 
+/** What a run of format calls says about paragraphs that kept their own look under a style. */
 const keptOwnLookNote = (count: number | undefined): string =>
   count
     ? ` ${count === 1 ? 'The paragraph' : `${count} paragraphs`} took the style but kept the paragraph formatting ${count === 1 ? 'it' : 'they'} had set differently from ${count === 1 ? 'its' : 'their'} former style; the rest follows the style. Read the style with read_style and pass its properties if the user wants its plain look.`

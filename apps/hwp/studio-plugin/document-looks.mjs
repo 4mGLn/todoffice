@@ -528,10 +528,10 @@ function isCutLine(line) {
 }
 
 /**
- * Whether paragraph text `head` (leading spaces aside) is named by a rule that gives a style
- * to the lines starting with `mark`. A mark of one character skips a line where the same
- * character follows it with no space between (○○ 사업, a placeholder) and a cut line; a
- * longer mark names the line as it is given.
+ * Whether paragraph text `head`, its leading spaces already removed, is named by a rule that
+ * gives a style to the lines starting with `mark`. A mark of one character skips a line where
+ * the same character follows it with no space between (○○ 사업, a placeholder) and a cut
+ * line; a longer mark names the line as it is given.
  */
 export function startsWithMark(head, mark) {
   if (!head.startsWith(mark)) return false
@@ -545,7 +545,7 @@ const SYMBOL_MARK = /^[^\p{L}\p{N}\s]{1,3}(?=\s)/u
 const LETTER_MARK = /^\p{L}[.)](?=\s)/u
 
 /**
- * How many characters of `text` come before the words its first line hangs under: the
+ * How many characters of `text` come before the words its later lines hang under: the
  * leading spaces, the mark and the spaces after it; 0 when the line has no mark. `rule` says
  * what the mark is when a style rule named the line (`{ startsWith }` or `{ numbered }`);
  * without one, a numbered level, a symbol or a letter with a dot or bracket is taken.

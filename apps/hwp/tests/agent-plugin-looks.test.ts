@@ -917,8 +917,7 @@ describe('styleParagraphs', () => {
   })
 })
 
-/** Long enough to run onto a second line of an A4 page at 13 pt. */
-const LONG =
+const WRAPPING =
   '연수 기간 동안 신규 직원은 부서별 실습과 멘토 면담을 거쳐 직무 기본 역량을 갖추고 수료 발표로 마무리한다'
 
 /**
@@ -953,7 +952,7 @@ const indentOf = (doc: HwpDocument, para: number) =>
 
 describe('indent "mark"', () => {
   it('hangs each paragraph by its own mark, the style by the width most have', () => {
-    const lines = [`1. ${LONG}`, `9. ${LONG}`, `10. ${LONG}`, `가. ${LONG}`]
+    const lines = [`1. ${WRAPPING}`, `9. ${WRAPPING}`, `10. ${WRAPPING}`, `가. ${WRAPPING}`]
     const { plugin, doc } = open(blank(lines))
     const result = plugin.styleParagraphs({
       styles: [
@@ -974,14 +973,12 @@ describe('indent "mark"', () => {
     ]) {
       const { text, second } = linesOf(doc(), para, mark)
       expect(second, `paragraph ${para} runs onto a second line`).not.toBeNull()
-      // a tenth of a point at most: the width is read off the line as it is drawn
       expect(Math.abs((second as number) - text), `paragraph ${para}`).toBeLessThan(0.2)
     }
     const style = (name: string) =>
       (JSON.parse(doc().getStyleList()) as { id: number; name: string }[]).find(
         (candidate) => candidate.name === name,
       )!
-    // 1. and 9. follow the style; 10. is wider and has an indent of its own
     expect(indentOf(doc(), 0)).toBe(indentOf(doc(), 1))
     expect(indentOf(doc(), 2)).toBeLessThan(indentOf(doc(), 0))
     const shapes = [0, 1, 2].map(
@@ -994,7 +991,7 @@ describe('indent "mark"', () => {
   })
 
   it('follows a later change of the font size when asked again, and a style edit', () => {
-    const { plugin, doc } = open(blank([`가. ${LONG}`, `나. ${LONG}`]))
+    const { plugin, doc } = open(blank([`가. ${WRAPPING}`, `나. ${WRAPPING}`]))
     plugin.styleParagraphs({
       styles: [{ name: '가나', format: { size: 11, indent: 'mark' } }],
       apply: [{ style: '가나', numbered: '가.' }],
@@ -1008,7 +1005,7 @@ describe('indent "mark"', () => {
   })
 
   it('hangs one paragraph by its mark with formatParagraph', () => {
-    const { plugin, doc } = open(blank([`□ ${LONG}`]))
+    const { plugin, doc } = open(blank([`□ ${WRAPPING}`]))
     expect(plugin.formatParagraph('□ 연수', null, { size: 14, indent: 'mark' })).toMatchObject({
       ok: true,
     })
