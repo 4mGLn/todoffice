@@ -3509,10 +3509,10 @@ describe('a test paper in two columns', () => {
     plugin.fillCells(1, [{ row: 2, col: 1, text: `${TALL}\n여섯째\n일곱째` }], true)
     const raised = rowHeights(doc())
     expect(raised[2]).toBeGreaterThan(raised[0]! * 3)
-    expect(plugin.fillCells(1, [{ row: 2, col: 1, text: '마' }], true)).toMatchObject({
-      ok: true,
-      tallerRows: [{ table: 1, row: 3 }],
-    })
+    const shrunk = plugin.fillCells(1, [{ row: 2, col: 1, text: '마' }], true) as {
+      tallerRows?: { row: number }[]
+    }
+    expect(shrunk.tallerRows?.map((row) => row.row)).toContain(3)
     expect(rowHeights(doc())).toEqual(raised)
   })
 
@@ -3537,6 +3537,18 @@ describe('a test paper in two columns', () => {
     expect(plugin.fillCells(1, [{ row: 2, col: 5, text: '계' }], true)).toMatchObject({
       ok: true,
       tallerRows: [{ table: 1, row: 2 }],
+    })
+  })
+
+  it('names the only row of a head once its text needs less', () => {
+    const { plugin } = open(blank(['']))
+    plugin.insertParagraphs('', null, 'end', QUESTIONS)
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(QUESTIONS[0]!, null, 'before', [HEAD[0]!], { acrossColumns: true })
+    plugin.fillCells(1, [{ row: 1, col: 1, text: TALL }], true)
+    expect(plugin.fillCells(1, [{ row: 1, col: 1, text: '가' }], true)).toMatchObject({
+      ok: true,
+      tallerRows: [{ table: 1, row: 1 }],
     })
   })
 

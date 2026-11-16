@@ -6220,22 +6220,17 @@ function fitAddedRows(doc, control, measured, first, count) {
   }
 }
 
-/**
- * The rows of a head that were fitted to their text before a change and now store more than
- * it needs, and more than the table's lowest row: a row as low as that is a plain row.
- */
+/** The rows of a head that were fitted to their text before a change and now store more. */
 function rowsLeftTaller(doc, control, was, now) {
   const before = headRowsOf(was)
   const after = headRowsOf(now)
-  const lowest = Math.min(...after.stored.filter((height) => height > 0))
   const left = []
   after.stored.forEach((stored, row) => {
     const fitted = before.stored[row]
     const needed = before.need[row]
     const needs = after.need[row]
     if (stored === undefined || fitted === undefined || needed == null || needs == null) return
-    if (Math.abs(fitted - needed) > FITTED_SLACK) return
-    if (!(stored > Math.max(needs, lowest) + FITTED_SLACK)) return
+    if (Math.abs(fitted - needed) > FITTED_SLACK || !(stored > needs + FITTED_SLACK)) return
     const { table } = tableNumberOf(doc, 0, 0, control)
     if (table) left.push({ table, row: row + 1, heightMm: mmOf(stored), needsMm: mmOf(needs) })
   })
