@@ -3181,7 +3181,7 @@ describe('the look of a document', () => {
     )
     expect(result.output).toContain('1 paragraph(s) have no mark at their start')
     expect(result.output).toContain(
-      '1 paragraph(s) would hang by nothing, by more than 100 pt or by more than half their line',
+      '1 paragraph(s) would hang by nothing, by more than 100 pt or by more than half their column',
     )
     expect(result.output).toContain('1 paragraph(s) are aligned right, centred or spread')
     expect(result.output).toContain(

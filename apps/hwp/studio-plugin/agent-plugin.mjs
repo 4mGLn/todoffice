@@ -1542,6 +1542,11 @@ function containerOf(doc, hit) {
       rect: (k, offset) => parse(doc.getCursorRect(sec, k, offset)),
       props: (k) => parse(doc.getParaPropertiesAt(sec, k)),
       diag: (k) => parse(doc.measureWidthDiagnostic(sec, k)),
+      line: (k, offset) => parse(doc.getLineInfo(sec, k, offset)),
+      // the width the engine sets the paragraph's first line in: its column less its margins
+      columnPt: (k) =>
+        Number(parse(doc.measureWidthDiagnostic(sec, k)).lines?.[0]?.stored_segment_width_hwpunit) /
+        100,
       charShapeAt: (k, offset) => parse(doc.getCharPropertiesAt(sec, k, offset)).charShapeId,
     }
   }
@@ -1562,6 +1567,25 @@ function containerOf(doc, hit) {
     charShapeAt: (k, offset) =>
       parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), offset)).charShapeId,
     props: (k) => parse(doc.getCellParaPropertiesAtByPath(sec, para, at(k))),
+    // the engine tells the lines and the size of a cell by table and cell number only
+    line:
+      path.length === 1
+        ? (k, offset) =>
+            parse(doc.getLineInfoInCell(sec, para, last.controlIndex, last.cellIndex, k, offset))
+        : null,
+    columnPt:
+      path.length === 1
+        ? (k) => {
+            const cell = parse(doc.getCellProperties(sec, para, last.controlIndex, last.cellIndex))
+            const { marginLeft, marginRight } = parse(
+              doc.getCellParaPropertiesAtByPath(sec, para, at(k)),
+            )
+            return (
+              (cell.width - cell.paddingLeft - cell.paddingRight) / 100 -
+              ptOfPx(Number(marginLeft) + Number(marginRight))
+            )
+          }
+        : null,
     runLooks: (k, length) =>
       parse(doc.getCharShapeRunsInCellByPath(sec, para, at(k), 0, length)).map((run) =>
         parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), run.startOffset ?? 0)),
@@ -2095,10 +2119,6 @@ const MAX_HANG_PT = 100
  */
 const SAME_MARK_PT = 0.3
 
-/** Whether two caret rects stand on one line: their heights overlap on one page. */
-const onOneLine = (a, b) =>
-  a?.pageIndex === b?.pageIndex && a.y < b.y + b.height && b.y < a.y + a.height
-
 /**
  * Note in `advances` the natural advance, in page pixels, of a space of each character shape
  * (by id) that `advances` does not hold yet, from the runs of the first line of body
@@ -2139,26 +2159,17 @@ function firstLineSpaces(box, k, chars, advances) {
  * (by id) on the last line of paragraph k, aligned left or justified, which justification
  * leaves as it is. Engine
  * offsets count characters, as `chars` (the paragraph's text split into characters) does.
- * The caret at the first character of a line reports the end of the line before it, so a
- * space is read only where both of its caret places stand on the last line.
+ * The caret at the first character of a line reports the end of the line before it, so the
+ * space a later line starts with is not read.
  */
 function lastLineSpaces(box, k, chars, advances) {
   const length = chars.length
-  const end = box.rect(k, length)
-  let low = 0
-  let high = length
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2)
-    if (onOneLine(box.rect(k, mid), end)) high = mid
-    else low = mid + 1
-  }
-  for (let at = low; at < length; at++) {
+  const { charStart } = box.line(k, length)
+  for (let at = charStart === 0 ? 0 : charStart + 1; at < length; at++) {
     if (chars[at] !== ' ') continue
     const shape = box.charShapeAt(k, at)
     if (advances.has(shape)) continue
-    const from = box.rect(k, at)
-    const to = box.rect(k, at + 1)
-    if (onOneLine(from, end) && onOneLine(to, end)) advances.set(shape, to.x - from.x)
+    advances.set(shape, box.rect(k, at + 1).x - box.rect(k, at).x)
   }
 }
 
@@ -2177,7 +2188,9 @@ const HANGING_ALIGNMENTS = new Set(['left', 'justify'])
  * `alignment` (right, centre or spread: line 2 is not set under the words there), `split`
  * (the mark runs over two lines), `tab` (a tab whose stop moves with the first line's indent or with a
  * widened space before it), `noSpace` (no space of that shape on a line that is not widened)
- * or `outOfRange` (a width not above 0, past MAX_HANG_PT or past half the line).
+ * or `outOfRange` (a width not above 0, past MAX_HANG_PT or past half the column the paragraph
+ * stands in). Lines are the paragraph's own: in columns a later line may stand level with
+ * the first.
  */
 function markWidthOf(box, k, rule, natural) {
   const length = box.length(k)
@@ -2194,11 +2207,10 @@ function markWidthOf(box, k, rule, natural) {
   const first = span.findIndex((char) => char !== ' ')
   const tab = span.indexOf('\t')
   if (tab >= 0 && Number(props.indent) > 0) return { skip: 'tab' }
-  const from = box.rect(k, lead)
-  const to = box.rect(k, lead + count)
-  if (!onOneLine(from, to)) return { skip: 'split' }
-  const lastLine = onOneLine(from, box.rect(k, length))
-  let px = to.x - from.x
+  const line = box.line(k, lead)
+  if (box.line(k, lead + count - 1).lineIndex !== line.lineIndex) return { skip: 'split' }
+  const lastLine = line.lineIndex === line.lineCount - 1
+  let px = box.rect(k, lead + count).x - box.rect(k, lead).x
   if (props.alignment === 'justify' && !lastLine) {
     // a tab runs to its stop whatever the spaces before it took, unless they move it on
     if (tab >= 0 && span.slice(first, tab).includes(' ')) return { skip: 'tab' }
@@ -2212,25 +2224,10 @@ function markWidthOf(box, k, rule, natural) {
     }
   }
   const width = ptOfPx(px)
-  const line = lastLine ? Infinity : ptOfPx(lineEndOf(box, k, lead, length).x - from.x)
-  if (!(width > 0) || width > MAX_HANG_PT || width * 2 > line) return { skip: 'outOfRange' }
-  return { width }
-}
-
-/**
- * The caret rect of the last place of paragraph k on the line that starts at caret place
- * `from` (a line break offset reports the end of the line it ends).
- */
-function lineEndOf(box, k, from, length) {
-  const top = box.rect(k, from)
-  let low = from
-  let high = length
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2)
-    if (onOneLine(box.rect(k, mid), top)) low = mid
-    else high = mid - 1
+  if (!(width > 0) || width > MAX_HANG_PT || !(width * 2 <= box.columnPt(k))) {
+    return { skip: 'outOfRange' }
   }
-  return box.rect(k, low)
+  return { width }
 }
 
 /** Why indent "mark" left paragraphs unhung, by the reasons markWidthOf gives. */

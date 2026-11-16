@@ -3056,7 +3056,7 @@ const HANG_SKIPS_SAID = {
   tab: "have a tab in the mark whose stop moves with the first line's indent or with a widened space before it",
   noSpace:
     "have a justified first line and no space in the mark's size and font on a line that is not widened, to measure the space after the mark by",
-  outOfRange: 'would hang by nothing, by more than 100 pt or by more than half their line',
+  outOfRange: 'would hang by nothing, by more than 100 pt or by more than half their column',
 } as const
 
 /** What indent "mark" did, as the model reads it. */

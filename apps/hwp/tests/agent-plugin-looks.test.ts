@@ -1284,6 +1284,39 @@ describe('indent "mark" on lines that keep their spaces', () => {
       }
     }
   })
+
+  /** What format_paragraph "mark" does to `text` in `columns` columns, in `size` and `align`. */
+  const columnHang = (text: string, columns: number, size: number, align: string) => {
+    const { plugin, doc } = open(blank([text]))
+    plugin.setColumns({ count: columns })
+    plugin.formatParagraph(text.slice(0, 8), null, { size, align })
+    const result = plugin.formatParagraph(text.slice(0, 8), null, { indent: 'mark' })
+    return { result, indent: indentOf(doc(), 0) }
+  }
+
+  it('counts the lines of a paragraph in columns by the paragraph, not by where they stand', () => {
+    const text = `○ ${WRAPPING} ${WRAPPING} ${WRAPPING} 연수 기간 동안 신규`
+    const justified = columnHang(text, 2, 22, 'justify')
+    const left = columnHang(text, 2, 22, 'left')
+    expect(justified.result).toMatchObject({ hang: { hung: 1 } })
+    expect(Math.abs(justified.indent - left.indent)).toBeLessThan(0.2)
+  })
+
+  it('keeps a hang within half the column the paragraph stands in', () => {
+    const lines = ['가', '나', '다'].map(
+      (first) => `□ ${first}나다라 마바사 아자차 카타파하 가나다 라마바사`,
+    )
+    const { plugin, doc } = open(blank(lines))
+    plugin.setColumns({ count: 4 })
+    ;[30, 34, 37].forEach((size, para) => {
+      const find = lines[para]!.slice(2, 9)
+      plugin.formatParagraph(find, null, { size })
+      expect(plugin.formatParagraph(find, null, { indent: 'mark' }), find).toMatchObject({
+        hang: { hung: 0, outOfRange: 1 },
+      })
+      expect(indentOf(doc(), para), find).toBe(0)
+    })
+  })
 })
 
 describe('the shape the context tells', () => {
