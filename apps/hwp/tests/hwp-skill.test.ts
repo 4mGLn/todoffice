@@ -7,6 +7,7 @@ import {
   type AgentToolCall,
 } from '@genoffice/agent-core'
 import type { AgentMemo, AgentMemoRemovalRefusal } from '../studio-plugin/agent-plugin.mjs'
+import { EXAM_PAPER, examChoiceStops, examColumnWidthMm } from '../studio-plugin/document-looks.mjs'
 import type { AgentBridge } from '../src/renderer/ai/agent-bridge'
 import {
   CONTEXT_MAX_CHARS,
@@ -1623,6 +1624,59 @@ describe('format_cells', () => {
     expect(changes[0]).toMatchObject({ kind: 'format', to: 'aiFmtColumnWidths' })
   })
 
+  it('says when row_height_mm leaves a row of a head across the columns lower than its text', async () => {
+    const { call } = setup({
+      formatCells: async () => ({
+        ok: true as const,
+        count: 8,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+        overflowingRows: [2],
+      }),
+    })
+    const result = await call('format_cells', {
+      table: 1,
+      range: { from_row: 2, from_col: 1, to_row: 2, to_col: 8 },
+      row_height_mm: 8,
+    })
+    expect(result.output).toContain(
+      ' The text of row 2 needs more height than row_height_mm gives, so it overflows the row and column 2 starts over the head table.',
+    )
+  })
+
+  it('names a head row a change left taller than its text, in any change answer', async () => {
+    const { call } = setup({
+      fillCells: async () => ({
+        ok: true as const,
+        table: 1,
+        count: 1,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+        tallerRows: [{ table: 1, row: 2, heightMm: 15.8, needsMm: 4.5 }],
+      }),
+    })
+    const result = await call('fill_cells', {
+      table: 1,
+      cells: [{ row: 2, col: 5, text: '계' }],
+      overwrite: true,
+    })
+    expect(result.output).toContain(
+      ' Row 2 of table 1 (15.8 mm, its text needs 4.5 mm) keeps its height, which only format_cells row_height_mm lowers.',
+    )
+    const plain = setup({
+      fillCells: async () => ({
+        ok: true as const,
+        table: 1,
+        count: 1,
+        place: { sec: 0, para: 0, offset: 0, length: 0 },
+      }),
+    })
+    const next = await plain.call('fill_cells', {
+      table: 1,
+      cells: [{ row: 2, col: 5, text: '계' }],
+      overwrite: true,
+    })
+    expect(next.output).not.toContain('keeps its height')
+  })
+
   it('says how many widths a table takes', async () => {
     const { call } = setup({
       formatCells: async () => ({ ok: false as const, reason: 'column_count' as const, cols: 3 }),
@@ -2867,7 +2921,9 @@ describe('the look of a document', () => {
     const repeated = await plain.call('insert_table', { where: 'end', rows, repeat_header: true })
     expect(repeated.output).toContain('repeat_header did nothing: the table has no header row')
     const oneColumn = await plain.call('insert_table', { where: 'end', rows, across_columns: true })
-    expect(oneColumn.output).toContain('across_columns did nothing: the text runs in one column')
+    expect(oneColumn.output).toContain(
+      'across_columns did nothing: only a table in front of the first paragraph',
+    )
     const across = setup({
       insertTable: vi.fn(async () => ({
         ok: true as const,
@@ -2885,7 +2941,7 @@ describe('the look of a document', () => {
       width_percent: 50,
       place: 'center',
     })
-    expect(head.output).toContain('lying across the columns of the page')
+    expect(head.output).toContain('lying across the top of the page over the columns')
     expect(head.output).toContain('width_percent and place did nothing')
     expect(head.output).not.toContain('across_columns did nothing')
     const dark = setup({
@@ -3121,8 +3177,84 @@ describe('the look of a document', () => {
     })
     expect(refused.isError).toBe(true)
     expect(refused.output).toContain('head of the document')
+    const unknown = await setup({
+      insertTable: vi.fn(async () => ({
+        ok: false as const,
+        reason: 'columns_unknown' as const,
+        count: 1,
+      })),
+    }).call('insert_table', { where: 'after', anchor: '3. 문항', rows: [['〈보기〉']] })
+    expect(unknown.isError).toBe(true)
+    expect(unknown.output).toContain('the table would stand over the line between the columns')
+    expect(unknown.output).toContain('is not laid out on a page yet')
+    for (const [reason, says] of [
+      ['columns_unknown', 'the box would stand over the line between the columns'],
+      ['numbered', 'leave the number alone on a line above the box'],
+    ] as const) {
+      const box = await setup({
+        insertTitleBox: vi.fn(async () => ({ ok: false as const, reason, count: 1 })),
+      }).call('insert_title_box', { find: '다음 중 옳은 것은?', look: 'box' })
+      expect(box.isError).toBe(true)
+      expect(box.output).toContain(says)
+    }
     const bad = await call('set_columns', { count: 'two' })
     expect(bad.isError).toBe(true)
+  })
+
+  it('names the line one column keeps stored', async () => {
+    const { call } = setup({
+      setColumns: vi.fn(async () => ({
+        ok: true as const,
+        count: 1,
+        gapMm: 0,
+        was: 2,
+        sections: 1,
+        line: 'solid' as const,
+        lineKept: true as const,
+      })),
+    })
+    const result = await call('set_columns', { count: 1 })
+    expect(result.output).toBe(
+      'The text runs in one column again. The solid line between columns stays stored and comes back with the columns (line "none" takes it away).',
+    )
+  })
+
+  it('draws a line between the columns when asked, and says so', async () => {
+    const { call, bridge } = setup({
+      setColumns: vi.fn(async (spec: { count: number; line?: string }) => ({
+        ok: true as const,
+        count: spec.count,
+        gapMm: 8,
+        was: 1,
+        sections: 1,
+        ...(spec.line ? { line: spec.line as never } : {}),
+      })),
+    })
+    const lined = await call('set_columns', { count: 2, line: 'solid' })
+    expect(bridge.setColumns).toHaveBeenCalledWith({ count: 2, line: 'solid' })
+    expect(lined.output).toContain('2 columns with 8 mm between them, a solid line down the middle')
+    const plain = await call('set_columns', { count: 2, line: 'none' })
+    expect(plain.output).toContain('8 mm between them and no line.')
+    const double = await call('set_columns', { count: 2, line: 'double' })
+    expect(double.isError).toBe(true)
+    expect(bridge.setColumns).toHaveBeenCalledTimes(2)
+  })
+
+  it('names the line it kept when no line was asked for', async () => {
+    const { call } = setup({
+      setColumns: vi.fn(async () => ({
+        ok: true as const,
+        count: 2,
+        gapMm: 10,
+        was: 2,
+        sections: 1,
+        line: 'dotted' as const,
+        lineKept: true as const,
+      })),
+    })
+    expect((await call('set_columns', { count: 2, gap_mm: 10 })).output).toContain(
+      '10 mm between them; the dotted line down the middle of each gap was there and stays (line "none" takes it away).',
+    )
   })
 
   it('starts a paragraph on a new page or in the next column, and says why it could not', async () => {
@@ -3746,16 +3878,67 @@ describe('the skill as the model sees it', () => {
     // apps/shell/resources/builtin-skills: the skills written for Hangul documents
     const names = new Set(setup().skill.tools.map((tool) => tool.name))
     const dir = join(__dirname, '../../shell/resources/builtin-skills')
-    for (const skill of ['hwp-document', 'administration-report', 'administration-report-draft']) {
+    for (const skill of [
+      'hwp-document',
+      'hwp-exam-paper',
+      'administration-report',
+      'administration-report-draft',
+    ]) {
       const text = readFileSync(join(dir, skill, 'SKILL.md'), 'utf8')
       // `words_like_this` in backticks: the way a skill writes a tool
       const words = [...text.matchAll(/`([a-z]+(?:_[a-z]+)+)`/g)].map((m) => m[1])
       expect(words.length, skill).toBeGreaterThan(3)
       for (const word of words) expect(names.has(word!), `${skill}: ${word}`).toBe(true)
     }
-    const own = readFileSync(join(dir, 'hwp-document', 'SKILL.md'), 'utf8')
-    expect(own).toMatch(/^---\nname: hwp-document\n/)
-    expect(own).toMatch(/\nmetadata:\n {2}ieum-editors: hwp\n---\n/)
+    for (const name of ['hwp-document', 'hwp-exam-paper']) {
+      const own = readFileSync(join(dir, name, 'SKILL.md'), 'utf8')
+      expect(own.startsWith(`---\nname: ${name}\n`), name).toBe(true)
+      expect(own).toMatch(/\nmetadata:\n {2}ieum-editors: hwp\n---\n/)
+    }
+  })
+
+  it('sends a test paper to its skill, which gives the numbers of the test-paper look', () => {
+    const prompt = setup().skill.systemPrompt
+    expect(prompt).toContain('read the skill hwp-exam-paper with use_skill before the first change')
+    expect(prompt).not.toContain('two columns (set_columns) before anything else')
+    const worksheet =
+      'A worksheet (학습지) or a quiz sheet is an ordinary document: the test-paper form (B4, approval box, points, page border, end mark) only when asked.'
+    expect(prompt).toContain('- A test paper (시험지, 평가, 고사), from scratch')
+    expect(prompt).toContain(worksheet)
+    expect(prompt).not.toContain('학습지), from scratch')
+    expect(prompt).toContain('Write the text first, then set the columns, then add the tables')
+    const skill = readFileSync(
+      join(__dirname, '../../shell/resources/builtin-skills/hwp-exam-paper/SKILL.md'),
+      'utf8',
+    )
+    expect(skill).toContain(
+      'A worksheet (학습지) or a quiz sheet is written as an ordinary document: it gets this form (B4, the approval box, points, the page border, the end mark) only when the user asks for it.',
+    )
+    expect(skill).not.toContain('a quiz or any sheet of numbered questions')
+    expect(skill).toContain(
+      'Typing `ㄱ.` into a 〈보기〉 line the form numbers itself prints it twice.',
+    )
+    expect(skill).toContain(
+      "one column wide where it can read that column's width, and refuses where it cannot",
+    )
+    expect(skill).toContain(
+      'Then give the line under the box space_before 6 with `format_paragraph`',
+    )
+    const { page, columns, body, questionIndentPt } = EXAM_PAPER
+    expect(skill).toContain(
+      `paper "${page.paper}", margin_left ${page.marginLeft}, margin_right ${page.marginRight}, margin_top ${page.marginTop}, margin_bottom ${page.marginBottom}, margin_header ${page.marginHeader} and margin_footer ${page.marginFooter}`,
+    )
+    expect(skill).toContain(
+      `count ${columns.count}, gap_mm ${columns.gapMm} and line "${columns.line}". Each column is then ${examColumnWidthMm()} mm wide`,
+    )
+    expect(skill).toContain(
+      `${body.size} pt, align ${body.align}, line_spacing ${body.lineSpacing}`,
+    )
+    expect(skill).toContain(`margin_left 0 and indent -${questionIndentPt}`)
+    expect(skill).toContain(`margin_left ${questionIndentPt}, space_before 3`)
+    for (const perLine of [5, 3, 2]) {
+      expect(skill, `${perLine} on a line`).toContain(`| ${examChoiceStops(perLine).join(', ')} |`)
+    }
   })
 
   it('offers exactly the tools it can execute', async () => {
