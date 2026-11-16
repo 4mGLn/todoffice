@@ -5534,7 +5534,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           output:
             `Made ${result.made} style(s)${result.made > 0 ? ` (${quoted(result.madeStyles)})` : ''}, changed ${result.changed}${result.changed > 0 ? ` (${quoted(result.changedStyles)}, which the document had)` : ''}, and styled ${result.paragraphs} paragraph(s): ${result.rules.map((rule) => `${rule.style} ${rule.paragraphs}`).join(', ') || 'none'}.` +
             (rules.length > 0
-              ? ` ${result.unmatched} body paragraph(s) with text matched no rule and kept their look.`
+              ? ` ${result.unmatched} body paragraph(s) with text matched no rule.`
               : '') +
             (unmatched.length > 0
               ? ` No paragraph matched the rule(s) for ${unmatched.map((rule) => rule.style).join(', ')}: check how those lines start (find_text shows the exact characters).`

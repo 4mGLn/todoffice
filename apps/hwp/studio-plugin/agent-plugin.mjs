@@ -2003,12 +2003,6 @@ function missingStyle(doc, spec) {
 }
 
 /**
- * Whether the paragraph has formatting of its own that applyStyle will keep: its paragraph
- * shape differs from the shape of its style so far. The engine, as Hangul does, keeps the
- * properties that differ and takes the rest from the new style (engine patch 0013). Null
- * where it cannot be asked.
- */
-/**
  * Whether every body paragraph that holds words is in the default look: the document's
  * first paragraph style (바탕글), with no paragraph or character formatting of its own.
  * False at the first paragraph that is not.
@@ -2100,6 +2094,12 @@ function bodyParagraphsOfStyle(doc, styleId) {
   return items
 }
 
+/**
+ * Whether the paragraph has formatting of its own that applyStyle will keep: its paragraph
+ * shape differs from the shape of its style so far. The engine, as Hangul does, keeps the
+ * properties that differ and takes the rest from the new style (engine patch 0013). Null
+ * where it cannot be asked.
+ */
 function keepsOwnLook(doc, box, k) {
   if (!box.styleShape) return null
   const { style, paraShape } = box.styleShape(k)
@@ -9535,8 +9535,9 @@ export const agentPlugin = {
        * that name is changed instead). `spec.apply` are rules: each gives a style to every
        * body paragraph that starts with `startsWith` (leading spaces aside, as
        * startsWithMark reads it), or to the one paragraph `find` occurs in (a table cell
-       * too). Rules by `find` go first; any other paragraph takes the first rule that names it. A paragraph given a style of this call takes its whole look, also where it
-       * had formatting of its own; one given a style the document already had keeps what it
+       * too). Rules by `find` go first; any other paragraph takes the first rule that names
+       * it. A paragraph given a style of this call takes its whole look, also where it had
+       * formatting of its own; one given a style the document already had keeps what it
        * had set differently, as applying a style does. A font this PC is known to lack is
        * written as one of the same kind that it has (`standIn` in the answer).
        */
