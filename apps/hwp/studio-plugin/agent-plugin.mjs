@@ -2368,6 +2368,19 @@ function markOnlyUnhung(spec, items) {
     : null
 }
 
+/**
+ * Two hangByMarks outcomes as one: the counts added, the shapes out of reach (a count of the
+ * document, not of a style) taken once.
+ */
+function joinHangs(a, b) {
+  const joined = {}
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    joined[key] =
+      key === 'unreachedShapes' ? Math.max(a[key] ?? 0, b[key] ?? 0) : (a[key] ?? 0) + (b[key] ?? 0)
+  }
+  return joined
+}
+
 /** Why indent "mark" left paragraphs unhung, by the reasons markWidthOf gives. */
 const HANG_SKIPS = ['noMark', 'alignment', 'object', 'split', 'tab', 'noSpace', 'outOfRange']
 
@@ -2425,9 +2438,10 @@ function keepingIndents(items, change) {
  * cells, whose style the engine cannot tell, as far as tablesOf finds those tables. Returns how many were hung,
  * how many of those got one of their own under the style, how many were left, by reason, and
  * how many of all those left were given the indent they had, and, when the style took a
- * hang, how many drawn shapes stand where this plugin cannot look (shapesOutOfReach).
+ * hang and `existed` before the call (a paragraph in a shape out of reach can have only such
+ * a style), how many drawn shapes stand where this plugin cannot look (shapesOutOfReach).
  */
-function hangByMarks(doc, items, styleId = null) {
+function hangByMarks(doc, items, styleId = null, existed = true) {
   const { measured, outcome, left } = measureHangs(items)
   outcome.apart = 0
   outcome.kept = 0
@@ -2440,7 +2454,7 @@ function hangByMarks(doc, items, styleId = null) {
     ).width
     const indent = -Math.round(common * PARA_UNITS_PER_PT)
     const unreached = shapesOutOfReach(doc)
-    if (unreached > 0) outcome.unreachedShapes = unreached
+    if (existed && unreached > 0) outcome.unreachedShapes = unreached
     outcome.kept = keepingIndents([...left, ...nestedTableItems(doc)], () => {
       if (!doc.updateStyleShapes(styleId, '{}', JSON.stringify({ indent }))) {
         throw fail('ENGINE_REFUSED', 'the editor refused to change the style')
@@ -10357,19 +10371,15 @@ export const agentPlugin = {
                 marks.push(box.place(k, length))
               }
               let hang = null
-              for (const { id, hangByMark } of looks.values()) {
+              for (const { id, hangByMark, existed } of looks.values()) {
                 if (!hangByMark) continue
                 const items = hung.get(id) ?? []
                 const named = new Set(items.map(([box, k]) => JSON.stringify(box.place(k, 0))))
                 for (const item of paragraphsOfStyle(doc, id)) {
                   if (!named.has(JSON.stringify(item[0].place(item[1], 0)))) items.push(item)
                 }
-                const result = hangByMarks(doc, items, id)
-                hang = hang
-                  ? Object.fromEntries(
-                      Object.entries(hang).map(([key, n]) => [key, n + result[key]]),
-                    )
-                  : result
+                const result = hangByMarks(doc, items, id, existed)
+                hang = hang ? joinHangs(hang, result) : result
               }
               if (hang) {
                 const existing = [...looks.values()].some((look) => look.hangByMark && look.existed)

@@ -3089,7 +3089,7 @@ function hangNote(hang: AgentHangOutcome | undefined, lead = true): string {
   }
   if (hang.unreachedShapes) {
     parts.push(
-      `${hang.unreachedShapes} drawn shape(s) other than pictures inside table cells or other shapes could not be looked into; a paragraph of this style in one follows the style's hang.`,
+      `${hang.unreachedShapes} drawn shape(s) other than pictures inside table cells or other shapes could not be looked into; a paragraph of this style in one would follow the style's hang.`,
     )
   }
   if (hang.kept) {

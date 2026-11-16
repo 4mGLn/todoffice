@@ -1297,7 +1297,8 @@ export interface AgentHangOutcome {
   kept?: number
   /**
    * drawn shapes other than pictures inside table cells or other shapes, which the editor
-   * cannot look into: a paragraph of the style in one follows the style's hang
+   * cannot look into, given for a style the document had before the call: a paragraph of
+   * that style in one would follow the style's hang
    */
   unreachedShapes?: number
 }

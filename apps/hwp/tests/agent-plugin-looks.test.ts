@@ -1403,6 +1403,21 @@ describe('indent "mark" on lines that keep their spaces', () => {
     expect(boxIndent(2)).toBeLessThan(0)
   })
 
+  it('names the shapes it cannot look into only for a style that could be in them', () => {
+    const letter = () =>
+      open(new HwpDocument(readFileSync(join(__dirname, 'fixtures', 'shape-in-cell-letter.hwp'))))
+    const made = letter().plugin.styleParagraphs({
+      styles: [{ name: '항목', format: { indent: 'mark' } }],
+      apply: [{ style: '항목', startsWith: '○' }],
+    }) as { hang: { hung: number; unreachedShapes?: number } }
+    expect(made.hang.hung).toBe(2)
+    expect(made.hang.unreachedShapes).toBeUndefined()
+    expect(letter().plugin.editStyle('바탕글', { format: { indent: 'mark' } })).toMatchObject({
+      ok: true,
+      hang: { unreachedShapes: 1 },
+    })
+  })
+
   it('changes nothing when format_paragraph with "mark" alone hangs nothing', () => {
     const start = blank([`○ 하나 ${WRAPPING}`])
     start.applyParaFormat(0, 0, JSON.stringify({ alignment: 'center' }))
