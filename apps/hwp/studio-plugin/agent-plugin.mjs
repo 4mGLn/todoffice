@@ -1587,18 +1587,20 @@ function containerOf(doc, hit) {
     columnPt:
       path.length === 1
         ? (k) => {
-            // a text box is addressed as a table of one cell, but its size is the shape's
-            const inner =
-              tryOr(() => {
-                const cell = parse(
-                  doc.getCellProperties(sec, para, last.controlIndex, last.cellIndex),
-                )
-                return cell.width - cell.paddingLeft - cell.paddingRight
-              }, null) ??
-              tryOr(() => {
-                const shape = parse(doc.getShapeProperties(sec, para, last.controlIndex))
-                return shape.width - shape.tbMarginLeft - shape.tbMarginRight
-              }, NaN)
+            const kind = bodyControlsOf(doc, sec, para).find(
+              (control) => control.controlIndex === last.controlIndex,
+            )?.ctrlId
+            const cell =
+              kind === 'tbl'
+                ? parse(doc.getCellProperties(sec, para, last.controlIndex, last.cellIndex))
+                : null
+            const shape =
+              kind === 'gso' ? parse(doc.getShapeProperties(sec, para, last.controlIndex)) : null
+            const inner = cell
+              ? cell.width - cell.paddingLeft - cell.paddingRight
+              : shape
+                ? shape.width - shape.tbMarginLeft - shape.tbMarginRight
+                : NaN
             const { marginLeft, marginRight } = parse(
               doc.getCellParaPropertiesAtByPath(sec, para, at(k)),
             )
@@ -1713,21 +1715,29 @@ function objectsOf(doc, ignore = null) {
   }
 }
 
+/** Pictures among the drawn objects the engine names `gso`, as it names them. */
+const PICTURE_DESC = '그림'
+
+/**
+ * The controls of body paragraph `para` of section `sec` as the engine lists them (`ctrlId`,
+ * `userDesc`, `controlIndex`): it numbers the paragraphs of all sections in one run.
+ */
+function bodyControlsOf(doc, sec, para) {
+  let run = para
+  for (let earlier = 0; earlier < sec; earlier++) run += doc.getParagraphCount(earlier)
+  return parse(doc.getControls()).filter((control) => control.list === 0 && control.para === run)
+}
+
 /**
  * Whether body paragraph `para` of section `sec` holds an object drawn before character
  * `end`: a field (a click-here field shows its guide there), a table, a picture or any other
- * control but those that set up the page and the memos, which take no room in the line. The
- * engine numbers the paragraphs of all sections in one run when it names their controls.
+ * control but those that set up the page and the memos, which take no room in the line.
  */
 function bodyObjectBefore(doc, sec, para, end) {
   const positions = parse(doc.getControlTextPositions(sec, para))
   if (!positions.some((at) => at < end)) return false
-  let run = para
-  for (let earlier = 0; earlier < sec; earlier++) run += doc.getParagraphCount(earlier)
   const kinds = new Map(
-    parse(doc.getControls())
-      .filter((control) => control.list === 0 && control.para === run)
-      .map((control) => [control.controlIndex, control.ctrlId]),
+    bodyControlsOf(doc, sec, para).map((control) => [control.controlIndex, control.ctrlId]),
   )
   const besideMemos = memoFreeObjectPositions(doc, sec, para)
   return positions.some(
@@ -2414,8 +2424,8 @@ function keepingIndents(items, change) {
  * words typed there later are not a marked line; so do the paragraphs of the tables inside
  * cells, whose style the engine cannot tell, as far as tablesOf finds those tables. Returns how many were hung,
  * how many of those got one of their own under the style, how many were left, by reason, and
- * how many of all those left were given the indent they had, and how many drawn shapes
- * (shapesOutOfReach) the style's hang may reach unseen.
+ * how many of all those left were given the indent they had, and, when the style took a
+ * hang, how many drawn shapes stand where this plugin cannot look (shapesOutOfReach).
  */
 function hangByMarks(doc, items, styleId = null) {
   const { measured, outcome, left } = measureHangs(items)
@@ -2462,20 +2472,19 @@ function defaultStyleParagraphs(doc) {
 
 /**
  * The text boxes (and other drawn shapes that hold text) of the body, as `{ sec, para,
- * control }`: the engine addresses one as a table of one cell.
+ * control }`: the engine addresses one as a table of one cell, and refuses to count the
+ * paragraphs of a shape that holds no text.
  */
 function bodyTextBoxes(doc) {
   const boxes = []
   for (let sec = 0; sec < doc.getSectionCount(); sec++) {
     for (let para = 0; para < doc.getParagraphCount(sec); para++) {
-      const controls = parse(doc.getControlTextPositions(sec, para)).length
-      for (let control = 0; control < controls; control++) {
-        const path = JSON.stringify([{ controlIndex: control, cellIndex: 0, cellParaIndex: 0 }])
-        const holdsText = tryOr(() => {
-          parse(doc.getShapeProperties(sec, para, control))
-          return doc.getCellParagraphCountByPath(sec, para, path) > 0
-        }, false)
-        if (holdsText) boxes.push({ sec, para, control })
+      for (const { ctrlId, userDesc, controlIndex } of bodyControlsOf(doc, sec, para)) {
+        if (ctrlId !== 'gso' || userDesc === PICTURE_DESC) continue
+        const path = JSON.stringify([{ controlIndex, cellIndex: 0, cellParaIndex: 0 }])
+        if (tryOr(() => doc.getCellParagraphCountByPath(sec, para, path), 0) > 0) {
+          boxes.push({ sec, para, control: controlIndex })
+        }
       }
     }
   }
@@ -2483,16 +2492,15 @@ function bodyTextBoxes(doc) {
 }
 
 /**
- * How many drawn shapes stand somewhere else than in a body paragraph (in a table cell or in
- * another shape): the engine lists them but gives no address to read their text by.
+ * How many drawn shapes other than pictures stand in a table cell or in another shape: the
+ * engine lists them under the list they stand in, but no call this plugin makes reaches a
+ * paragraph in them by that list, so whether they hold text of a style is not known here.
  */
 function shapesOutOfReach(doc) {
-  return tryOr(
-    () =>
-      parse(doc.getControls()).filter((control) => control.ctrlId === 'gso' && control.list !== 0)
-        .length,
-    0,
-  )
+  return parse(doc.getControls()).filter(
+    (control) =>
+      control.ctrlId === 'gso' && control.list !== 0 && control.userDesc !== PICTURE_DESC,
+  ).length
 }
 
 /**
@@ -4680,8 +4688,8 @@ const tableKey = (sec, para, path) =>
  * Every table of the document in reading order, a table inside a cell right after the table
  * it sits in. The engine lists the objects of a body paragraph but not those of a cell
  * paragraph, so a table inside a cell is found by asking for it; `partial` says the budget
- * for that ran out before every cell paragraph was asked, so tables inside cells may be
- * missing from the end of the list. Tables
+ * for that ran out before every cell paragraph was asked, so tables inside the cells asked
+ * after that are missing from the list. Tables
  * are followed `depth` deep, MAX_TABLE_DEPTH unless asked for more.
  */
 function tablesOf(doc, depth = MAX_TABLE_DEPTH) {

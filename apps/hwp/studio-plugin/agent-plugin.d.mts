@@ -1261,7 +1261,7 @@ export interface AgentDocumentShape extends AgentPaper {
   /**
    * whether the text is plain 바탕글, formatted nowhere: in the body, and in the table cells
    * (title boxes included; null without a table); `unread` when those read are plain but
-   * the budget for finding tables inside cells ran out before the last cell
+   * the budget for finding tables inside cells ran out before every cell paragraph was searched
    */
   plain: { body: boolean; tables: boolean | null; unread?: boolean }
 }
@@ -1296,8 +1296,8 @@ export interface AgentHangOutcome {
    */
   kept?: number
   /**
-   * drawn shapes inside table cells or other shapes, whose text the editor cannot read: a
-   * paragraph of the style in one follows the style's hang
+   * drawn shapes other than pictures inside table cells or other shapes, which the editor
+   * cannot look into: a paragraph of the style in one follows the style's hang
    */
   unreachedShapes?: number
 }

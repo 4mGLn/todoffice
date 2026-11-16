@@ -3191,7 +3191,7 @@ describe('the look of a document', () => {
       '3 paragraph(s) left unhung, empty ones included, were given the indent they had as their own',
     )
     expect(result.output).toContain(
-      '1 drawn shape(s) inside table cells or other shapes could not be looked at',
+      '1 drawn shape(s) other than pictures inside table cells or other shapes could not be looked into',
     )
     expect(result.output).toContain(
       '1 paragraph(s) have a field, its guide or another object before or inside the mark',
