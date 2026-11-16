@@ -12907,6 +12907,21 @@ export const agentPlugin = {
                 })),
             }
           }
+          const markOnly =
+            spec.paragraph?.hangByMark &&
+            Object.keys(spec.paragraph).length === 1 &&
+            !spec.chars &&
+            !spec.font &&
+            !spec.style &&
+            !spec.charStyle
+          if (markOnly) {
+            const { measured, outcome } = measureHangs(
+              group.places.map(({ sec, para }) => [containerOf(doc, { sec, para }), para, null]),
+            )
+            if (measured.length === 0) {
+              return { ok: false, reason: 'not_hung', hang: { ...outcome, hung: 0, apart: 0 } }
+            }
+          }
           return (
             missingStyle(doc, spec) ??
             wordsSetApart(

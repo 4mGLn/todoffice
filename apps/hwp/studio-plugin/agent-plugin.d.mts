@@ -1412,6 +1412,8 @@ export type AgentFormatLookResult =
       keptOwnLook?: number
       hang?: AgentHangOutcome
     }
+  /** indent "mark" alone, and no paragraph of the look could be hung: nothing changed */
+  | { ok: false; reason: 'not_hung'; hang: AgentHangOutcome }
   | {
       ok: false
       reason: 'no_such_look'

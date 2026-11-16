@@ -1366,6 +1366,23 @@ describe('indent "mark" on lines that keep their spaces', () => {
     expect(indentOf(doc(), 4)).toBe(indentOf(doc(), 0))
   })
 
+  it('changes nothing when format_look with "mark" alone hangs no paragraph', () => {
+    const start = blank([`○ 하나 ${WRAPPING}`, `○ 둘 ${WRAPPING}`])
+    for (const para of [0, 1])
+      start.applyParaFormat(0, para, JSON.stringify({ alignment: 'center' }))
+    const { plugin, steps } = open(start)
+    const read = plugin.formatting()
+    if (!read.ok) throw new Error('not read')
+    const look = read.looks.find((entry) => entry.paragraphs === 2)!
+    const before = steps()
+    expect(plugin.formatLook(look.id!, { indent: 'mark' })).toMatchObject({
+      ok: false,
+      reason: 'not_hung',
+      hang: { hung: 0, alignment: 2 },
+    })
+    expect(steps()).toBe(before)
+  })
+
   it('keeps a hang within half the column the paragraph stands in', () => {
     const lines = ['가', '나', '다'].map(
       (first) => `□ ${first}나다라 마바사 아자차 카타파하 가나다 라마바사`,

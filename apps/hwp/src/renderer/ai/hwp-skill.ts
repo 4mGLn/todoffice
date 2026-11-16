@@ -6041,6 +6041,12 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         if (outcome.kind !== 'done')
           return bad(call, memoRemovalDeclined(outcome.refusal, outcome.kind))
         const result = outcome.result
+        if (!result.ok && result.reason === 'not_hung') {
+          return {
+            output: `Nothing was changed: no paragraph of that look could be hung by its mark.${hangNote(result.hang, false)}`,
+            summary: label('aiToolFormatLook', { count: 0 }),
+          }
+        }
         if (!result.ok) {
           if (result.reason === 'no_such_style') return bad(call, noSuchStyle(result))
           if (result.reason === 'words_set_apart') return bad(call, wordsSetApartHelp(result))
