@@ -1050,7 +1050,7 @@ describe('indent "mark"', () => {
     })
     expect(plugin.editStyle('칸항목', { format: { size: 14, indent: 'mark' } })).toMatchObject({
       ok: true,
-      hang: { hung: 1, nested: 0 },
+      hang: { hung: 1, split: 0 },
     })
     const para = [0, 1, 2].find((at) => {
       try {
@@ -1108,7 +1108,6 @@ describe('indent "mark"', () => {
 })
 
 describe('indent "mark" by construction', () => {
-  /** The indents indent "mark" gives `lines` under one style aligned `align`, page pixels. */
   const hangsOf = (
     lines: string[],
     align: string,

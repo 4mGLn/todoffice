@@ -1554,11 +1554,7 @@ function containerOf(doc, hit) {
     rect: (k, offset) => parse(doc.getCursorRectByPath(sec, para, at(k), offset)),
     charShapeAt: (k, offset) =>
       parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), offset)).charShapeId,
-    // the engine reads a cell paragraph's formatting by table and cell number only
-    props:
-      path.length === 1
-        ? (k) => parse(doc.getCellParaPropertiesAt(sec, para, last.controlIndex, last.cellIndex, k))
-        : null,
+    props: (k) => parse(doc.getCellParaPropertiesAtByPath(sec, para, at(k))),
     runLooks: (k, length) =>
       parse(doc.getCharShapeRunsInCellByPath(sec, para, at(k), 0, length)).map((run) =>
         parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), run.startOffset ?? 0)),
@@ -2098,10 +2094,10 @@ const onOneLine = (a, b) =>
 
 /**
  * Note in `advances` the natural advance, in page pixels, of a space of each character shape
- * (by id) on the last line of paragraph k, which justification leaves as it is. Engine offsets count
- * characters, as `chars` (the paragraph's text split into characters) does. The caret at
- * the first character of a line reports the end of the line before it, so a space is read
- * only where both of its caret places stand on the last line.
+ * (by id) on the last line of paragraph k, which justification leaves as it is. Engine
+ * offsets count characters, as `chars` (the paragraph's text split into characters) does.
+ * The caret at the first character of a line reports the end of the line before it, so a
+ * space is read only where both of its caret places stand on the last line.
  */
 function lastLineSpaces(box, k, chars, advances) {
   const length = chars.length
@@ -2134,13 +2130,12 @@ const HANGING_ALIGNMENTS = new Set(['left', 'justify'])
  * is read on a last line, which is not widened, from a space of the same character shape:
  * `natural` holds those read on the last lines of the paragraphs measured with it.
  * Otherwise `{ skip }`, why it is not hung: `empty` (no words, not counted), `noMark`,
- * `alignment` (right, centre or spread: line 2 is not set under the words there), `nested`
- * (a table inside a cell, whose formatting the engine cannot read), `split` (the mark runs
- * over two lines), `tab` (a tab whose stop moves with the first line's indent or with a
+ * `alignment` (right, centre or spread: line 2 is not set under the words there), `split`
+ * (the mark runs over two lines), `tab` (a tab whose stop moves with the first line's indent or with a
  * widened space before it), `noSpace` (no space of that shape on a line that is not widened)
  * or `outOfRange` (a width not above 0, past MAX_HANG_PT or past half the line).
  */
-function markWidthOf(box, k, rule, natural = new Map()) {
+function markWidthOf(box, k, rule, natural) {
   const length = box.length(k)
   if (length <= 0) return { skip: 'empty' }
   const chars = [...box.text(k, length)]
@@ -2149,8 +2144,7 @@ function markWidthOf(box, k, rule, natural = new Map()) {
   if (!words.trim()) return { skip: 'empty' }
   const count = [...words.slice(0, markLengthOf(words, rule))].length
   if (count === 0) return { skip: 'noMark' }
-  const props = box.props?.(k)
-  if (!props) return { skip: 'nested' }
+  const props = box.props(k)
   if (!HANGING_ALIGNMENTS.has(props.alignment)) return { skip: 'alignment' }
   const span = chars.slice(lead, lead + count)
   const first = span.findIndex((char) => char !== ' ')
@@ -2166,7 +2160,6 @@ function markWidthOf(box, k, rule, natural = new Map()) {
     if (tab >= 0 && span.slice(first, tab).includes(' ')) return { skip: 'tab' }
     const spaces = span.flatMap((char, at) => (char === ' ' && at > tab ? [lead + at] : []))
     if (spaces.length > 0) {
-      lastLineSpaces(box, k, chars, natural)
       for (const at of spaces) {
         const advance = natural.get(box.charShapeAt(k, at))
         if (advance === undefined) return { skip: 'noSpace' }
@@ -2197,7 +2190,7 @@ function lineEndOf(box, k, from, length) {
 }
 
 /** Why indent "mark" left paragraphs unhung, by the reasons markWidthOf gives. */
-const HANG_SKIPS = ['noMark', 'alignment', 'nested', 'split', 'tab', 'noSpace', 'outOfRange']
+const HANG_SKIPS = ['noMark', 'alignment', 'split', 'tab', 'noSpace', 'outOfRange']
 
 /**
  * Measure paragraphs for indent "mark" (`items` are `[box, k, rule]`), reading only:
@@ -2207,14 +2200,16 @@ function measureHangs(items) {
   const measured = []
   const outcome = Object.fromEntries(HANG_SKIPS.map((reason) => [reason, 0]))
   const natural = new Map()
-  const firstPass = items.map((item) => markWidthOf(...item, natural))
-  items.forEach((item, at) => {
-    // a later paragraph's last line may hold the space an earlier one lacked
-    const found = firstPass[at].skip === 'noSpace' ? markWidthOf(...item, natural) : firstPass[at]
-    if (found.skip === 'empty') return
+  for (const [box, k] of items) {
+    const length = box.length(k)
+    if (length > 0) lastLineSpaces(box, k, [...box.text(k, length)], natural)
+  }
+  for (const [box, k, rule] of items) {
+    const found = markWidthOf(box, k, rule, natural)
+    if (found.skip === 'empty') continue
     if (found.skip) outcome[found.skip] += 1
-    else measured.push({ box: item[0], k: item[1], width: found.width })
-  })
+    else measured.push({ box, k, width: found.width })
+  }
   return { measured, outcome }
 }
 
@@ -2293,8 +2288,8 @@ function paragraphsOfStyle(doc, styleId) {
 }
 
 /**
- * Paragraphs with words in the tables inside table cells: the engine cannot tell their style,
- * so indent "mark" names them instead of measuring them.
+ * How many paragraphs with words the tables inside table cells hold: the engine cannot tell
+ * their style, so indent "mark" reports them as unread instead of measuring them.
  */
 function nestedTableParagraphs(doc) {
   let count = 0
@@ -9485,7 +9480,6 @@ export const agentPlugin = {
               `indent "${HANG_BY_MARK}" is measured on the paragraphs of a style, and this style has none: give indent in points, or apply the style with style_paragraphs`,
             )
           }
-          // "mark" alone changes the style only when some paragraph of it hangs
           const markOnly =
             look?.paragraph?.hangByMark &&
             !look.chars &&

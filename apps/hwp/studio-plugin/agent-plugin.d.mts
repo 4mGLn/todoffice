@@ -223,7 +223,7 @@ export type AgentStyleParagraphsResult =
       paragraphs: number
       /**
        * how many paragraphs each rule gave its style to, in the order of the rules, and how
-       * many lines it starts like it left out on purpose (skipped)
+       * many paragraphs starting as it names it left out on purpose (skipped)
        */
       rules: { style: string; paragraphs: number; skipped?: number }[]
       place?: AgentPlace
@@ -1264,8 +1264,6 @@ export interface AgentHangOutcome {
   noMark: number
   /** right, centre or spread lines: line 2 is not set under the words there */
   alignment: number
-  /** in a table inside a cell, whose formatting the engine cannot read */
-  nested: number
   /** the mark runs over two lines */
   split: number
   /** a tab whose stop moves with the first line's indent or a widened space before it */

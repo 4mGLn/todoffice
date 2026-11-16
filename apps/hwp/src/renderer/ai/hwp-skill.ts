@@ -3052,7 +3052,6 @@ function skippedNote(
 const HANG_SKIPS_SAID = {
   noMark: 'have no mark at their start',
   alignment: 'are aligned right, centred or spread, where line 2 is not set under the words',
-  nested: 'are in a table inside a table cell, whose formatting the editor cannot read',
   split: 'have a mark that runs over two lines',
   tab: "have a tab in the mark whose stop moves with the first line's indent or with a widened space before it",
   noSpace:
