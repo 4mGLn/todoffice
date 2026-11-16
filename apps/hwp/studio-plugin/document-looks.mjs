@@ -496,16 +496,18 @@ const DAY = String.raw`(?:0?[1-9]|[12]\d|3[01])\.`
 const MONTH_DAY = String.raw`(?:0?[1-9]|1[0-2])\.\s*${DAY}`
 /** The marks a range of dates is written with: ~, ～, ∼ and -. */
 const RANGE = '[~\uFF5E\u223C-]'
+/** What follows a date and not a number: the weekday in brackets ((목)) or a time (09:00). */
+const DATE_TAIL = String.raw`\([월화수목금토일](?:요일)?\)|\d{1,2}:\d{2}`
 
 /**
  * A line that starts with a date as Korean documents write one: a month and a day followed
  * by the weekday in brackets (11. 12.(목)), by a time (11. 12. 09:00), by a range to another
- * month and day (11. 12.~11. 14., 11. 12.-11. 14.) or to a day that ends a word (11. 12.~14.)
- * or by nothing (12. 25.). A number followed by a reference to another part (10. 1.~3.의,
- * 1. 2.(가)를) is not a date.
+ * month and day (11. 12.~11. 14., 11. 12.-11. 14.) or to a day that the weekday, a time or
+ * the line's end follows (11. 12.~14.(토)), or by nothing (12. 25.). A number followed by a
+ * reference to other parts (10. 1.~3.의, 6. 1.~3. 문항을, 1. 2.(가)를) is not a date.
  */
 export const DATE_START = new RegExp(
-  String.raw`^${MONTH_DAY.replace('\\s*', '\\s+')}\s*(?:\([월화수목금토일](?:요일)?\)|\d{1,2}:\d{2}|${RANGE}\s*(?:${MONTH_DAY}|${DAY}(?=\s|$))|$)`,
+  String.raw`^${MONTH_DAY.replace('\\s*', '\\s+')}\s*(?:${DATE_TAIL}|${RANGE}\s*(?:${MONTH_DAY}|${DAY}\s*(?:${DATE_TAIL}|$))|$)`,
 )
 
 /**
