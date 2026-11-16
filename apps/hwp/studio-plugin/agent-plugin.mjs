@@ -1571,14 +1571,14 @@ function containerOf(doc, hit) {
     props: (k) => parse(doc.getCellParaPropertiesAtByPath(sec, para, at(k))),
     setShape: (k, id) =>
       expectOk(doc.setCellParaShapeIdByPath(sec, para, at(k), id), 'format the paragraph'),
-    // the engine names the objects of a body paragraph only; of a cell paragraph, its fields
+    // the engine gives the places of the objects of a body paragraph only; here, the fields
     objectBefore: (k, end) => {
       for (let offset = 0; offset < end; offset++) {
         if (parse(doc.getFieldInfoAtByPath(sec, para, at(k), offset)).inField) return true
       }
       return false
     },
-    // the engine tells the lines and the size of a cell by table and cell number only
+    // the engine tells the lines of a cell paragraph by table and cell number only
     line:
       path.length === 1
         ? (k, offset) =>
@@ -2158,53 +2158,48 @@ const MAX_HANG_PT = 100
 const SAME_MARK_PT = 0.3
 
 /**
- * The language slot of a character's shape the engine sets it in (its own language table):
- * 0 Hangul, 1 Latin, 2 Hanja, 3 Japanese, 5 symbols, 6 user; anything else Hangul.
+ * Whether the engine sets a character in the language slot of the one before it: ASCII other
+ * than letters and digits, controls, the no-break space and the soft hyphen.
  */
-function scriptSlotOf(char) {
+function takesSlotBefore(char) {
   const code = char.codePointAt(0)
-  const within = (...ranges) => ranges.some(([from, to]) => code >= from && code <= to)
-  if (code === 0x318d) return 6
-  if (
-    within([0x1100, 0x11ff], [0x3130, 0x318f], [0xac00, 0xd7af], [0xa960, 0xa97f], [0xd7b0, 0xd7ff])
-  ) {
-    return 0
-  }
-  if (within([0x41, 0x5a], [0x61, 0x7a], [0x30, 0x39], [0xc0, 0x24f], [0x1e00, 0x1eff])) return 1
-  if (within([0x4e00, 0x9fff], [0x3400, 0x4dbf], [0xf900, 0xfaff], [0x20000, 0x2a6df])) return 2
-  if (within([0x3040, 0x30ff], [0x31f0, 0x31ff])) return 3
-  if (within([0x2190, 0x23ff], [0x2460, 0x24ff], [0x2500, 0x27bf], [0x3000, 0x303f])) return 5
-  return 0
+  return code <= 0x7f ? !/[0-9A-Za-z]/.test(char) : code === 0xa0 || code === 0xad
 }
 
-/** Characters the engine sets in the slot of the last character before them that is not one. */
-// eslint-disable-next-line no-control-regex
-const SLOT_NEUTRAL = /^[\u0000-\u002f\u003a-\u0040\u005b-\u0060\u007b-\u007f\u00a0-\u00bf]$/
-
-/** The language slot the engine sets each of `chars` in, from the start of the paragraph. */
-function slotsOf(chars) {
-  let carry = 0
-  return chars.map((char) => {
-    if (!SLOT_NEUTRAL.test(char)) carry = scriptSlotOf(char)
-    return carry
-  })
-}
+const isHangulSyllable = (char) => char >= '\uac00' && char <= '\ud7a3'
 
 /**
- * What a space's advance depends on besides its text: its character shape and the language
- * slot it is set in, whose width ratio and spacing it takes.
+ * What the advance of the space at `at` of paragraph k, on the line `line` (line info), depends
+ * on besides its text, when that is known without the engine's language table: its character
+ * shape and the language slot it is drawn in (its width ratio and spacing). The engine draws a
+ * line in runs of one shape; a space takes the slot of the last character before it in its
+ * run that takes no slot from the one before it, else the run's first slot that is not the
+ * Hangul one, else the Hangul one. Hangul syllables share one slot; any other character
+ * stands for its own. Null where the slot is not known so.
  */
-const spaceKey = (box, k, slots, at) => `${box.charShapeAt(k, at)}/${slots[at]}`
+function spaceKey(box, k, chars, line, at) {
+  const shape = box.charShapeAt(k, at)
+  const inRun = (i) => i >= line.charStart && i < line.charEnd && box.charShapeAt(k, i) === shape
+  let before = at - 1
+  while (inRun(before) && takesSlotBefore(chars[before])) before -= 1
+  if (inRun(before)) {
+    return `${shape}/${isHangulSyllable(chars[before]) ? 'hangul' : chars[before]}`
+  }
+  for (let after = at + 1; inRun(after); after++) {
+    if (!takesSlotBefore(chars[after]) && !isHangulSyllable(chars[after])) return null
+  }
+  return `${shape}/hangul`
+}
 
 /**
- * Note in `samples.estimated` the natural advance, in page pixels, of a space of each spaceKey
- * that neither `samples.exact` nor it holds yet, from the runs of the first line of body
- * paragraph k, aligned left or justified: the engine's diagnostic gives a run's natural width, and justification widens
- * only its spaces, so the run less its characters as drawn, other than spaces, is its spaces'
- * natural width.
- * Only where the diagnostic's line is the paragraph's text as the carets count it, and only
- * from a run without a tab, which the diagnostic measures at a default width. The diagnostic
- * gives whole pixels, so this is an estimate.
+ * Note in `samples.estimated` the natural advance, in page pixels, of a space of each
+ * spaceKey that neither `samples.exact` nor it holds yet, from the runs of the first line of
+ * body paragraph k, aligned left or justified: the engine's diagnostic gives a run's natural
+ * width, and justification widens only its spaces, so the run less its characters as drawn,
+ * other than spaces, is its spaces' natural width. Only where the diagnostic's line is the
+ * paragraph's text as the carets count it, and only from a run without a tab, which the
+ * diagnostic measures at a default width. The diagnostic gives whole pixels, so this is an
+ * estimate.
  */
 function firstLineSpaces(box, k, chars, samples) {
   const line = box.diag?.(k)?.lines?.[0]
@@ -2212,7 +2207,7 @@ function firstLineSpaces(box, k, chars, samples) {
   const lead = chars.length - [...chars.join('').replace(CONTROL_HEAD, '')].length
   const text = [...(line.runs ?? []).map((run) => run.text).join('')]
   if (text.join('') !== chars.slice(lead, lead + text.length).join('')) return
-  const slots = slotsOf(chars)
+  const first = box.line(k, lead)
   let at = lead
   for (const run of line.runs) {
     const runChars = [...run.text]
@@ -2220,9 +2215,9 @@ function firstLineSpaces(box, k, chars, samples) {
     at += runChars.length
     const spaces = runChars.flatMap((char, i) => (char === ' ' ? [start + i] : []))
     if (spaces.length === 0 || runChars.includes('\t')) continue
-    const key = spaceKey(box, k, slots, spaces[0])
-    if (samples.exact.has(key) || samples.estimated.has(key)) continue
-    if (spaces.some((space) => spaceKey(box, k, slots, space) !== key)) continue
+    const key = spaceKey(box, k, chars, first, spaces[0])
+    if (key === null || samples.exact.has(key) || samples.estimated.has(key)) continue
+    if (spaces.some((space) => spaceKey(box, k, chars, first, space) !== key)) continue
     const drawn = box.rect(k, at).x - box.rect(k, start).x
     const drawnSpaces = spaces.reduce(
       (sum, space) => sum + box.rect(k, space + 1).x - box.rect(k, space).x,
@@ -2235,36 +2230,36 @@ function firstLineSpaces(box, k, chars, samples) {
 /**
  * Note in `advances` the natural advance, in page pixels, of a space of each spaceKey on the
  * last line of paragraph k, aligned left or justified, which justification leaves as it is.
- * Engine
- * offsets count characters, as `chars` (the paragraph's text split into characters) does.
- * The caret at the first character of a line reports the end of the line before it, so the
- * space a later line starts with is not read.
+ * Engine offsets count characters, as `chars` (the paragraph's text split into characters)
+ * does. The caret at the first character of a line reports the end of the line before it,
+ * so the space a later line starts with is not read.
  */
 function lastLineSpaces(box, k, chars, advances) {
   const length = chars.length
-  const { charStart } = box.line(k, length)
-  const slots = slotsOf(chars)
-  for (let at = charStart === 0 ? 0 : charStart + 1; at < length; at++) {
+  const line = box.line(k, length)
+  for (let at = line.charStart + 1; at < length; at++) {
     if (chars[at] !== ' ') continue
-    const key = spaceKey(box, k, slots, at)
-    if (advances.has(key)) continue
+    const key = spaceKey(box, k, chars, line, at)
+    if (key === null || advances.has(key)) continue
     advances.set(key, box.rect(k, at + 1).x - box.rect(k, at).x)
   }
 }
 
 /**
  * How far justification widened each space of the line `line` (line info) of paragraph k, in
- * page pixels: the engine gives every space inside a justified line the same extra advance
- * (not those it starts with, nor those it ends with), so it is the advance of such a space as
- * drawn less the natural advance in `advances` of a space of its spaceKey. Null when no space
- * inside the line has one there.
+ * page pixels: the engine gives every space inside a justified line the same extra advance,
+ * none to the spaces the line starts or ends with, so it is the advance of a space inside the
+ * line as drawn less the natural advance in `advances` of a space of its spaceKey. Null when
+ * no space inside the line has one there.
  */
-function lineWidening(box, k, chars, slots, line, advances) {
+function lineWidening(box, k, chars, line, advances) {
   let from = line.charStart
-  while (from < line.charEnd && chars[from] === ' ') from += 1
-  for (let at = from; at + 1 < line.charEnd; at++) {
+  let to = line.charEnd
+  while (from < to && chars[from] === ' ') from += 1
+  while (to > from && chars[to - 1] === ' ') to -= 1
+  for (let at = from; at < to; at++) {
     if (chars[at] !== ' ') continue
-    const advance = advances.get(spaceKey(box, k, slots, at))
+    const advance = advances.get(spaceKey(box, k, chars, line, at))
     if (advance !== undefined) return box.rect(k, at + 1).x - box.rect(k, at).x - advance
   }
   return null
@@ -2276,20 +2271,20 @@ const HANGING_ALIGNMENTS = new Set(['left', 'justify'])
 /**
  * How paragraph k hangs by its mark (markLengthOf, with `rule` when a style rule named it):
  * `{ width }` in points to a tenth, the mark and the spaces round it as set without
- * justification, in the font and size the paragraph has now. A justified line widens its
- * spaces only, each by as much but those the line starts with (lineWidening), so the mark is
- * read where it is drawn less that much for each of its spaces after its first character. The
- * widening is read off a space of the line whose natural
- * advance `samples.exact` holds, from the last lines of the paragraphs measured with it,
- * which are not widened, else `samples.estimated` (firstLineSpaces).
+ * justification, in the font and size the paragraph has now. A justified line widens each
+ * space inside it by as much (lineWidening), so the mark is read where it is drawn less that
+ * much for each of its spaces after its first character. The widening is read off a space of
+ * the line whose natural advance `samples.exact` holds, from the last lines of the
+ * paragraphs measured with it, which are not widened, else `samples.estimated`
+ * (firstLineSpaces).
  * Otherwise `{ skip }`, why it is not hung: `empty` (no words, not counted), `noMark`,
  * `alignment` (right, centre or spread: line 2 is not set under the words there), `object`
- * (a field, its guide or another object is drawn before or inside the mark), `split`
- * (the mark runs over two lines, or fills the first of several), `tab` (a tab whose stop moves with the first line's indent or with a
- * widened space before it), `noSpace` (no space of the line with a known natural advance)
- * or `outOfRange` (a width not above 0, past MAX_HANG_PT or past half the column the paragraph
- * stands in). Lines are the paragraph's own: in columns a later line may stand level with
- * the first.
+ * (a field, its guide or another object is drawn before or inside the mark; in a cell only
+ * its fields can be asked for), `split` (the mark runs over two lines, or fills the first of
+ * several), `tab` (a tab whose stop moves with the first line's indent or with a widened
+ * space before it), `noSpace` (no space of the line with a known natural advance) or
+ * `outOfRange` (a width not above 0, past MAX_HANG_PT or past half the column the paragraph
+ * stands in, when its width can be read).
  */
 function markWidthOf(box, k, rule, samples) {
   const length = box.length(k)
@@ -2321,16 +2316,16 @@ function markWidthOf(box, k, rule, samples) {
     if (tab >= 0 && span.slice(first, tab).includes(' ')) return { skip: 'tab' }
     const spaces = span.filter((char, at) => char === ' ' && at > Math.max(first, tab)).length
     if (spaces > 0) {
-      const slots = slotsOf(chars)
       const widening =
-        lineWidening(box, k, chars, slots, line, samples.exact) ??
-        lineWidening(box, k, chars, slots, line, samples.estimated)
+        lineWidening(box, k, chars, line, samples.exact) ??
+        lineWidening(box, k, chars, line, samples.estimated)
       if (widening === null) return { skip: 'noSpace' }
       px -= spaces * widening
     }
   }
   const width = ptOfPx(px)
-  if (!(width > 0) || width > MAX_HANG_PT || !(width * 2 <= box.columnPt(k))) {
+  const column = box.columnPt(k)
+  if (!(width > 0) || width > MAX_HANG_PT || (column > 0 && width * 2 > column)) {
     return { skip: 'outOfRange' }
   }
   return { width }
@@ -2390,7 +2385,7 @@ function keepingIndents(items, change) {
  * width most of them have, and only the others are given an indent of their own. A paragraph
  * markWidthOf gives no width keeps the indent it has (keepingIndents), an empty one too, as
  * words typed there later are not a marked line; so do the paragraphs of the tables inside
- * cells, whose style the engine cannot tell. Returns how many were hung,
+ * cells, whose style the engine cannot tell, as far as tablesOf finds those tables. Returns how many were hung,
  * how many of those got one of their own under the style, how many were left, by reason, and
  * how many of all those left were given the indent they had.
  */

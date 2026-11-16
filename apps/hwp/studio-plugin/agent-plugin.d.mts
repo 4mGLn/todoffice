@@ -1258,8 +1258,8 @@ export interface AgentDocumentShape extends AgentPaper {
   columnsChangeWithin?: true
   /**
    * whether the text is plain 바탕글, formatted nowhere: in the body, and in the table cells
-   * (title boxes included; null without a table); `unread` when tables inside cells were left
-   * unread by the budget for finding them
+   * (title boxes included; null without a table); `unread` when those read are plain but
+   * tables inside cells were left unread by the budget for finding them
    */
   plain: { body: boolean; tables: boolean | null; unread?: boolean }
 }
@@ -1276,7 +1276,7 @@ export interface AgentHangOutcome {
   noMark: number
   /** right, centre or spread lines: line 2 is not set under the words there */
   alignment: number
-  /** a field, its guide or another object is drawn before or inside the mark */
+  /** a field, its guide or another object is drawn before or inside the mark (in a cell, a field) */
   object: number
   /** the mark runs over two lines, or fills the first of several */
   split: number
