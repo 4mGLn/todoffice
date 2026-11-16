@@ -2120,20 +2120,61 @@ const MAX_HANG_PT = 100
 const SAME_MARK_PT = 0.3
 
 /**
- * Note in `advances` the natural advance, in page pixels, of a space of each character shape
- * (by id) that `advances` does not hold yet, from the runs of the first line of body
+ * The language slot of a character's shape the engine sets it in (its own language table):
+ * 0 Hangul, 1 Latin, 2 Hanja, 3 Japanese, 5 symbols, 6 user; anything else Hangul.
+ */
+function scriptSlotOf(char) {
+  const code = char.codePointAt(0)
+  const within = (...ranges) => ranges.some(([from, to]) => code >= from && code <= to)
+  if (code === 0x318d) return 6
+  if (
+    within([0x1100, 0x11ff], [0x3130, 0x318f], [0xac00, 0xd7af], [0xa960, 0xa97f], [0xd7b0, 0xd7ff])
+  ) {
+    return 0
+  }
+  if (within([0x41, 0x5a], [0x61, 0x7a], [0x30, 0x39], [0xc0, 0x24f], [0x1e00, 0x1eff])) return 1
+  if (within([0x4e00, 0x9fff], [0x3400, 0x4dbf], [0xf900, 0xfaff], [0x20000, 0x2a6df])) return 2
+  if (within([0x3040, 0x30ff], [0x31f0, 0x31ff])) return 3
+  if (within([0x2190, 0x23ff], [0x2460, 0x24ff], [0x2500, 0x27bf], [0x3000, 0x303f])) return 5
+  return 0
+}
+
+/** Characters the engine sets in the slot of the last character before them that is not one. */
+// eslint-disable-next-line no-control-regex
+const SLOT_NEUTRAL = /^[\u0000-\u002f\u003a-\u0040\u005b-\u0060\u007b-\u007f\u00a0-\u00bf]$/
+
+/** The language slot the engine sets each of `chars` in, from the start of the paragraph. */
+function slotsOf(chars) {
+  let carry = 0
+  return chars.map((char) => {
+    if (!SLOT_NEUTRAL.test(char)) carry = scriptSlotOf(char)
+    return carry
+  })
+}
+
+/**
+ * What a space's advance depends on besides its text: its character shape and the language
+ * slot it is set in, whose width ratio and spacing it takes.
+ */
+const spaceKey = (box, k, slots, at) => `${box.charShapeAt(k, at)}/${slots[at]}`
+
+/**
+ * Note in `samples.estimated` the natural advance, in page pixels, of a space of each spaceKey
+ * that neither `samples.exact` nor it holds yet, from the runs of the first line of body
  * paragraph k, aligned left or justified: the engine's diagnostic gives a run's natural width, and justification widens
  * only its spaces, so the run less its characters as drawn, other than spaces, is its spaces'
  * natural width.
  * Only where the diagnostic's line is the paragraph's text as the carets count it, and only
- * from a run without a tab, which the diagnostic measures at a default width.
+ * from a run without a tab, which the diagnostic measures at a default width. The diagnostic
+ * gives whole pixels, so this is an estimate.
  */
-function firstLineSpaces(box, k, chars, advances) {
+function firstLineSpaces(box, k, chars, samples) {
   const line = box.diag?.(k)?.lines?.[0]
   if (!line) return
   const lead = chars.length - [...chars.join('').replace(CONTROL_HEAD, '')].length
   const text = [...(line.runs ?? []).map((run) => run.text).join('')]
   if (text.join('') !== chars.slice(lead, lead + text.length).join('')) return
+  const slots = slotsOf(chars)
   let at = lead
   for (const run of line.runs) {
     const runChars = [...run.text]
@@ -2141,23 +2182,22 @@ function firstLineSpaces(box, k, chars, advances) {
     at += runChars.length
     const spaces = runChars.flatMap((char, i) => (char === ' ' ? [start + i] : []))
     if (spaces.length === 0 || runChars.includes('\t')) continue
-    const shape = box.charShapeAt(k, spaces[0])
-    if (advances.has(shape) || spaces.some((space) => box.charShapeAt(k, space) !== shape)) {
-      continue
-    }
+    const key = spaceKey(box, k, slots, spaces[0])
+    if (samples.exact.has(key) || samples.estimated.has(key)) continue
+    if (spaces.some((space) => spaceKey(box, k, slots, space) !== key)) continue
     const drawn = box.rect(k, at).x - box.rect(k, start).x
     const drawnSpaces = spaces.reduce(
       (sum, space) => sum + box.rect(k, space + 1).x - box.rect(k, space).x,
       0,
     )
-    advances.set(shape, (Number(run.width_px) - (drawn - drawnSpaces)) / spaces.length)
+    samples.estimated.set(key, (Number(run.width_px) - (drawn - drawnSpaces)) / spaces.length)
   }
 }
 
 /**
- * Note in `advances` the natural advance, in page pixels, of a space of each character shape
- * (by id) on the last line of paragraph k, aligned left or justified, which justification
- * leaves as it is. Engine
+ * Note in `advances` the natural advance, in page pixels, of a space of each spaceKey on the
+ * last line of paragraph k, aligned left or justified, which justification leaves as it is.
+ * Engine
  * offsets count characters, as `chars` (the paragraph's text split into characters) does.
  * The caret at the first character of a line reports the end of the line before it, so the
  * space a later line starts with is not read.
@@ -2165,12 +2205,31 @@ function firstLineSpaces(box, k, chars, advances) {
 function lastLineSpaces(box, k, chars, advances) {
   const length = chars.length
   const { charStart } = box.line(k, length)
+  const slots = slotsOf(chars)
   for (let at = charStart === 0 ? 0 : charStart + 1; at < length; at++) {
     if (chars[at] !== ' ') continue
-    const shape = box.charShapeAt(k, at)
-    if (advances.has(shape)) continue
-    advances.set(shape, box.rect(k, at + 1).x - box.rect(k, at).x)
+    const key = spaceKey(box, k, slots, at)
+    if (advances.has(key)) continue
+    advances.set(key, box.rect(k, at + 1).x - box.rect(k, at).x)
   }
+}
+
+/**
+ * How far justification widened each space of the line `line` (line info) of paragraph k, in
+ * page pixels: the engine gives every space inside a justified line the same extra advance
+ * (not those it starts with, nor those it ends with), so it is the advance of such a space as
+ * drawn less the natural advance in `advances` of a space of its spaceKey. Null when no space
+ * inside the line has one there.
+ */
+function lineWidening(box, k, chars, slots, line, advances) {
+  let from = line.charStart
+  while (from < line.charEnd && chars[from] === ' ') from += 1
+  for (let at = from; at + 1 < line.charEnd; at++) {
+    if (chars[at] !== ' ') continue
+    const advance = advances.get(spaceKey(box, k, slots, at))
+    if (advance !== undefined) return box.rect(k, at + 1).x - box.rect(k, at).x - advance
+  }
+  return null
 }
 
 /** The alignments a hang puts line 2 under the words after the mark in. */
@@ -2180,19 +2239,20 @@ const HANGING_ALIGNMENTS = new Set(['left', 'justify'])
  * How paragraph k hangs by its mark (markLengthOf, with `rule` when a style rule named it):
  * `{ width }` in points to a tenth, the mark and the spaces round it as set without
  * justification, in the font and size the paragraph has now. A justified line widens its
- * spaces only, so the mark's other characters are read where they are drawn, and each space
- * is given the natural advance of a space of the same character shape in `natural`, read on
- * the last lines of the paragraphs measured with it, which are not widened, or from the
- * natural widths of their first lines (firstLineSpaces).
+ * spaces only, each by as much but those the line starts with (lineWidening), so the mark is
+ * read where it is drawn less that much for each of its spaces after its first character. The
+ * widening is read off a space of the line whose natural
+ * advance `samples.exact` holds, from the last lines of the paragraphs measured with it,
+ * which are not widened, else `samples.estimated` (firstLineSpaces).
  * Otherwise `{ skip }`, why it is not hung: `empty` (no words, not counted), `noMark`,
  * `alignment` (right, centre or spread: line 2 is not set under the words there), `split`
- * (the mark runs over two lines), `tab` (a tab whose stop moves with the first line's indent or with a
- * widened space before it), `noSpace` (no space of that shape on a line that is not widened)
+ * (the mark runs over two lines, or fills the first of several), `tab` (a tab whose stop moves with the first line's indent or with a
+ * widened space before it), `noSpace` (no space of the line with a known natural advance)
  * or `outOfRange` (a width not above 0, past MAX_HANG_PT or past half the column the paragraph
  * stands in). Lines are the paragraph's own: in columns a later line may stand level with
  * the first.
  */
-function markWidthOf(box, k, rule, natural) {
+function markWidthOf(box, k, rule, samples) {
   const length = box.length(k)
   if (length <= 0) return { skip: 'empty' }
   const chars = [...box.text(k, length)]
@@ -2208,19 +2268,25 @@ function markWidthOf(box, k, rule, natural) {
   const tab = span.indexOf('\t')
   if (tab >= 0 && Number(props.indent) > 0) return { skip: 'tab' }
   const line = box.line(k, lead)
-  if (box.line(k, lead + count - 1).lineIndex !== line.lineIndex) return { skip: 'split' }
   const lastLine = line.lineIndex === line.lineCount - 1
+  if (
+    box.line(k, lead + count - 1).lineIndex !== line.lineIndex ||
+    (!lastLine && lead + count >= line.charEnd)
+  ) {
+    return { skip: 'split' }
+  }
   let px = box.rect(k, lead + count).x - box.rect(k, lead).x
   if (props.alignment === 'justify' && !lastLine) {
     // a tab runs to its stop whatever the spaces before it took, unless they move it on
     if (tab >= 0 && span.slice(first, tab).includes(' ')) return { skip: 'tab' }
-    const spaces = span.flatMap((char, at) => (char === ' ' && at > tab ? [lead + at] : []))
-    if (spaces.length > 0) {
-      for (const at of spaces) {
-        const advance = natural.get(box.charShapeAt(k, at))
-        if (advance === undefined) return { skip: 'noSpace' }
-        px -= box.rect(k, at + 1).x - box.rect(k, at).x - advance
-      }
+    const spaces = span.filter((char, at) => char === ' ' && at > Math.max(first, tab)).length
+    if (spaces > 0) {
+      const slots = slotsOf(chars)
+      const widening =
+        lineWidening(box, k, chars, slots, line, samples.exact) ??
+        lineWidening(box, k, chars, slots, line, samples.estimated)
+      if (widening === null) return { skip: 'noSpace' }
+      px -= spaces * widening
     }
   }
   const width = ptOfPx(px)
@@ -2240,19 +2306,19 @@ const HANG_SKIPS = ['noMark', 'alignment', 'split', 'tab', 'noSpace', 'outOfRang
 function measureHangs(items) {
   const measured = []
   const outcome = Object.fromEntries(HANG_SKIPS.map((reason) => [reason, 0]))
-  const natural = new Map()
+  const samples = { exact: new Map(), estimated: new Map() }
   // right, centred, spread and split lines move or widen their spaces, even on the last line
   const sampled = items.filter(
     ([box, k]) => box.length(k) > 0 && HANGING_ALIGNMENTS.has(box.props(k).alignment),
   )
   for (const [box, k] of sampled) {
-    lastLineSpaces(box, k, [...box.text(k, box.length(k))], natural)
+    lastLineSpaces(box, k, [...box.text(k, box.length(k))], samples.exact)
   }
   for (const [box, k] of sampled) {
-    firstLineSpaces(box, k, [...box.text(k, box.length(k))], natural)
+    firstLineSpaces(box, k, [...box.text(k, box.length(k))], samples)
   }
   for (const [box, k, rule] of items) {
-    const found = markWidthOf(box, k, rule, natural)
+    const found = markWidthOf(box, k, rule, samples)
     if (found.skip === 'empty') continue
     if (found.skip) outcome[found.skip] += 1
     else measured.push({ box, k, width: found.width })

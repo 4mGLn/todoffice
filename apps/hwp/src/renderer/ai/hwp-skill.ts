@@ -3052,10 +3052,10 @@ function skippedNote(
 const HANG_SKIPS_SAID = {
   noMark: 'have no mark at their start',
   alignment: 'are aligned right, centred or spread, where line 2 is not set under the words',
-  split: 'have a mark that runs over two lines',
+  split: 'have a mark that runs over two lines or fills the first',
   tab: "have a tab in the mark whose stop moves with the first line's indent or with a widened space before it",
   noSpace:
-    "have a justified first line and no space in the mark's size and font on a line that is not widened, to measure the space after the mark by",
+    'have a justified first line with no space of a known natural width, to tell how far it was widened',
   outOfRange: 'would hang by nothing, by more than 100 pt or by more than half their column',
 } as const
 

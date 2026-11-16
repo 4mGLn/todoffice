@@ -1302,6 +1302,31 @@ describe('indent "mark" on lines that keep their spaces', () => {
     expect(Math.abs(justified.indent - left.indent)).toBeLessThan(0.2)
   })
 
+  it('reads the space after a mark in the language slot the editor sets it in', () => {
+    const lines = ['1.', '2.', '3.'].map((number) => `${number} 가나다라 마바사 아자차 ${WRAPPING}`)
+    for (const latin of [80, 50, 150]) {
+      const ratios = [100, latin, 100, 100, 100, 100, 100]
+      const indents = (align: string) => {
+        const start = blank(lines)
+        lines.forEach((line, para) =>
+          start.applyCharFormat(0, para, 0, [...line].length, JSON.stringify({ ratios })),
+        )
+        const { plugin, doc } = open(start)
+        expect(
+          plugin.styleParagraphs({
+            styles: [{ name: '항목', format: { align, indent: 'mark' } }],
+            apply: [{ style: '항목', numbered: '1.' }],
+          }),
+        ).toMatchObject({ hang: { hung: 3 } })
+        return lines.map((_, para) => indentOf(doc(), para))
+      }
+      const left = indents('left')
+      indents('justify').forEach((indent, para) =>
+        expect(Math.abs(indent - left[para]!), `${latin} ${para}`).toBeLessThan(0.2),
+      )
+    }
+  })
+
   it('keeps a hang within half the column the paragraph stands in', () => {
     const lines = ['가', '나', '다'].map(
       (first) => `□ ${first}나다라 마바사 아자차 카타파하 가나다 라마바사`,
@@ -1311,9 +1336,11 @@ describe('indent "mark" on lines that keep their spaces', () => {
     ;[30, 34, 37].forEach((size, para) => {
       const find = lines[para]!.slice(2, 9)
       plugin.formatParagraph(find, null, { size })
-      expect(plugin.formatParagraph(find, null, { indent: 'mark' }), find).toMatchObject({
-        hang: { hung: 0, outOfRange: 1 },
-      })
+      const { hang } = plugin.formatParagraph(find, null, { indent: 'mark' }) as {
+        hang: { hung: number; outOfRange: number; split: number }
+      }
+      expect(hang.hung, find).toBe(0)
+      expect(hang.outOfRange + hang.split, find).toBe(1)
       expect(indentOf(doc(), para), find).toBe(0)
     })
   })
