@@ -4710,11 +4710,12 @@ const tableKey = (sec, para, path) =>
  * paragraph, so a table inside a cell is found by asking for it; `partial` says the budget
  * for that ran out before every cell paragraph was asked, so tables inside the cells asked
  * after that are missing from the list. Tables
- * are followed `depth` deep, MAX_TABLE_DEPTH unless asked for more.
+ * are followed `depth` deep, MAX_TABLE_DEPTH unless asked for more, and `budget` engine calls
+ * (NESTED_CONTROLS_TRIED for each cell paragraph) are spent looking for tables inside cells.
  */
-function tablesOf(doc, depth = MAX_TABLE_DEPTH) {
+export function tablesOf(doc, depth = MAX_TABLE_DEPTH, budget = MAX_NESTED_LOOKUPS) {
   const tables = []
-  let lookups = MAX_NESTED_LOOKUPS
+  let lookups = budget
   let cut = false
   const dimensions = (sec, para, path) => {
     try {

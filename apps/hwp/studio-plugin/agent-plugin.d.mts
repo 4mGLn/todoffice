@@ -1159,6 +1159,17 @@ export interface AgentMissingFontLabels {
  */
 export declare function splitsWord(left: string, right: string): boolean
 
+/**
+ * Every table of the document in reading order, tables inside cells followed `depth` deep;
+ * `budget` engine calls (three for each cell paragraph) are spent looking for those, and
+ * `partial` says a cell paragraph was left unasked when they ran out.
+ */
+export declare function tablesOf(
+  doc: unknown,
+  depth?: number,
+  budget?: number,
+): { tables: { sec: number; para: number; cells: number }[]; partial: boolean }
+
 /** The parts of the editor toolbar's style list (a select element) syncStyleList uses. */
 export interface StyleListElement {
   readonly options: ArrayLike<{ value: string; textContent: string | null }>

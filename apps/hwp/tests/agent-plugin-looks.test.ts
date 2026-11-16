@@ -14,6 +14,7 @@ import init, { HwpDocument } from '@rhwp/core'
 import {
   agentPlugin,
   splitsWord,
+  tablesOf,
   type AgentMapPage,
   type AgentPageEnd,
   type AgentPluginHost,
@@ -1487,6 +1488,16 @@ describe('the shape the context tells', () => {
     expect(plugin.documentShape().plain).toEqual({ body: true, tables: false })
     plugin.formatParagraph('본문 한 줄', null, { bold: true })
     expect(plugin.documentShape().plain).toEqual({ body: false, tables: false })
+  })
+
+  it('says the search for tables inside cells stopped only when a cell paragraph was left unasked', () => {
+    const doc = blank(['표 앞'])
+    doc.createTable(0, 0, 0, 2, 3)
+    // six cell paragraphs, three engine calls each
+    expect(tablesOf(doc, Infinity, 18).partial).toBe(false)
+    expect(tablesOf(doc, Infinity, 16).partial).toBe(false)
+    expect(tablesOf(doc, Infinity, 15).partial).toBe(true)
+    expect(tablesOf(doc, Infinity).partial).toBe(false)
   })
 
   it('reads formatting in a table nested deeper than the list of tables goes', () => {
