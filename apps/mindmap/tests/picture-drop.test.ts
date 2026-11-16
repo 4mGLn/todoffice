@@ -236,6 +236,17 @@ describe('pasting a picture on a topic', () => {
     expect(r.session.document.entryNames).toEqual(entries)
     expect(r.session.document.changed).toBe(changed)
   })
+
+  it('takes the new topic back out when its picture did not land', async () => {
+    const r = await rig()
+    const childrenBefore = r.topicOf(IDS.a1)!.children?.attached?.length ?? 0
+    const couldUndo = r.controller.canUndo
+    // the reference names an entry the file does not hold, so reconciling drops the picture
+    vi.spyOn(r.session, 'addPicture').mockReturnValue('resources/not-in-the-file.png')
+    expect(await pastePicture(r.host, IDS.a1, [fileOf(PNG, 'a.png')])).toBe('failed')
+    expect(r.topicOf(IDS.a1)!.children?.attached?.length ?? 0).toBe(childrenBefore)
+    expect(r.controller.canUndo).toBe(couldUndo)
+  })
 })
 
 describe('the file window of "Insert picture"', () => {
