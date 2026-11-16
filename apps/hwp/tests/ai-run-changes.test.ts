@@ -79,4 +79,8 @@ describe('the card in the Hangul AI panel', () => {
     expect(panel).toContain('setMarksShown(marksOnPageRef.current)')
     expect(panel).not.toContain('hasMarks')
   })
+
+  it('follows a run with the caret, never a selection that would cover the last mark', () => {
+    expect(panel).toContain('void bridgeRef.current.reveal({ ...change.place, length: 0 })')
+  })
 })
