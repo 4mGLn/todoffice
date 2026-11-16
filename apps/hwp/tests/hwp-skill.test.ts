@@ -3223,6 +3223,34 @@ describe('the look of a document', () => {
     expect(changes).toEqual([])
   })
 
+  it('changes nothing when format_paragraph with "mark" alone hangs nothing, and says why', async () => {
+    const hang = {
+      hung: 0,
+      apart: 0,
+      noMark: 0,
+      alignment: 1,
+      object: 0,
+      split: 0,
+      tab: 0,
+      noSpace: 0,
+      outOfRange: 0,
+    }
+    const { call, changes } = setup({
+      formatParagraph: vi.fn(async () => ({
+        ok: false as const,
+        reason: 'not_hung' as const,
+        hang,
+      })),
+    })
+    const result = await call('format_paragraph', { find: '○ 하나', indent: 'mark' })
+    expect(result.mutated).toBeFalsy()
+    expect(result.isError).toBeFalsy()
+    expect(result.output).toBe(
+      'Nothing was changed: the paragraph could not be hung by its mark. 1 paragraph(s) are aligned right, centred or spread, where line 2 is not set under the words; their first-line indent stays as it was.',
+    )
+    expect(changes).toEqual([])
+  })
+
   it('changes nothing when format_look with "mark" alone hangs no paragraph, and says why', async () => {
     const hang = {
       hung: 0,

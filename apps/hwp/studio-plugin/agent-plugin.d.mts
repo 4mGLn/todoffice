@@ -792,6 +792,8 @@ export type AgentFormatParagraphResult =
       keptOwnLook?: number
       hang?: AgentHangOutcome
     }
+  /** indent "mark" alone, and the paragraph could not be hung: nothing changed */
+  | { ok: false; reason: 'not_hung'; hang: AgentHangOutcome }
   | AgentPlaceRefusal
   | AgentNoSuchStyle
   | AgentWordsSetApart

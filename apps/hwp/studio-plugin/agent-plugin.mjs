@@ -2331,6 +2331,25 @@ function markWidthOf(box, k, rule, samples) {
   return { width }
 }
 
+/**
+ * The answer for a format request whose only change is indent "mark" when none of `items`
+ * (`[box, k, rule]`) could be hung: nothing is changed then. Null otherwise.
+ */
+function markOnlyUnhung(spec, items) {
+  const markOnly =
+    spec.paragraph?.hangByMark &&
+    Object.keys(spec.paragraph).length === 1 &&
+    !spec.chars &&
+    !spec.font &&
+    !spec.style &&
+    !spec.charStyle
+  if (!markOnly) return null
+  const { measured, outcome } = measureHangs(items)
+  return measured.length === 0
+    ? { ok: false, reason: 'not_hung', hang: { ...outcome, hung: 0, apart: 0 } }
+    : null
+}
+
 /** Why indent "mark" left paragraphs unhung, by the reasons markWidthOf gives. */
 const HANG_SKIPS = ['noMark', 'alignment', 'object', 'split', 'tab', 'noSpace', 'outOfRange']
 
@@ -9296,7 +9315,10 @@ export const agentPlugin = {
           const box = containerOf(doc, picked.hit)
           if ((spec.paragraph && !box.formatParagraph) || (spec.style && !box.applyStyle))
             return refuse('unsupported_place')
-          const missing = missingStyle(doc, spec) ?? wordsSetApart(spec, [[box, box.index]])
+          const missing =
+            missingStyle(doc, spec) ??
+            wordsSetApart(spec, [[box, box.index]]) ??
+            markOnlyUnhung(spec, [[box, box.index, null]])
           if (missing) return { refusal: missing }
           return { box }
         }
@@ -12905,21 +12927,11 @@ export const agentPlugin = {
                 })),
             }
           }
-          const markOnly =
-            spec.paragraph?.hangByMark &&
-            Object.keys(spec.paragraph).length === 1 &&
-            !spec.chars &&
-            !spec.font &&
-            !spec.style &&
-            !spec.charStyle
-          if (markOnly) {
-            const { measured, outcome } = measureHangs(
-              group.places.map(({ sec, para }) => [containerOf(doc, { sec, para }), para, null]),
-            )
-            if (measured.length === 0) {
-              return { ok: false, reason: 'not_hung', hang: { ...outcome, hung: 0, apart: 0 } }
-            }
-          }
+          const notHung = markOnlyUnhung(
+            spec,
+            group.places.map(({ sec, para }) => [containerOf(doc, { sec, para }), para, null]),
+          )
+          if (notHung) return notHung
           return (
             missingStyle(doc, spec) ??
             wordsSetApart(
