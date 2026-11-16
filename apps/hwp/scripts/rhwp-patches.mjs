@@ -34,6 +34,15 @@
  *   deletes the table a selection or a caret points at, in the body or in a
  *   cell, and the three paths call it: the inner table goes, the outer stays.
  *
+ * studio-nested-table-refusal, studio-nested-table-move-drag
+ *   The other table commands name their table by the outer table's numbers (the caret's
+ *   parentParaIndex/controlIndex/cellIndex, a cell block's or a selected table's sec/ppi/ci),
+ *   so in a table inside a cell or a text box they changed the outer table: a row went into
+ *   the form, M merged its cells. The dispatcher asks studio-plugin/hancom-keys.mjs
+ *   (refuseInNestedTable) before an enabled command runs; there the listed commands leave the
+ *   document alone and say why. A selected table there is not dragged either (its move took
+ *   the outer table too); the module stops the arrow keys that move it.
+ *
  * studio-hancom-shortcuts, studio-hancom-labels, studio-hancom-commands,
  * studio-hancom-equal-cells, studio-hancom-chords
  *   A Hangul tab takes Hancom Hangul's keys (decision 0060). The table of them and
@@ -325,6 +334,45 @@ const PATCHES = {
       '        safeTableOp(() => ih.executeOperation({',
       "          kind: 'snapshot',",
       "          operationType: 'deleteTable',",
+    ].join('\n'),
+  },
+  'studio-nested-table-refusal': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]command[\\/]dispatcher\.ts$/,
+    edits: [
+      {
+        find: "import type { CommandResult, CommandServices, EditorContext } from './types';",
+        replace:
+          "import type { CommandResult, CommandServices, EditorContext } from './types';\n" +
+          `import { refuseInNestedTable } from '${HANCOM_KEYS_MODULE}';`,
+      },
+      {
+        find: [
+          '    if (def.canExecute && !def.canExecute(ctx)) {',
+          '      // canExecute 실패 — 비활성 상태',
+          "      return { ok: false, reason: 'disabled' };",
+          '    }',
+        ].join('\n'),
+        replace: [
+          '    if (def.canExecute && !def.canExecute(ctx)) {',
+          '      // canExecute 실패 — 비활성 상태',
+          "      return { ok: false, reason: 'disabled' };",
+          '    }',
+          '    // ieum: in a table inside a cell or a text box the command would change the outer',
+          '    // table; the app says so and leaves the document alone',
+          '    if (refuseInNestedTable(commandId, this.services)) {',
+          "      return { ok: false, reason: 'disabled', message: 'nested-table' };",
+          '    }',
+        ].join('\n'),
+      },
+    ],
+  },
+  'studio-nested-table-move-drag': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-mouse\.ts$/,
+    find: '    if (ref && e.button === 0) {',
+    replace: [
+      "    // ieum: a selected table inside a cell or a text box is not dragged; its ref's numbers",
+      '    // are the outer table, which the move would take. The click places the caret instead.',
+      '    if (ref && e.button === 0 && (ref.cellPath?.length ?? 0) < 2) {',
     ].join('\n'),
   },
   'studio-hancom-shortcuts': {
@@ -1284,6 +1332,8 @@ export const STUDIO_PATCHES = /** @type {const} */ ([
   'studio-nested-table-delete',
   'studio-nested-table-cut',
   'studio-nested-table-command',
+  'studio-nested-table-refusal',
+  'studio-nested-table-move-drag',
   'studio-hancom-shortcuts',
   'studio-hancom-labels',
   'studio-hancom-commands',
@@ -1433,6 +1483,7 @@ export const hancomHooks = [
       'moveToLineEnd(): void',
       'moveHorizontal(delta: number): void',
       'getSelection(): { anchor: DocumentPosition; focus: DocumentPosition } | null',
+      'getSelectedTableRef(): { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] } | null',
       'isInHeaderFooter(): boolean',
       'isInFootnote(): boolean',
       'isInTextBox(): boolean',
@@ -1500,7 +1551,11 @@ export const hancomHooks = [
   },
   {
     file: 'src/command/dispatcher.ts',
-    needles: ['dispatch(commandId: string', 'isEnabled(commandId: string): boolean'],
+    needles: [
+      'dispatch(commandId: string',
+      'dispatchWithResult(commandId: string',
+      'isEnabled(commandId: string): boolean',
+    ],
   },
   { file: 'src/command/contextual-shortcut.ts', needles: ['arm('] },
   {
