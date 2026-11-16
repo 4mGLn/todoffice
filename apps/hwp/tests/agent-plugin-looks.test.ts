@@ -956,15 +956,19 @@ describe('indent "mark"', () => {
     const { plugin, doc } = open(blank(lines))
     const result = plugin.styleParagraphs({
       styles: [
-        { name: '번호', format: { size: 13, indent: 'mark' } },
-        { name: '가나', format: { size: 13, marginLeft: 20, indent: 'mark' } },
+        { name: '번호', format: { size: 13, align: 'left', indent: 'mark' } },
+        { name: '가나', format: { size: 13, align: 'left', marginLeft: 20, indent: 'mark' } },
       ],
       apply: [
         { style: '번호', numbered: '1.' },
         { style: '가나', numbered: '가.' },
       ],
     })
-    expect(result).toMatchObject({ ok: true, paragraphs: 4, hungApart: 1 })
+    expect(result).toMatchObject({
+      ok: true,
+      paragraphs: 4,
+      hang: { hung: 4, apart: 1, noMark: 0, unmeasured: 0, tooWide: 0 },
+    })
     for (const [para, mark] of [
       [0, 3],
       [1, 3],
@@ -975,10 +979,6 @@ describe('indent "mark"', () => {
       expect(second, `paragraph ${para} runs onto a second line`).not.toBeNull()
       expect(Math.abs((second as number) - text), `paragraph ${para}`).toBeLessThan(0.2)
     }
-    const style = (name: string) =>
-      (JSON.parse(doc().getStyleList()) as { id: number; name: string }[]).find(
-        (candidate) => candidate.name === name,
-      )!
     expect(indentOf(doc(), 0)).toBe(indentOf(doc(), 1))
     expect(indentOf(doc(), 2)).toBeLessThan(indentOf(doc(), 0))
     const shapes = [0, 1, 2].map(
@@ -987,18 +987,98 @@ describe('indent "mark"', () => {
     )
     expect(shapes[0]).toBe(shapes[1])
     expect(shapes[2]).not.toBe(shapes[0])
-    expect(style('번호').id).toBeGreaterThan(0)
+  })
+
+  it('takes the width a mark has unjustified, whatever the stretch of a justified first line', () => {
+    const items = [
+      `○ ${WRAPPING}`,
+      '○ 가나다 라마바 사아자 차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사',
+      '○ 짧은 말 하나 둘 셋 넷 다섯 여섯 일곱 여덟 아홉 열 열하나 열둘 열셋 열넷 열다섯 열여섯 열일곱',
+      '○ 참고: https://www.example.com/documents/training/2026/first-half/new-staff/guide 에서 내려받는다',
+    ]
+    const indents = (align: string) => {
+      const { plugin, doc } = open(blank(items))
+      const result = plugin.styleParagraphs({
+        styles: [{ name: '항목', format: { size: 13, align, indent: 'mark' } }],
+        apply: [{ style: '항목', startsWith: '○' }],
+      })
+      expect(result, align).toMatchObject({ hang: { hung: 4, apart: 0, tooWide: 0 } })
+      return items.map((_, para) => indentOf(doc(), para))
+    }
+    const justified = indents('justify')
+    expect(new Set(justified).size).toBe(1)
+    expect(justified).toEqual(indents('left'))
+    // 13 pt × 1.5, in the engine's page pixels: the hang of "○ " in 함초롬바탕
+    expect(justified[0]).toBeCloseTo(-26, 0)
+  })
+
+  it('leaves a paragraph without a mark, and a tab under a first line set further in, as they are', () => {
+    const { plugin, doc } = open(blank([`본문 ${WRAPPING}`, `1.\t탭 ${WRAPPING}`]))
+    plugin.formatParagraph('본문', null, { indent: 15 })
+    plugin.formatParagraph('1.\t탭', null, { indent: 20 })
+    const before = [indentOf(doc(), 0), indentOf(doc(), 1)]
+    expect(plugin.formatParagraph('본문', null, { indent: 'mark' })).toMatchObject({
+      hang: { hung: 0, noMark: 1 },
+    })
+    expect(plugin.formatParagraph('1.\t탭', null, { indent: 'mark' })).toMatchObject({
+      hang: { hung: 0, unmeasured: 1 },
+    })
+    expect([indentOf(doc(), 0), indentOf(doc(), 1)]).toEqual(before)
+  })
+
+  it('does not count paragraphs without a mark as hung apart from their style', () => {
+    const { plugin, doc } = open(blank([`○ ${WRAPPING}`, `○ 둘 ${WRAPPING}`, `본문 ${WRAPPING}`]))
+    plugin.createStyle({ name: '항목', format: { align: 'left' } })
+    plugin.formatParagraph('본문', null, { style: '항목' })
+    const result = plugin.styleParagraphs({
+      styles: [{ name: '항목', format: { size: 12, indent: 'mark' } }],
+      apply: [{ style: '항목', startsWith: '○' }],
+    })
+    expect(result).toMatchObject({ hang: { hung: 2, apart: 0, noMark: 1 } })
+    const shape = (para: number) =>
+      (JSON.parse(doc().getParaPropertiesAt(0, para)) as { paraShapeId: number }).paraShapeId
+    expect(shape(2)).toBe(shape(0))
+  })
+
+  it('measures the paragraphs of a style in table cells too, and refuses a style no paragraph has', () => {
+    const { plugin, doc } = open(blank(['표 앞 문단']))
+    plugin.insertTable('표 앞 문단', null, 'after', [['구분', `○ 칸 ${WRAPPING}`]])
+    plugin.styleParagraphs({
+      styles: [{ name: '칸항목', format: { size: 11, align: 'left' } }],
+      apply: [{ style: '칸항목', find: '○ 칸' }],
+    })
+    expect(plugin.editStyle('칸항목', { format: { size: 14, indent: 'mark' } })).toMatchObject({
+      ok: true,
+      hang: { hung: 1, unmeasured: 0 },
+    })
+    const para = [0, 1, 2].find((at) => {
+      try {
+        tableIn(doc(), at)
+        return true
+      } catch {
+        return false
+      }
+    })!
+    const { control } = tableIn(doc(), para)
+    const cellIndent = (
+      JSON.parse(doc().getCellParaPropertiesAt(0, para, control, 1, 0)) as { indent: number }
+    ).indent
+    expect(cellIndent).toBeLessThan(-20)
+    plugin.createStyle({ name: '빈', format: { size: 12 } })
+    expect(() => plugin.editStyle('빈', { format: { indent: 'mark' } })).toThrow(
+      /this style has none/,
+    )
   })
 
   it('follows a later change of the font size when asked again, and a style edit', () => {
     const { plugin, doc } = open(blank([`가. ${WRAPPING}`, `나. ${WRAPPING}`]))
     plugin.styleParagraphs({
-      styles: [{ name: '가나', format: { size: 11, indent: 'mark' } }],
+      styles: [{ name: '가나', format: { size: 11, align: 'left', indent: 'mark' } }],
       apply: [{ style: '가나', numbered: '가.' }],
     })
     const small = indentOf(doc(), 0)
     const edited = plugin.editStyle('가나', { format: { size: 16, indent: 'mark' } })
-    expect(edited).toMatchObject({ ok: true })
+    expect(edited).toMatchObject({ ok: true, hang: { hung: 2 } })
     expect(indentOf(doc(), 0)).toBeLessThan(small)
     const { text, second } = linesOf(doc(), 1, 3)
     expect(Math.abs((second as number) - text)).toBeLessThan(0.2)
@@ -1006,9 +1086,9 @@ describe('indent "mark"', () => {
 
   it('hangs one paragraph by its mark with formatParagraph', () => {
     const { plugin, doc } = open(blank([`□ ${WRAPPING}`]))
-    expect(plugin.formatParagraph('□ 연수', null, { size: 14, indent: 'mark' })).toMatchObject({
-      ok: true,
-    })
+    expect(
+      plugin.formatParagraph('□ 연수', null, { size: 14, align: 'left', indent: 'mark' }),
+    ).toMatchObject({ ok: true, hang: { hung: 1 } })
     const { text, second } = linesOf(doc(), 0, 2)
     expect(Math.abs((second as number) - text)).toBeLessThan(0.2)
   })
@@ -1020,9 +1100,67 @@ describe('indent "mark"', () => {
       plugin.styleParagraphs({ styles: [{ name: '새', format: { indent: 'makr' } }] }),
     ).toThrow(/indent must be -100 to 100 points, or "mark"/)
     expect(() => plugin.createStyle({ name: '새', format: { indent: 'mark' } })).toThrow(
-      /a new style has none/,
+      /a new style has none: give indent in points, or make and apply the style with style_paragraphs/,
     )
     expect(steps()).toBe(before)
+  })
+})
+
+describe('the shape the context tells', () => {
+  it('says an empty document is plain and on one paper', () => {
+    const empty = HwpDocument.createEmpty()
+    empty.createBlankDocument()
+    expect(open(empty).plugin.documentShape()).toMatchObject({
+      pages: 1,
+      paper: 'A4',
+      orientation: 'portrait',
+      columns: 1,
+      plain: { body: true, tables: null },
+    })
+    expect(open(empty).plugin.documentShape()).not.toHaveProperty('otherPapers')
+  })
+
+  it('tells formatting in a table apart from plain body text', () => {
+    const { plugin } = open(blank(['표 앞 문단', '본문 한 줄']))
+    expect(plugin.documentShape().plain).toEqual({ body: true, tables: null })
+    plugin.insertTable('표 앞 문단', null, 'after', ROWS, true)
+    expect(plugin.documentShape().plain).toEqual({ body: true, tables: false })
+    plugin.formatParagraph('본문 한 줄', null, { bold: true })
+    expect(plugin.documentShape().plain).toEqual({ body: false, tables: false })
+  })
+
+  it('names a later section on another paper', () => {
+    const sections = new HwpDocument(
+      readFileSync(join(__dirname, 'fixtures', 'master-page-next-section.hwpx')),
+    )
+    const { plugin } = open(sections)
+    expect(plugin.documentShape()).not.toHaveProperty('otherPapers')
+    expect(plugin.setPageSetup({ orientation: 'landscape' }, 2)).toMatchObject({ ok: true })
+    expect(plugin.documentShape().otherPapers).toEqual([
+      expect.objectContaining({ section: 2, orientation: 'landscape' }),
+    ])
+  })
+})
+
+describe('the lines a second style call counts', () => {
+  it('counts only lines still in the default style, and none for a call by find alone', () => {
+    const { plugin } = open(blank(['□ 첫째', '○ 둘째', '본문 한 줄']))
+    plugin.styleParagraphs({
+      styles: [{ name: '큰', format: { bold: true } }],
+      apply: [{ style: '큰', startsWith: '□' }],
+    })
+    expect(
+      plugin.styleParagraphs({
+        styles: [{ name: '작은', format: { italic: true } }],
+        apply: [{ style: '작은', startsWith: '○' }],
+      }),
+    ).toMatchObject({ ok: true, unmatched: 1 })
+    expect(
+      plugin.styleParagraphs({
+        styles: [{ name: '제목', format: { size: 20 } }],
+        apply: [{ style: '제목', find: '본문 한 줄' }],
+      }),
+    ).not.toHaveProperty('unmatched')
   })
 })
 

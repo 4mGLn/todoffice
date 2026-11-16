@@ -19,6 +19,8 @@ import type {
   AgentChangeOptions,
   AgentCutCell,
   AgentDocumentShape,
+  AgentHangOutcome,
+  AgentPaper,
   AgentTallerRow,
   AgentEquation,
   AgentCheckBox,
@@ -396,6 +398,9 @@ const EVERY_WORD_SCHEMA = {
     'true puts the character formatting on every word even where some words differ in it (a bold word in plain text); without it such a call is refused',
 }
 
+const INDENT_IN_POINTS =
+  'indent in points (-100 to 100). Positive: the first line starts that much further in. Negative is the hanging indent of Hangul (내어쓰기): the first line stays at margin_left and the lines after it start that much further in'
+
 /** The paragraph formatting a format tool takes, as schema properties. */
 const PARAGRAPH_FORMAT_SCHEMA = {
   align: { type: 'string', enum: ['left', 'center', 'right', 'justify'] },
@@ -421,8 +426,7 @@ const PARAGRAPH_FORMAT_SCHEMA = {
   line_spacing: { type: 'number', description: 'line spacing in percent, for example 160' },
   indent: {
     type: ['number', 'string'],
-    description:
-      'indent in points (-100 to 100), or "mark". Positive: the first line starts that much further in. Negative is the hanging indent of Hangul (내어쓰기): the first line stays at margin_left and the lines after it start that much further in. "mark" hangs each paragraph by its own mark and the space after it (□, 1., 가.), so that its second line starts under its text',
+    description: `${INDENT_IN_POINTS}; or "mark": each paragraph hangs by its own mark and the space after it (□, 1., 가.), as measured when the call runs (send it again after the mark's size or font changes), so that its second line starts under its text`,
   },
   margin_left: {
     type: 'number',
@@ -470,13 +474,24 @@ const PARAGRAPH_FORMAT_SCHEMA = {
 
 /** The context's lines on the pages, the paper and columns, and whether the text is plain. */
 function documentShapeLines(shape: AgentDocumentShape): string[] {
-  const paper = shape.paper ?? `${shape.width} x ${shape.height} mm`
+  const paperOf = (paper: AgentPaper) =>
+    `${paper.paper ?? `${paper.width} x ${paper.height} mm`} ${paper.orientation}`
   const later = shape.columnsChangeWithin ? ', other columns later in the document' : ''
+  const others = (shape.otherPapers ?? [])
+    .map((other) => `; section ${other.section} on ${paperOf(other)}`)
+    .join('')
+  const { body, tables } = shape.plain
+  const look =
+    body && tables !== false
+      ? 'all text is in the default look (바탕글, nothing formatted)'
+      : body
+        ? 'the body text is in the default look (바탕글, nothing formatted); text in tables or title boxes has formatting'
+        : tables === false
+          ? 'the body text and the text in tables have a look of their own (styles or formatting)'
+          : 'the body text has a look of its own (styles or formatting)'
   return [
-    `Pages: ${shape.pages} (paper ${paper}, ${shape.orientation}, ${shape.columns} column(s)${later}).`,
-    shape.plain
-      ? 'Look: all text is in the default look (바탕글, nothing formatted).'
-      : 'Look: the text has a look of its own (styles or formatting).',
+    `Pages: ${shape.pages} (paper ${paperOf(shape)}, ${shape.columns} column(s)${later}${others}).`,
+    `Look: ${look}.`,
   ]
 }
 
@@ -853,7 +868,7 @@ const TOOLS: HwpToolDef[] = [
     name: 'insert_title_box',
     edits: true,
     description:
-      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title); color is the colour of those and text_color that of the words. The title keeps the font and size it has unless you pass others. Text inside a table is refused, a title box made before included: a box is never drawn again in place. One undo step.',
+      'Turn a title paragraph of the body into a title box as wide as the text, with its words centred inside: bands (a band of colour above and below), lines (a heavy line above and below), box (a line all round) or shaded (a fill behind the title); color is the colour of those and text_color that of the words. The title keeps the font and size it has unless you pass others. Text inside a table is refused, a title box made before included: a box is never drawn again in place. To recolour one, call format_cells on its table: background of rows 1 and 3 for bands, of its one cell for shaded. One undo step.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1087,6 +1102,8 @@ const TOOLS: HwpToolDef[] = [
             'paragraph style of the paragraph after one of this style (Enter); default the new style itself',
         },
         ...STYLE_LOOK_SCHEMA,
+        // a new style has no paragraph to measure a mark on
+        indent: { type: 'number', description: INDENT_IN_POINTS },
       },
       required: ['name'],
     },
@@ -3010,17 +3027,57 @@ function styleStrings<K extends string>(
   return out
 }
 
-/** What indent "mark" left as it was, when a first line could not be measured. */
-const unmeasuredNote = (count: number | undefined): string =>
-  count
-    ? ` ${count} paragraph(s) to hang by their mark could not be measured on their first line and keep the indent they had.`
+/** The lines a style rule left out on purpose, by kind, as the model reads them. */
+function skippedNote(
+  skipped:
+    | Partial<Record<'placeholder' | 'cutLine' | 'date', { count: number; first: string }>>
+    | undefined,
+): string {
+  if (!skipped) return ''
+  const kinds = [
+    ['placeholder', 'placeholder line(s) (a mark doubled, as in ○○)'],
+    ['cutLine', 'cut line(s)'],
+    ['date', 'line(s) that start with a date'],
+  ] as const
+  const parts = kinds.flatMap(([kind, what]) => {
+    const found = skipped[kind]
+    return found ? [`${found.count} ${what}, the first “${quote(found.first)}”`] : []
+  })
+  return parts.length > 0
+    ? ` Left out on purpose: ${parts.join('; ')}. Give one a style with find if it needs one.`
     : ''
+}
 
-/** Paragraphs indent "mark" gave an indent of their own over their style. */
-const hungApartNote = (count: number | undefined): string =>
-  count
-    ? ` ${count} paragraph(s) have a mark of another width than most of their style's and got an indent of their own: a later indent given to the style does not reach them.`
-    : ''
+/** What indent "mark" did, as the model reads it. */
+function hangNote(hang: AgentHangOutcome | undefined): string {
+  if (!hang) return ''
+  const parts = [
+    hang.hung > 0
+      ? ` Hung ${hang.hung} paragraph(s) by their marks.`
+      : ' No paragraph was hung by its mark.',
+  ]
+  if (hang.apart > 0) {
+    parts.push(
+      `${hang.apart} of them have a mark of another width than most of their style's and got an indent of their own: a later indent given to the style does not reach them.`,
+    )
+  }
+  if (hang.noMark > 0) {
+    parts.push(
+      `${hang.noMark} paragraph(s) have no mark at their start and keep the indent they had or their style's.`,
+    )
+  }
+  if (hang.unmeasured > 0) {
+    parts.push(
+      `${hang.unmeasured} paragraph(s) could not be measured (a justified line of several lines in a table cell, a line spread letter by letter, or a tab after the mark under a first line set further in) and keep the indent they had or their style's.`,
+    )
+  }
+  if (hang.tooWide > 0) {
+    parts.push(
+      `${hang.tooWide} paragraph(s) would hang further than 100 pt or half their line and keep the indent they had or their style's.`,
+    )
+  }
+  return parts.join(' ')
+}
 
 /** What a run of format calls says about paragraphs that kept their own look under a style. */
 const keptOwnLookNote = (count: number | undefined): string =>
@@ -4054,7 +4111,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Formatted the paragraph${result.inTable ? ' in the table cell' : ''}.${keptOwnLookNote(result.keptOwnLook)}${unmeasuredNote(result.unmeasured)}`,
+          output: `Formatted the paragraph${result.inTable ? ' in the table cell' : ''}.${keptOwnLookNote(result.keptOwnLook)}${hangNote(result.hang)}`,
           mutated: true,
           summary: label('aiToolFormat', { text: quote(find) }),
         }
@@ -4186,7 +4243,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Formatted the selected text (${result.count} paragraph(s)).${keptOwnLookNote(result.keptOwnLook)}${unmeasuredNote(result.unmeasured)}`,
+          output: `Formatted the selected text (${result.count} paragraph(s)).${keptOwnLookNote(result.keptOwnLook)}${hangNote(result.hang)}`,
           mutated: true,
           summary: label('aiToolFormat', { text: quote(text) }),
         }
@@ -4539,7 +4596,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
             ? ' Text this style was applied to changed with it.'
             : ' Every paragraph that uses it changed with it, in tables, text boxes, headers, footers and notes too; what a paragraph had set differently from the style stayed.'
         return {
-          output: `Changed the ${result.kind} style "${result.name}".${Object.keys(format).length > 0 ? reach : ''}${hungApartNote(result.hungApart)}${unmeasuredNote(result.unmeasured)}`,
+          output: `Changed the ${result.kind} style "${result.name}".${Object.keys(format).length > 0 ? reach : ''}${hangNote(result.hang)}`,
           mutated: true,
           summary: label('aiToolStyleEdit', { name: quote(result.name) }),
         }
@@ -5533,17 +5590,17 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
         return {
           output:
             `Made ${result.made} style(s)${result.made > 0 ? ` (${quoted(result.madeStyles)})` : ''}, changed ${result.changed}${result.changed > 0 ? ` (${quoted(result.changedStyles)}, which the document had)` : ''}, and styled ${result.paragraphs} paragraph(s): ${result.rules.map((rule) => `${rule.style} ${rule.paragraphs}`).join(', ') || 'none'}.` +
-            (rules.length > 0
-              ? ` ${result.unmatched} body paragraph(s) with text matched no rule.`
+            (result.unmatched
+              ? ` ${result.unmatched} body paragraph(s) with text are still in the default paragraph style.`
               : '') +
+            skippedNote(result.skipped) +
             (unmatched.length > 0
               ? ` No paragraph matched the rule(s) for ${unmatched.map((rule) => rule.style).join(', ')}: check how those lines start (find_text shows the exact characters).`
               : '') +
             (noSpace.length > 0
               ? ` Left out because no space follows the mark: ${noSpace.map((line) => `“${quote(line)}”`).join(', ')}.`
               : '') +
-            hungApartNote(result.hungApart) +
-            unmeasuredNote(result.unmeasured) +
+            hangNote(result.hang) +
             keptOwnLookNote(result.keptOwnLook) +
             standInNote(result.standIn),
           mutated: true,
@@ -5982,7 +6039,7 @@ export function createHwpSkill(deps: HwpSkillDeps): HwpSkill {
           place: result.place,
         })
         return {
-          output: `Formatted ${result.paragraphs} paragraph(s) of that look.${keptOwnLookNote(result.keptOwnLook)}${unmeasuredNote(result.unmeasured)} These paragraphs have a new look id now; the other looks keep theirs.`,
+          output: `Formatted ${result.paragraphs} paragraph(s) of that look.${keptOwnLookNote(result.keptOwnLook)}${hangNote(result.hang)} These paragraphs have a new look id now; the other looks keep theirs.`,
           mutated: true,
           summary: label('aiToolFormatLook', { count: result.paragraphs }),
         }

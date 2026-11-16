@@ -331,7 +331,7 @@ function setup(
       height: 297,
       orientation: 'portrait' as const,
       columns: 1,
-      plain: true,
+      plain: { body: true, tables: null },
     })),
     styleParagraphs: vi.fn(async () => ({
       ok: true as const,
@@ -3136,7 +3136,8 @@ describe('the look of a document', () => {
         changedStyles: ['항목'],
         unmatched: 2,
         withoutSpace: ['가.접수 기간'],
-        hungApart: 1,
+        skipped: { date: { count: 1, first: '11. 12.(목) 09:00 개회' } },
+        hang: { hung: 3, apart: 1, noMark: 1, unmeasured: 0, tooWide: 1 },
         paragraphs: 3,
         rules: [
           { style: '항목', paragraphs: 2 },
@@ -3157,9 +3158,20 @@ describe('the look of a document', () => {
     expect(result.output).toContain(
       'Made 1 style(s) ("소항목"), changed 1 ("항목", which the document had)',
     )
-    expect(result.output).toContain('2 body paragraph(s) with text matched no rule')
+    expect(result.output).toContain(
+      '2 body paragraph(s) with text are still in the default paragraph style',
+    )
+    expect(result.output).toContain(
+      'Left out on purpose: 1 line(s) that start with a date, the first “11. 12.(목) 09:00 개회”',
+    )
     expect(result.output).toContain('no space follows the mark: “가.접수 기간”')
-    expect(result.output).toContain('1 paragraph(s) have a mark of another width')
+    expect(result.output).toContain(
+      'Hung 3 paragraph(s) by their marks. 1 of them have a mark of another width',
+    )
+    expect(result.output).toContain('1 paragraph(s) have no mark at their start')
+    expect(result.output).toContain(
+      '1 paragraph(s) would hang further than 100 pt or half their line',
+    )
   })
 
   it('takes indent "mark" and a number written as text, and leaves another word to the editor', async () => {
@@ -3182,7 +3194,7 @@ describe('the look of a document', () => {
     for (const name of [
       'style_paragraphs',
       'format_paragraph',
-      'create_style',
+      'format_selection',
       'edit_style',
       'format_look',
     ]) {
@@ -3191,6 +3203,9 @@ describe('the look of a document', () => {
         '"indent":{"type":["number","string"]',
       )
     }
+    const create = skill.tools.find((candidate) => candidate.name === 'create_style')!
+    expect(JSON.stringify(create.inputSchema)).toContain('"indent":{"type":"number"')
+    expect(JSON.stringify(create)).not.toContain('"mark"')
   })
 
   it('refuses a style_paragraphs rule that names its paragraphs both ways or neither', async () => {
@@ -3601,7 +3616,7 @@ describe('the look of a document', () => {
     const plain = setup()
     await plain.refreshContext()
     expect(plain.skill.buildContext!()).toContain(
-      'Pages: 1 (paper A4, portrait, 1 column(s)).\nLook: all text is in the default look',
+      'Pages: 1 (paper A4 portrait, 1 column(s)).\nLook: all text is in the default look',
     )
     const formed = setup({
       documentShape: vi.fn(async () => ({
@@ -3610,17 +3625,41 @@ describe('the look of a document', () => {
         width: 182,
         height: 257,
         orientation: 'landscape' as const,
+        otherPapers: [
+          {
+            section: 2,
+            paper: 'A4',
+            width: 210,
+            height: 297,
+            orientation: 'portrait' as const,
+          },
+        ],
         columns: 2,
         columnsChangeWithin: true as const,
-        plain: false,
+        plain: { body: false, tables: true },
       })),
     })
     await formed.refreshContext()
     const context = formed.skill.buildContext!()
     expect(context).toContain(
-      'Pages: 3 (paper 182 x 257 mm, landscape, 2 column(s), other columns later in the document).',
+      'Pages: 3 (paper 182 x 257 mm landscape, 2 column(s), other columns later in the document; section 2 on A4 portrait).',
     )
-    expect(context).toContain('Look: the text has a look of its own')
+    expect(context).toContain('Look: the body text has a look of its own')
+    const tablesOnly = setup({
+      documentShape: vi.fn(async () => ({
+        pages: 1,
+        paper: 'A4',
+        width: 210,
+        height: 297,
+        orientation: 'portrait' as const,
+        columns: 1,
+        plain: { body: true, tables: false },
+      })),
+    })
+    await tablesOnly.refreshContext()
+    expect(tablesOnly.skill.buildContext!()).toContain(
+      'Look: the body text is in the default look (바탕글, nothing formatted); text in tables or title boxes has formatting.',
+    )
     const unread = setup({ documentShape: vi.fn(async () => Promise.reject(new Error('gone'))) })
     await unread.refreshContext()
     expect(unread.skill.buildContext!()).toContain('Length:')
@@ -4069,6 +4108,27 @@ describe('the skill as the model sees it', () => {
     expect(styleTool.description).toContain('Rules by find go first')
     expect(prompt).not.toContain('a negative indent as wide as')
     expect(prompt).toContain('given indent "mark"')
+  })
+
+  it('never names a call of the editor plugin in a refusal the model reads', () => {
+    const plugin = readFileSync(join(__dirname, '../studio-plugin/agent-plugin.mjs'), 'utf8')
+    const skill = readFileSync(join(__dirname, '../src/renderer/ai/hwp-skill.ts'), 'utf8')
+    // the plugin's calls are camelCase (styleParagraphs); the model knows the tools (style_paragraphs)
+    const calls = [...plugin.matchAll(/^ {6}([a-z]+[A-Z][A-Za-z]*): guarded\(/gm)].map((m) => m[1]!)
+    expect(calls).toContain('styleParagraphs')
+    const texts = [
+      ...[...plugin.matchAll(/fail\(\s*'[A-Z_]+',\s*(['`])([\s\S]*?)\1\s*,?\s*\)/g)].map(
+        (m) => m[2]!,
+      ),
+      ...[...skill.matchAll(/bad\(\s*call,\s*(['`])([\s\S]*?)\1\s*,?\s*\)/g)].map((m) => m[2]!),
+    ]
+    expect(texts.length).toBeGreaterThan(100)
+    const named = texts.flatMap((text) =>
+      calls
+        .filter((call) => new RegExp(`\\b${call}\\b`).test(text))
+        .map((call) => `${call}: ${text}`),
+    )
+    expect(named).toEqual([])
   })
 
   it('sends a test paper to its skill, which gives the numbers of the test-paper look', () => {

@@ -36,6 +36,7 @@ import {
   MAX_COLUMN_GAP_MM,
   MAX_EQUATIONS,
   MAX_EQUATION_SCRIPT,
+  DATE_START,
   NUMBERED_MARKS,
   NUMBERED_WITHOUT_SPACE,
   PAGE_NUMBER_PLACES,
@@ -52,6 +53,7 @@ import {
   HEADER_FIELD_TOKENS,
   headerPieces,
   markLengthOf,
+  markSkipOf,
   pageNumberOf as pageNumberSettingOf,
   rowEdgesAfterAdding,
   paragraphBorderOf,
@@ -1532,6 +1534,8 @@ function containerOf(doc, hit) {
         paraShape: parse(doc.getParaPropertiesAt(sec, k)).paraShapeId,
       }),
       rect: (k, offset) => parse(doc.getCursorRect(sec, k, offset)),
+      props: (k) => parse(doc.getParaPropertiesAt(sec, k)),
+      diag: (k) => parse(doc.measureWidthDiagnostic(sec, k)),
     }
   }
   const last = path[path.length - 1]
@@ -1548,6 +1552,11 @@ function containerOf(doc, hit) {
     // callers (keepingObjects) is what protects an object there
     objectPositions: () => [],
     rect: (k, offset) => parse(doc.getCursorRectByPath(sec, para, at(k), offset)),
+    // the engine reads a cell paragraph's formatting by table and cell number only
+    props:
+      path.length === 1
+        ? (k) => parse(doc.getCellParaPropertiesAt(sec, para, last.controlIndex, last.cellIndex, k))
+        : null,
     runLooks: (k, length) =>
       parse(doc.getCharShapeRunsInCellByPath(sec, para, at(k), 0, length)).map((run) =>
         parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), run.startOffset ?? 0)),
@@ -2003,89 +2012,250 @@ function missingStyle(doc, spec) {
 }
 
 /**
- * Whether every body paragraph that holds words is in the default look: the document's
- * first paragraph style (바탕글), with no paragraph or character formatting of its own.
+ * Whether the words of the document are in the default look, the document's first paragraph
+ * style (바탕글) with no paragraph or character formatting of their own: `body` for the body
+ * paragraphs, `tables` for the cells of its tables (title boxes are tables too; null without
+ * a table, and a table inside a cell is not looked into). Each stops at the first paragraph
+ * that is not.
  */
-function plainBody(doc) {
+function plainLookOf(doc) {
   const base = parse(doc.getStyleList())[0]
-  if (!base) return false
-  for (let sec = 0; sec < doc.getSectionCount(); sec++) {
-    for (let para = 0; para < doc.getParagraphCount(sec); para++) {
+  if (!base) return { body: false, tables: null }
+  const plain = (style, paraShape, charShapes) =>
+    style === base.id &&
+    paraShape === base.paraShapeId &&
+    charShapes.every((id) => id === base.charShapeId)
+  let body = true
+  for (let sec = 0; sec < doc.getSectionCount() && body; sec++) {
+    for (let para = 0; para < doc.getParagraphCount(sec) && body; para++) {
       const length = doc.getParagraphLength(sec, para)
       if (length <= 0 || !doc.getTextRange(sec, para, 0, length).replace(LEADING_CONTROLS, '')) {
         continue
       }
-      if (parse(doc.getStyleAt(sec, para)).id !== base.id) return false
-      if (parse(doc.getParaPropertiesAt(sec, para)).paraShapeId !== base.paraShapeId) return false
-      for (const run of parse(doc.getCharShapeRuns(sec, para, 0, length))) {
-        const chars = parse(doc.getCharPropertiesAt(sec, para, run.startOffset ?? 0))
-        if (chars.charShapeId !== base.charShapeId) return false
-      }
+      body = plain(
+        parse(doc.getStyleAt(sec, para)).id,
+        parse(doc.getParaPropertiesAt(sec, para)).paraShapeId,
+        parse(doc.getCharShapeRuns(sec, para, 0, length)).map(
+          (run) => parse(doc.getCharPropertiesAt(sec, para, run.startOffset ?? 0)).charShapeId,
+        ),
+      )
     }
   }
-  return true
+  const tables = tablesOf(doc).tables.filter((table) => table.path.length === 1)
+  let cells = tables.length > 0 ? true : null
+  for (const table of tables) {
+    const control = table.path[0].controlIndex
+    for (let cell = 0; cell < table.cells && cells; cell++) {
+      const count = doc.getCellParagraphCount(table.sec, table.para, control, cell)
+      for (let k = 0; k < count && cells; k++) {
+        const path = JSON.stringify(cellAt(table.path, cell, k))
+        const length = doc.getCellParagraphLengthByPath(table.sec, table.para, path)
+        if (length <= 0) continue
+        if (!doc.getTextInCellByPath(table.sec, table.para, path, 0, length).trim()) continue
+        cells = plain(
+          parse(doc.getCellStyleAt(table.sec, table.para, control, cell, k)).id,
+          parse(doc.getCellParaPropertiesAt(table.sec, table.para, control, cell, k)).paraShapeId,
+          parse(doc.getCharShapeRunsInCellByPath(table.sec, table.para, path, 0, length)).map(
+            (run) =>
+              parse(
+                doc.getCellCharPropertiesAtByPath(
+                  table.sec,
+                  table.para,
+                  path,
+                  run.startOffset ?? 0,
+                ),
+              ).charShapeId,
+          ),
+        )
+      }
+    }
+    if (!cells) break
+  }
+  return { body, tables: cells }
 }
 
 // eslint-disable-next-line no-control-regex
 const CONTROL_HEAD = /^[\u0000-\u001f]+/
 
+/** The longest hang indent "mark" writes, in points: the tool's own indent range. */
+const MAX_HANG_PT = 100
 /**
- * How wide, in points to a tenth, the first line of paragraph k is laid out from its start
- * to the words after its mark (markLengthOf, with `rule` when a style rule named it): 0
- * without a mark, null when the two places are not on one line. Read from the layout, so the
- * width is that of the font and size the paragraph has now, as the line is drawn.
+ * Marks whose widths differ by this much or less, in points, are the same mark: the caret
+ * places a width is read from are rounded to a tenth of a pixel.
+ */
+const SAME_MARK_PT = 0.3
+
+/**
+ * The last caret place of paragraph k on the line that starts at caret place `from` (a
+ * line break offset reports the end of the line it ends), found by halving.
+ */
+function lineEndOf(box, k, from, length) {
+  const top = box.rect(k, from)
+  let low = from
+  let high = length
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2)
+    const rect = box.rect(k, mid)
+    if (rect.pageIndex === top.pageIndex && Math.abs(rect.y - top.y) <= 0.5) low = mid
+    else high = mid - 1
+  }
+  return box.rect(k, low)
+}
+
+/**
+ * How far, in page pixels, justification widened each space of paragraph k's first line:
+ * the engine gives the spaces of a justified line all the room the line has to spare, and
+ * its diagnostic gives the line's natural width. With the drawn width up to the trailing
+ * spaces (D), the natural width (N), the trailing spaces (t), the inner spaces (n) and the
+ * drawn advance of one inner space (d = space + widening): widening = (D - N + t·d) / (n + t).
+ */
+function spaceWideningOf(box, k, lead, line) {
+  const text = String(line.text ?? '')
+  const inner = text.trimEnd()
+  const trailing = text.length - inner.length
+  const spaces = [...inner].flatMap((char, at) => (char === ' ' ? [at] : []))
+  if (spaces.length + trailing === 0) return 0
+  const drawn = box.rect(k, lead + inner.length).x - box.rect(k, lead).x
+  const space =
+    spaces.length > 0
+      ? box.rect(k, lead + spaces[0] + 1).x - box.rect(k, lead + spaces[0]).x
+      : box.rect(k, lead + text.length).x - box.rect(k, lead + inner.length).x
+  return (drawn - line.our_width_px + trailing * space) / (spaces.length + trailing)
+}
+
+/**
+ * How paragraph k hangs by its mark (markLengthOf, with `rule` when a style rule named it):
+ * `{ width }` in points to a tenth (`{ empty: true }` for a paragraph with no words), the mark and the spaces after it as set without
+ * justification, in the font and size the paragraph has now; `{ none: true }` without a
+ * mark; `{ unmeasured: true }` where the width cannot be read (a cell line widened by
+ * justification, a line spread out letter by letter, a tab whose stop moves with the first
+ * line's indent); `{ tooWide: true }` for a hang past MAX_HANG_PT or half the line.
  */
 function markWidthOf(box, k, rule) {
   const length = box.length(k)
-  if (length <= 0) return 0
+  if (length <= 0) return { empty: true }
   const text = box.text(k, Math.min(length, MAX_STARTS_WITH * 3))
   const lead = text.length - text.replace(CONTROL_HEAD, '').length
+  if (!text.slice(lead).trim()) return { empty: true }
   const count = markLengthOf(text.slice(lead), rule)
-  if (count === 0) return 0
+  if (count === 0) return { none: true }
+  const props = box.props?.(k)
+  if (!props) return { unmeasured: true }
+  const mark = text.slice(lead, lead + count)
+  // a tab runs to the stop past where the mark ends, which a first line set further in moves
+  if (mark.includes('\t') && Number(props.indent) > 0) return { unmeasured: true }
   const from = box.rect(k, lead)
   const to = box.rect(k, lead + count)
-  if (from?.pageIndex !== to?.pageIndex || Math.abs(from.y - to.y) > 0.5) return null
-  return ptOfPx(to.x - from.x)
+  if (from?.pageIndex !== to?.pageIndex || Math.abs(from.y - to.y) > 0.5) {
+    return { unmeasured: true }
+  }
+  const diag = box.diag?.(k) ?? null
+  const lines = diag?.lines ?? null
+  const oneLine = lines
+    ? lines.length === 1
+    : Math.abs(lineEndOf(box, k, lead, length).y - from.y) <= 0.5 &&
+      Math.abs(box.rect(k, length).y - from.y) <= 0.5
+  let widening = 0
+  if (!oneLine && props.alignment === 'justify') {
+    if (!lines) return { unmeasured: true }
+    widening = spaceWideningOf(box, k, lead, lines[0])
+  } else if (
+    !oneLine &&
+    props.alignment !== 'left' &&
+    props.alignment !== 'right' &&
+    props.alignment !== 'center'
+  ) {
+    return { unmeasured: true }
+  }
+  const spaces = [...mark].filter((char) => char === ' ').length
+  const width = ptOfPx(to.x - from.x - widening * spaces)
+  const linePx = lines
+    ? Number(lines[0].stored_width_px)
+    : oneLine
+      ? Infinity
+      : lineEndOf(box, k, lead, length).x - from.x
+  if (width > MAX_HANG_PT || width * 2 > ptOfPx(linePx)) return { tooWide: true }
+  return { width }
 }
 
 /**
  * Hang paragraphs by their marks (`items` are `[box, k, rule]`): each paragraph's lines after
  * the first start where the words after its mark start. With `styleId` the style takes the
- * width most of them have, and only the others are given an indent of their own. Returns
- * how many got one of their own under the style and how many could not be measured.
+ * width most of them have, and only the others are given an indent of their own. A paragraph
+ * without a mark, or one whose width is not taken (markWidthOf), keeps the indent it has or
+ * its style's. Returns how many got one of their own under the style, had no mark, could not
+ * be measured, and would have hung too far.
  */
 function hangByMarks(doc, items, styleId = null) {
   const measured = []
+  const outcome = { apart: 0, noMark: 0, unmeasured: 0, tooWide: 0 }
   for (const [box, k, rule] of items) {
-    const width = markWidthOf(box, k, rule)
-    if (width !== null) measured.push({ box, k, width })
+    const found = markWidthOf(box, k, rule)
+    if (found.empty) continue
+    if (found.none) outcome.noMark += 1
+    else if (found.unmeasured) outcome.unmeasured += 1
+    else if (found.tooWide) outcome.tooWide += 1
+    else measured.push({ box, k, width: found.width })
   }
   let common = null
   if (styleId !== null && measured.length > 0) {
-    const tally = new Map()
-    for (const { width } of measured) tally.set(width, (tally.get(width) ?? 0) + 1)
-    common = [...tally].reduce((best, entry) => (entry[1] > best[1] ? entry : best))[0]
+    const alike = (width) =>
+      measured.filter((other) => Math.abs(other.width - width) <= SAME_MARK_PT).length
+    common = measured.reduce((best, entry) =>
+      alike(entry.width) > alike(best.width) ? entry : best,
+    ).width
     const indent = -Math.round(common * PARA_UNITS_PER_PT)
     if (!doc.updateStyleShapes(styleId, '{}', JSON.stringify({ indent }))) {
       throw fail('ENGINE_REFUSED', 'the editor refused to change the style')
     }
   }
-  let apart = 0
   for (const { box, k, width } of measured) {
-    if (width === common) continue
+    if (common !== null && Math.abs(width - common) <= SAME_MARK_PT) continue
     box.formatParagraph(k, JSON.stringify({ indent: -Math.round(width * PARA_UNITS_PER_PT) }))
-    if (styleId !== null) apart += 1
+    if (styleId !== null) outcome.apart += 1
   }
-  return { apart, unmeasured: items.length - measured.length }
+  return { ...outcome, hung: measured.length }
 }
 
-/** The body paragraphs of every section that have paragraph style `styleId`, as hang items. */
-function bodyParagraphsOfStyle(doc, styleId) {
+/** Body paragraphs with words that are in the document's first paragraph style (바탕글). */
+function defaultStyleParagraphs(doc) {
+  const base = parse(doc.getStyleList())[0]
+  let count = 0
+  for (let sec = 0; sec < doc.getSectionCount(); sec++) {
+    for (let para = 0; para < doc.getParagraphCount(sec); para++) {
+      const length = doc.getParagraphLength(sec, para)
+      if (length <= 0) continue
+      if (!doc.getTextRange(sec, para, 0, length).replace(LEADING_CONTROLS, '')) continue
+      if (parse(doc.getStyleAt(sec, para)).id === base?.id) count += 1
+    }
+  }
+  return count
+}
+
+/**
+ * The paragraphs that have paragraph style `styleId`, as hang items: the body of every
+ * section and the cells of the tables in it. The engine reads the style of a cell paragraph
+ * by table and cell number only, so a table inside a cell is not looked into.
+ */
+function paragraphsOfStyle(doc, styleId) {
   const items = []
   for (let sec = 0; sec < doc.getSectionCount(); sec++) {
     for (let para = 0; para < doc.getParagraphCount(sec); para++) {
       if (parse(doc.getStyleAt(sec, para)).id !== styleId) continue
       items.push([containerOf(doc, { sec, para }), para, null])
+    }
+  }
+  for (const table of tablesOf(doc).tables) {
+    if (table.path.length !== 1) continue
+    const control = table.path[0].controlIndex
+    for (let cell = 0; cell < table.cells; cell++) {
+      const count = doc.getCellParagraphCount(table.sec, table.para, control, cell)
+      for (let k = 0; k < count; k++) {
+        const style = parse(doc.getCellStyleAt(table.sec, table.para, control, cell, k)).id
+        if (style !== styleId) continue
+        const hit = { sec: table.sec, para: table.para, cellPath: cellAt(table.path, cell, k) }
+        items.push([containerOf(doc, hit), k, null])
+      }
     }
   }
   return items
@@ -8102,7 +8272,7 @@ export const agentPlugin = {
       /** One picture (its number from listPictures) as base64, for the model to look at. */
       readPicture: guarded((number) => {
         if (!Number.isInteger(number) || number < 1) {
-          throw fail('BAD_ARGUMENT', 'picture must be a positive integer from listPictures')
+          throw fail('BAD_ARGUMENT', 'picture must be a positive integer from list_pictures')
         }
         const picture = pictureList()[number - 1]
         if (!picture) return { ok: false, reason: 'no_such_picture', count: pictureList().length }
@@ -8839,16 +9009,16 @@ export const agentPlugin = {
                 box.setCharShape(box.index, 0, length, charShape)
               if (paragraph) box.formatParagraph(box.index, paragraph)
               if (chars && length > 0) box.formatChars(box.index, 0, length, chars)
-              const { unmeasured } = spec.paragraph?.hangByMark
+              const hang = spec.paragraph?.hangByMark
                 ? hangByMarks(doc, [[box, box.index, null]])
-                : { unmeasured: 0 }
+                : null
               mustKeep(before, objectsOf(doc))
               return {
                 ok: true,
                 inTable: box.inTable,
                 place: box.place(box.index, length),
                 ...(keptOwnLook ? { keptOwnLook: 1 } : {}),
-                ...(unmeasured > 0 ? { unmeasured } : {}),
+                ...(hang ? { hang } : {}),
               }
             },
             options,
@@ -9172,7 +9342,7 @@ export const agentPlugin = {
         if (look?.paragraph?.hangByMark) {
           throw fail(
             'BAD_ARGUMENT',
-            `indent "${HANG_BY_MARK}" is measured on the paragraphs a style is given to, and a new style has none: give indent in points, or make and apply the style with styleParagraphs`,
+            `indent "${HANG_BY_MARK}" is measured on the paragraphs a style is given to, and a new style has none: give indent in points, or make and apply the style with style_paragraphs`,
           )
         }
         const plan = (doc) => {
@@ -9251,6 +9421,12 @@ export const agentPlugin = {
           }
           const next = nextStyle ? styleNamed(doc, nextStyle, PARAGRAPH_STYLE) : null
           if (nextStyle && !next) return { refusal: noSuchStyle(doc) }
+          if (look?.paragraph?.hangByMark && paragraphsOfStyle(doc, style.id).length === 0) {
+            throw fail(
+              'BAD_ARGUMENT',
+              `indent "${HANG_BY_MARK}" is measured on the paragraphs of a style, and this style has none: give indent in points, or apply the style with style_paragraphs`,
+            )
+          }
           return { style, next, look }
         }
         const refusal = host.read((doc) => plan(doc).refusal ?? null)
@@ -9272,15 +9448,14 @@ export const agentPlugin = {
               throw fail('ENGINE_REFUSED', 'the editor refused to change the style')
             }
             setStyleLook(doc, style.id, look)
-            const { apart, unmeasured } = look?.paragraph?.hangByMark
-              ? hangByMarks(doc, bodyParagraphsOfStyle(doc, style.id), style.id)
-              : { apart: 0, unmeasured: 0 }
+            const hang = look?.paragraph?.hangByMark
+              ? hangByMarks(doc, paragraphsOfStyle(doc, style.id), style.id)
+              : null
             return {
               ok: true,
               name: rename ?? style.name,
               kind: kindOf(style),
-              ...(apart > 0 ? { hungApart: apart } : {}),
-              ...(unmeasured > 0 ? { unmeasured } : {}),
+              ...(hang ? { hang } : {}),
             }
           },
           options,
@@ -9607,11 +9782,18 @@ export const agentPlugin = {
               index,
               text: rule.startsWith,
               mark: rule.numbered ? NUMBERED_MARKS[rule.numbered] : null,
+              numbered: rule.numbered,
               withoutSpace: rule.numbered ? (NUMBERED_WITHOUT_SPACE[rule.numbered] ?? null) : null,
             }))
             .filter((rule) => rule.text !== null || rule.mark !== null)
-          let unmatched = 0
           const withoutSpace = []
+          // lines a rule starts like but leaves out on purpose, by kind, the first one quoted
+          const skipped = {}
+          const skip = (kind, head) => {
+            const found = skipped[kind] ?? { count: 0, first: head.slice(0, MAX_STARTS_WITH) }
+            found.count += 1
+            skipped[kind] = found
+          }
           const sections = doc.getSectionCount()
           for (let sec = 0; sec < sections; sec++) {
             const paragraphs = doc.getParagraphCount(sec)
@@ -9630,10 +9812,19 @@ export const agentPlugin = {
               )
               if (rule) take(rule.index, { sec, para }, key)
               else if (!taken.has(key)) {
-                unmatched += 1
                 if (starts.some((candidate) => candidate.withoutSpace?.test(head))) {
                   withoutSpace.push(head.slice(0, MAX_STARTS_WITH))
                 }
+                const kind =
+                  starts
+                    .map((candidate) =>
+                      candidate.text !== null ? markSkipOf(head, candidate.text) : null,
+                    )
+                    .find(Boolean) ??
+                  (starts.some((candidate) => candidate.numbered === '1.') && DATE_START.test(head)
+                    ? 'date'
+                    : null)
+                if (kind) skip(kind, head)
               }
               if (targets.length > MAX_STYLED_PARAGRAPHS) {
                 return {
@@ -9642,7 +9833,7 @@ export const agentPlugin = {
               }
             }
           }
-          return { targets, counts, unmatched, withoutSpace }
+          return { targets, counts, withoutSpace, skipped, byStart: starts.length > 0 }
         }
         const refusal = host.read((doc) => plan(doc).refusal ?? null)
         if (refusal) return refusal
@@ -9699,7 +9890,7 @@ export const agentPlugin = {
                   hangByMark: style.look?.paragraph?.hangByMark === true,
                 })
               }
-              const { targets, counts, unmatched, withoutSpace } = plan(doc)
+              const { targets, counts, withoutSpace, skipped, byStart } = plan(doc)
               if (!targets) throw fail('CHANGED', 'the document changed mid-call')
               let keptOwnLook = 0
               const marks = []
@@ -9728,19 +9919,22 @@ export const agentPlugin = {
                 }
                 marks.push(box.place(k, length))
               }
-              let hungApart = 0
-              let unmeasured = 0
+              let hang = null
               for (const { id, hangByMark } of looks.values()) {
                 if (!hangByMark) continue
                 const items = hung.get(id) ?? []
                 const named = new Set(items.map(([box, k]) => JSON.stringify(box.place(k, 0))))
-                for (const item of bodyParagraphsOfStyle(doc, id)) {
+                for (const item of paragraphsOfStyle(doc, id)) {
                   if (!named.has(JSON.stringify(item[0].place(item[1], 0)))) items.push(item)
                 }
                 const result = hangByMarks(doc, items, id)
-                hungApart += result.apart
-                unmeasured += result.unmeasured
+                hang = hang
+                  ? Object.fromEntries(
+                      Object.entries(hang).map(([key, n]) => [key, n + result[key]]),
+                    )
+                  : result
               }
+              const unmatched = byStart ? defaultStyleParagraphs(doc) : 0
               mustKeep(before, objectsOf(doc))
               return {
                 ok: true,
@@ -9748,10 +9942,10 @@ export const agentPlugin = {
                 changed: changed.length,
                 madeStyles: made,
                 changedStyles: changed,
-                unmatched,
+                ...(unmatched > 0 ? { unmatched } : {}),
                 ...(withoutSpace.length > 0 ? { withoutSpace } : {}),
-                ...(hungApart > 0 ? { hungApart } : {}),
-                ...(unmeasured > 0 ? { unmeasured } : {}),
+                ...(Object.keys(skipped).length > 0 ? { skipped } : {}),
+                ...(hang ? { hang } : {}),
                 paragraphs: targets.length,
                 rules: wanted.rules.map((rule, index) => ({
                   style: rule.style,
@@ -10012,21 +10206,35 @@ export const agentPlugin = {
 
       /**
        * What the context tells the model about the document's shape: its pages, the paper
-       * and columns its first section starts with, and whether all of its body text is in
-       * the default look (plainBody).
+       * and columns its first section starts with, the later sections whose paper differs,
+       * and which of its words are in the default look (plainLookOf).
        */
       documentShape: guarded(() =>
         host.read((doc) => {
-          const setup = pageSetupOf(doc, 0)
+          const paperOf = (sec) => {
+            const setup = pageSetupOf(doc, sec)
+            return {
+              paper: setup.paper ?? null,
+              width: setup.width,
+              height: setup.height,
+              orientation: setup.orientation,
+            }
+          }
+          const first = paperOf(0)
+          const otherPapers = []
+          for (let sec = 1; sec < doc.getSectionCount(); sec++) {
+            const other = paperOf(sec)
+            if (JSON.stringify(other) !== JSON.stringify(first)) {
+              otherPapers.push({ section: sec + 1, ...other })
+            }
+          }
           return {
             pages: doc.pageCount(),
-            paper: setup.paper ?? null,
-            width: setup.width,
-            height: setup.height,
-            orientation: setup.orientation,
+            ...first,
+            ...(otherPapers.length > 0 ? { otherPapers } : {}),
             columns: columnsOf(doc, 0).count,
             ...(columnsChangeWithin(doc) ? { columnsChangeWithin: true } : {}),
-            plain: plainBody(doc),
+            plain: plainLookOf(doc),
           }
         }),
       ),
@@ -10294,7 +10502,7 @@ export const agentPlugin = {
        */
       resizePicture: guarded((number, spec, options) => {
         if (!Number.isInteger(number) || number < 1) {
-          throw fail('BAD_ARGUMENT', 'picture must be a positive integer from listPictures')
+          throw fail('BAD_ARGUMENT', 'picture must be a positive integer from list_pictures')
         }
         const mm = spec?.widthMm
         const { min, max } = PICTURE_WIDTH_MM
@@ -11644,12 +11852,12 @@ export const agentPlugin = {
                 if (paragraph) box.formatParagraph(k, paragraph)
                 if (chars && segment.length > 0) box.formatChars(k, segment.offset, end, chars)
               })
-              const { unmeasured } = spec.paragraph?.hangByMark
+              const hang = spec.paragraph?.hangByMark
                 ? hangByMarks(
                     doc,
                     boxes.map(({ box, k }) => [box, k, null]),
                   )
-                : { unmeasured: 0 }
+                : null
               mustKeep(before, objectsOf(doc))
               const { text: _text, ...place } = segments[0]
               return {
@@ -11657,7 +11865,7 @@ export const agentPlugin = {
                 count: segments.length,
                 place,
                 ...(keptOwnLook > 0 ? { keptOwnLook } : {}),
-                ...(unmeasured > 0 ? { unmeasured } : {}),
+                ...(hang ? { hang } : {}),
               }
             },
             options,
@@ -12380,7 +12588,7 @@ export const agentPlugin = {
                 if (chars && length > 0) box.formatChars(para, 0, length, chars)
                 marks.push(box.place(para, length))
               }
-              const { unmeasured } = spec.paragraph?.hangByMark
+              const hang = spec.paragraph?.hangByMark
                 ? hangByMarks(
                     doc,
                     group.places.map(({ sec, para }) => [
@@ -12389,7 +12597,7 @@ export const agentPlugin = {
                       null,
                     ]),
                   )
-                : { unmeasured: 0 }
+                : null
               mustKeep(before, objectsOf(doc))
               return {
                 ok: true,
@@ -12397,7 +12605,7 @@ export const agentPlugin = {
                 place: marks[0],
                 marks,
                 ...(keptOwnLook > 0 ? { keptOwnLook } : {}),
-                ...(unmeasured > 0 ? { unmeasured } : {}),
+                ...(hang ? { hang } : {}),
               }
             },
             options,

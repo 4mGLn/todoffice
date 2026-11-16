@@ -204,14 +204,21 @@ export type AgentStyleParagraphsResult =
       changed: number
       madeStyles: string[]
       changedStyles: string[]
-      /** body paragraphs with words that no rule named */
-      unmatched: number
+      /**
+       * with rules by startsWith or numbered: body paragraphs with words still in the default
+       * paragraph style after the call, when there are any
+       */
+      unmatched?: number
       /** the start of lines a numbered rule left out only for the space missing after the mark */
       withoutSpace?: string[]
-      /** paragraphs given an indent of their own: their mark is wider or narrower than the style's */
-      hungApart?: number
-      /** paragraphs to hang by their mark whose first line could not be measured: indent unchanged */
-      unmeasured?: number
+      /**
+       * lines a rule starts like but leaves out on purpose, by kind: a placeholder (○○), a cut
+       * line, a date (11. 12.(목)); how many and the start of the first
+       */
+      skipped?: Partial<
+        Record<'placeholder' | 'cutLine' | 'date', { count: number; first: string }>
+      >
+      hang?: AgentHangOutcome
       /** paragraphs given a style */
       paragraphs: number
       /** how many paragraphs each rule gave its style to, in the order of the rules */
@@ -693,10 +700,7 @@ export type AgentStyleResult =
       ok: true
       name: string
       kind: AgentStyleKind
-      /** with indent "mark": paragraphs whose mark is of another width than the style's, given their own */
-      hungApart?: number
-      /** with indent "mark": paragraphs whose first line could not be measured */
-      unmeasured?: number
+      hang?: AgentHangOutcome
     }
   /** another style already has the name */
   | { ok: false; reason: 'style_exists' }
@@ -777,8 +781,7 @@ export type AgentFormatParagraphResult =
       place: AgentPlace
       /** 1 when the paragraph took the style's name but kept its own look (as in formatSelection) */
       keptOwnLook?: number
-      /** 1 when indent "mark" could not measure the paragraph's first line: its indent is unchanged */
-      unmeasured?: number
+      hang?: AgentHangOutcome
     }
   | AgentPlaceRefusal
   | AgentNoSuchStyle
@@ -1004,8 +1007,7 @@ export type AgentFormatSelectionResult =
        * paragraph's own paragraph formatting whole when it differs from its former style's
        */
       keptOwnLook?: number
-      /** paragraphs indent "mark" could not measure: their indent is unchanged */
-      unmeasured?: number
+      hang?: AgentHangOutcome
     }
   | { ok: false; reason: 'changed' | 'unsupported_place' }
   | { ok: false; reason: 'has_objects'; count: number }
@@ -1216,20 +1218,43 @@ export type AgentNoteSettingsResult =
   | { ok: false; reason: 'unsupported' }
   | AgentMemoRemovalRefusal
 
-/** The shape of a document as the context tells it, its first section's paper and columns. */
-export interface AgentDocumentShape {
-  pages: number
+/** A section's paper as the context names it. */
+export interface AgentPaper {
   /** A3, A4, … when the paper is one of the named sizes */
   paper: string | null
   /** the paper, portrait, in millimetres */
   width: number
   height: number
   orientation: 'portrait' | 'landscape'
+}
+
+/** The shape of a document as the context tells it, its first section's paper and columns. */
+export interface AgentDocumentShape extends AgentPaper {
+  pages: number
+  /** later sections (numbered from 1) whose paper differs from the first section's */
+  otherPapers?: (AgentPaper & { section: number })[]
   columns: number
   /** a later part of the document sets other columns */
   columnsChangeWithin?: true
-  /** every body paragraph with words is plain 바탕글, formatted nowhere */
-  plain: boolean
+  /**
+   * whether the words with text are plain 바탕글, formatted nowhere: in the body, and in the
+   * table cells (title boxes included; null without a table)
+   */
+  plain: { body: boolean; tables: boolean | null }
+}
+
+/**
+ * What indent "mark" did: paragraphs hung by their marks, those of them given an indent of
+ * their own over their style (another width than most), and those it left with the indent
+ * they had: no mark at their start, a width it could not read, or a hang past 100 pt or
+ * half the line.
+ */
+export interface AgentHangOutcome {
+  hung: number
+  apart: number
+  noMark: number
+  unmeasured: number
+  tooWide: number
 }
 
 /** A section's page setup, in millimetres. */
@@ -1348,8 +1373,7 @@ export type AgentFormatLookResult =
       place: AgentPlace
       /** paragraphs that keep some formatting of their own over the new style */
       keptOwnLook?: number
-      /** paragraphs indent "mark" could not measure: their indent is unchanged */
-      unmeasured?: number
+      hang?: AgentHangOutcome
     }
   | {
       ok: false
