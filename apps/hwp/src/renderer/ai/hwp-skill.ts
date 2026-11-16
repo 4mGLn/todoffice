@@ -3078,14 +3078,17 @@ function hangNote(hang: AgentHangOutcome | undefined, lead = true): string {
   for (const [reason, said] of Object.entries(HANG_SKIPS_SAID)) {
     const count = hang[reason as keyof typeof HANG_SKIPS_SAID]
     if (count > 0) {
-      parts.push(
-        `${count} paragraph(s) ${said}, and get no indent of their own: one they had stays, else they follow their style's.`,
-      )
+      parts.push(`${count} paragraph(s) ${said}; their first-line indent stays as it was.`)
     }
   }
   if (hang.unread) {
     parts.push(
-      `${hang.unread} paragraph(s) in tables inside table cells were not looked at, because the editor cannot tell their style there; any of them in this style follows its indent.`,
+      `${hang.unread} paragraph(s) in tables inside table cells were not looked at, because the editor cannot tell their style there; their first-line indent stays as it was.`,
+    )
+  }
+  if (hang.kept) {
+    parts.push(
+      `${hang.kept} paragraph(s) left unhung, empty ones included, were given the indent they had as their own, so the style's hang does not reach them.`,
     )
   }
   return parts.join(' ')

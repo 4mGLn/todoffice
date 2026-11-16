@@ -1287,6 +1287,11 @@ export interface AgentHangOutcome {
   outOfRange: number
   /** paragraphs in tables inside cells not looked at: the engine cannot tell their style */
   unread?: number
+  /**
+   * paragraphs left unhung, empty ones too, given the indent they had as their own so that
+   * the hang their style took does not reach them
+   */
+  kept?: number
 }
 
 /** A section's page setup, in millimetres. */

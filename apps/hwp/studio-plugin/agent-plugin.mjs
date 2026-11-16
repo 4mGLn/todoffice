@@ -1543,6 +1543,7 @@ function containerOf(doc, hit) {
       props: (k) => parse(doc.getParaPropertiesAt(sec, k)),
       diag: (k) => parse(doc.measureWidthDiagnostic(sec, k)),
       line: (k, offset) => parse(doc.getLineInfo(sec, k, offset)),
+      setShape: (k, id) => expectOk(doc.setParaShapeId(sec, k, id), 'format the paragraph'),
       objectBefore: (k, end) => bodyObjectBefore(doc, sec, k, end),
       // the width the engine sets the paragraph's first line in: its column less its margins
       columnPt: (k) =>
@@ -1568,6 +1569,8 @@ function containerOf(doc, hit) {
     charShapeAt: (k, offset) =>
       parse(doc.getCellCharPropertiesAtByPath(sec, para, at(k), offset)).charShapeId,
     props: (k) => parse(doc.getCellParaPropertiesAtByPath(sec, para, at(k))),
+    setShape: (k, id) =>
+      expectOk(doc.setCellParaShapeIdByPath(sec, para, at(k), id), 'format the paragraph'),
     // the engine names the objects of a body paragraph only; of a cell paragraph, its fields
     objectBefore: (k, end) => {
       for (let offset = 0; offset < end; offset++) {
@@ -2340,6 +2343,7 @@ const HANG_SKIPS = ['noMark', 'alignment', 'object', 'split', 'tab', 'noSpace', 
  */
 function measureHangs(items) {
   const measured = []
+  const left = []
   const outcome = Object.fromEntries(HANG_SKIPS.map((reason) => [reason, 0]))
   const samples = { exact: new Map(), estimated: new Map() }
   // right, centred, spread and split lines move or widen their spaces, even on the last line
@@ -2354,23 +2358,44 @@ function measureHangs(items) {
   }
   for (const [box, k, rule] of items) {
     const found = markWidthOf(box, k, rule, samples)
-    if (found.skip === 'empty') continue
-    if (found.skip) outcome[found.skip] += 1
-    else measured.push({ box, k, width: found.width })
+    if (found.width === undefined) left.push([box, k])
+    if (found.skip && found.skip !== 'empty') outcome[found.skip] += 1
+    else if (!found.skip) measured.push({ box, k, width: found.width })
   }
-  return { measured, outcome }
+  return { measured, outcome, left }
+}
+
+/**
+ * Give each of `items` (`[box, k]`) whose first-line indent the style change `change` moves
+ * the paragraph shape it had before, as a shape of its own: a hang the style takes for the
+ * lines with a mark does not reach a paragraph indent "mark" did not hang. Returns how many.
+ */
+function keepingIndents(items, change) {
+  const before = items.map(([box, k]) => ({ box, k, ...box.props(k) }))
+  change()
+  let kept = 0
+  for (const { box, k, indent, paraShapeId } of before) {
+    if (box.props(k).indent === indent) continue
+    box.setShape(k, paraShapeId)
+    kept += 1
+  }
+  return kept
 }
 
 /**
  * Hang paragraphs by their marks (`items` are `[box, k, rule]`): each paragraph's lines after
  * the first start where the words after its mark start. With `styleId` the style takes the
  * width most of them have, and only the others are given an indent of their own. A paragraph
- * markWidthOf gives no width is given no indent of its own. Returns how many were hung, how
- * many of those got one of their own under the style, and how many were left, by reason.
+ * markWidthOf gives no width keeps the indent it has (keepingIndents), an empty one too, as
+ * words typed there later are not a marked line; so do the paragraphs of the tables inside
+ * cells, whose style the engine cannot tell. Returns how many were hung,
+ * how many of those got one of their own under the style, how many were left, by reason, and
+ * how many of all those left were given the indent they had.
  */
 function hangByMarks(doc, items, styleId = null) {
-  const { measured, outcome } = measureHangs(items)
+  const { measured, outcome, left } = measureHangs(items)
   outcome.apart = 0
+  outcome.kept = 0
   let common = null
   if (styleId !== null && measured.length > 0) {
     const alike = (width) =>
@@ -2379,9 +2404,11 @@ function hangByMarks(doc, items, styleId = null) {
       alike(entry.width) > alike(best.width) ? entry : best,
     ).width
     const indent = -Math.round(common * PARA_UNITS_PER_PT)
-    if (!doc.updateStyleShapes(styleId, '{}', JSON.stringify({ indent }))) {
-      throw fail('ENGINE_REFUSED', 'the editor refused to change the style')
-    }
+    outcome.kept = keepingIndents([...left, ...nestedTableItems(doc)], () => {
+      if (!doc.updateStyleShapes(styleId, '{}', JSON.stringify({ indent }))) {
+        throw fail('ENGINE_REFUSED', 'the editor refused to change the style')
+      }
+    })
   }
   for (const { box, k, width } of measured) {
     if (common !== null && Math.abs(width - common) <= SAME_MARK_PT) continue
@@ -2436,11 +2463,12 @@ function paragraphsOfStyle(doc, styleId) {
 }
 
 /**
- * How many paragraphs with words the tables inside table cells hold: the engine cannot tell
- * their style, so indent "mark" reports them as unread instead of measuring them.
+ * The paragraphs the tables inside table cells hold, as `[box, k, words]` (`words`: it has
+ * some): the engine cannot tell their style, so indent "mark" reports those with words as
+ * unread instead of measuring them.
  */
-function nestedTableParagraphs(doc) {
-  let count = 0
+function nestedTableItems(doc) {
+  const items = []
   for (const table of tablesOf(doc).tables) {
     if (table.path.length < 2) continue
     for (let cell = 0; cell < table.cells; cell++) {
@@ -2448,14 +2476,18 @@ function nestedTableParagraphs(doc) {
       const paragraphs = doc.getCellParagraphCountByPath(table.sec, table.para, at(0))
       for (let k = 0; k < paragraphs; k++) {
         const length = doc.getCellParagraphLengthByPath(table.sec, table.para, at(k))
-        if (length > 0 && doc.getTextInCellByPath(table.sec, table.para, at(k), 0, length).trim()) {
-          count += 1
-        }
+        const words =
+          length > 0 && !!doc.getTextInCellByPath(table.sec, table.para, at(k), 0, length).trim()
+        const hit = { sec: table.sec, para: table.para, cellPath: cellAt(table.path, cell, k) }
+        items.push([containerOf(doc, hit), k, words])
       }
     }
   }
-  return count
+  return items
 }
+
+/** How many paragraphs with words the tables inside table cells hold (nestedTableItems). */
+const nestedTableParagraphs = (doc) => nestedTableItems(doc).filter((item) => item[2]).length
 
 /**
  * Whether the paragraph has formatting of its own that applyStyle will keep: its paragraph

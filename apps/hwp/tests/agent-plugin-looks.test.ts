@@ -1027,7 +1027,7 @@ describe('indent "mark"', () => {
     expect([indentOf(doc(), 0), indentOf(doc(), 1)]).toEqual(before)
   })
 
-  it('does not count paragraphs without a mark as hung apart from their style', () => {
+  it('does not count paragraphs without a mark as hung apart, and keeps their indent', () => {
     const { plugin, doc } = open(blank([`○ ${WRAPPING}`, `○ 둘 ${WRAPPING}`, `본문 ${WRAPPING}`]))
     plugin.createStyle({ name: '항목', format: { align: 'left' } })
     plugin.formatParagraph('본문', null, { style: '항목' })
@@ -1035,10 +1035,9 @@ describe('indent "mark"', () => {
       styles: [{ name: '항목', format: { size: 12, indent: 'mark' } }],
       apply: [{ style: '항목', startsWith: '○' }],
     })
-    expect(result).toMatchObject({ hang: { hung: 2, apart: 0, noMark: 1 } })
-    const shape = (para: number) =>
-      (JSON.parse(doc().getParaPropertiesAt(0, para)) as { paraShapeId: number }).paraShapeId
-    expect(shape(2)).toBe(shape(0))
+    expect(result).toMatchObject({ hang: { hung: 2, apart: 0, noMark: 1, kept: 1 } })
+    expect(indentOf(doc(), 0)).toBeLessThan(0)
+    expect(indentOf(doc(), 2)).toBe(0)
   })
 
   it('measures the paragraphs of a style in table cells too, and refuses a style no paragraph has', () => {
@@ -1343,6 +1342,28 @@ describe('indent "mark" on lines that keep their spaces', () => {
     expect(
       open(after).plugin.formatParagraph('누름틀 문단', null, { indent: 'mark' }),
     ).toMatchObject({ hang: { hung: 1, object: 0 } })
+  })
+
+  it('keeps the indent of the paragraphs it does not hang under a style that takes a hang', () => {
+    const lines = [
+      `○ 항목 ${WRAPPING}`,
+      `본문 산문 ${WRAPPING}`,
+      `본문 들여쓴 ${WRAPPING}`,
+      `○ 배분 ${WRAPPING}`,
+      `○ 둘째 항목 ${WRAPPING}`,
+    ]
+    const start = blank(lines)
+    start.applyParaFormat(0, 2, JSON.stringify({ indent: 2000 }))
+    start.applyParaFormat(0, 3, JSON.stringify({ alignment: 'distribute' }))
+    const { plugin, doc } = open(start)
+    const before = lines.map((_, para) => indentOf(doc(), para))
+    expect(plugin.editStyle('바탕글', { format: { indent: 'mark' } })).toMatchObject({
+      ok: true,
+      hang: { hung: 2, noMark: 2, alignment: 1, kept: 2 },
+    })
+    expect(indentOf(doc(), 0)).toBeLessThan(0)
+    for (const para of [1, 2, 3]) expect(indentOf(doc(), para), `${para}`).toBe(before[para])
+    expect(indentOf(doc(), 4)).toBe(indentOf(doc(), 0))
   })
 
   it('keeps a hang within half the column the paragraph stands in', () => {

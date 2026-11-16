@@ -3148,6 +3148,7 @@ describe('the look of a document', () => {
           noSpace: 0,
           outOfRange: 1,
           unread: 2,
+          kept: 3,
         },
         paragraphs: 3,
         rules: [
@@ -3186,6 +3187,9 @@ describe('the look of a document', () => {
     )
     expect(result.output).toContain('1 paragraph(s) are aligned right, centred or spread')
     expect(result.output).toContain(
+      '3 paragraph(s) left unhung, empty ones included, were given the indent they had as their own',
+    )
+    expect(result.output).toContain(
       '1 paragraph(s) have a field, its guide or another object before or inside the mark',
     )
     expect(result.output).toContain(
@@ -3214,7 +3218,7 @@ describe('the look of a document', () => {
     expect(result.mutated).toBeFalsy()
     expect(result.isError).toBeFalsy()
     expect(result.output).toBe(
-      'Nothing was changed: no paragraph of the style "항목" could be hung by its mark. 2 paragraph(s) are aligned right, centred or spread, where line 2 is not set under the words, and get no indent of their own: one they had stays, else they follow their style\'s.',
+      'Nothing was changed: no paragraph of the style "항목" could be hung by its mark. 2 paragraph(s) are aligned right, centred or spread, where line 2 is not set under the words; their first-line indent stays as it was.',
     )
     expect(changes).toEqual([])
   })
