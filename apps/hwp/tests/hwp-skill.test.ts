@@ -3799,7 +3799,7 @@ describe('the look of a document', () => {
     })
     await deep.refreshContext()
     expect(deep.skill.buildContext!()).toContain(
-      'Look: all text is in the default look (바탕글, nothing formatted); some tables inside table cells were not read.',
+      'Look: all text is in the default look (바탕글, nothing formatted); tables inside table cells may not all have been read.',
     )
     const unread = setup({ documentShape: vi.fn(async () => Promise.reject(new Error('gone'))) })
     await unread.refreshContext()

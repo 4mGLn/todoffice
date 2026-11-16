@@ -4626,12 +4626,14 @@ const tableKey = (sec, para, path) =>
  * Every table of the document in reading order, a table inside a cell right after the table
  * it sits in. The engine lists the objects of a body paragraph but not those of a cell
  * paragraph, so a table inside a cell is found by asking for it; `partial` says the budget
- * for that ran out and tables inside cells may be missing from the end of the list. Tables
+ * for that ran out before every cell paragraph was asked, so tables inside cells may be
+ * missing from the end of the list. Tables
  * are followed `depth` deep, MAX_TABLE_DEPTH unless asked for more.
  */
 function tablesOf(doc, depth = MAX_TABLE_DEPTH) {
   const tables = []
   let lookups = MAX_NESTED_LOOKUPS
+  let cut = false
   const dimensions = (sec, para, path) => {
     try {
       return parse(doc.getTableDimensionsByPath(sec, para, JSON.stringify(path)))
@@ -4652,13 +4654,17 @@ function tablesOf(doc, depth = MAX_TABLE_DEPTH) {
       parent,
     })
     if (level >= depth) return
-    for (let cell = 0; cell < dims.cellCount && lookups > 0; cell++) {
+    for (let cell = 0; cell < dims.cellCount && !cut; cell++) {
       const paragraphs = doc.getCellParagraphCountByPath(
         sec,
         para,
         JSON.stringify(cellAt(path, cell, 0)),
       )
-      for (let k = 0; k < paragraphs && lookups > 0; k++) {
+      for (let k = 0; k < paragraphs && !cut; k++) {
+        if (lookups <= 0) {
+          cut = true
+          break
+        }
         for (let inner = 0; inner < NESTED_CONTROLS_TRIED; inner++) {
           lookups -= 1
           const innerPath = [
@@ -4683,7 +4689,7 @@ function tablesOf(doc, depth = MAX_TABLE_DEPTH) {
       }
     }
   }
-  return { tables, partial: lookups <= 0 }
+  return { tables, partial: cut }
 }
 
 function holdsTable(doc, sec, para) {

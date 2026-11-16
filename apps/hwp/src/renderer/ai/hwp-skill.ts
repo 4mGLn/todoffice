@@ -489,7 +489,7 @@ function documentShapeLines(shape: AgentDocumentShape): string[] {
         : tables === false
           ? 'the body text and the text in tables have a look of their own (styles or formatting)'
           : 'the body text has a look of its own (styles or formatting)'
-  const unread = shape.plain.unread ? '; some tables inside table cells were not read' : ''
+  const unread = shape.plain.unread ? '; tables inside table cells may not all have been read' : ''
   return [
     `Pages: ${shape.pages} (paper ${paperOf(shape)}, ${shape.columns} column(s)${later}${others}).`,
     `Look: ${look}${unread}.`,

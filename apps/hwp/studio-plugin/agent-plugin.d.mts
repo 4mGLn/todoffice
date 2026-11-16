@@ -1261,7 +1261,7 @@ export interface AgentDocumentShape extends AgentPaper {
   /**
    * whether the text is plain 바탕글, formatted nowhere: in the body, and in the table cells
    * (title boxes included; null without a table); `unread` when those read are plain but
-   * tables inside cells were left unread by the budget for finding them
+   * the budget for finding tables inside cells ran out before the last cell
    */
   plain: { body: boolean; tables: boolean | null; unread?: boolean }
 }
