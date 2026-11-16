@@ -6029,7 +6029,11 @@ function headTablesOf(doc) {
   const controls = parse(doc.getControlTextPositions(0, 0)).length
   for (let control = 0; control < controls; control++) {
     if (!placementOf(doc, 0, 0, control).across) continue
-    heads.push({ control, key: `${page}${headKeyOf(doc, control)}` })
+    try {
+      heads.push({ control, key: `${page}${headKeyOf(doc, control)}` })
+    } catch {
+      // a table whose cells cannot be read is left as it is, and no change waits on it
+    }
   }
   return heads
 }
