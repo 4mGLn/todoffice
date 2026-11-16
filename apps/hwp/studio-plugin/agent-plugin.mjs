@@ -6060,9 +6060,10 @@ function headKeyOf(doc, control) {
 /**
  * A head table as it is laid out, read without changing it: each cell on its first page
  * with its row, the rows it spans, its stored height and the height its text needs (from
- * where its first line starts to where its last one ends, and its padding; null where the
- * caret cannot stand in it), and the drawn height of each row (a row drawn only by merged
- * cells has none). Null when the table has no layout.
+ * where its first line starts to where its last one ends, the space before its first
+ * paragraph, and its padding; null where the caret cannot stand in it), and the drawn
+ * height of each row (a row drawn only by merged cells has none). Null when the table has
+ * no layout.
  */
 function measureHead(doc, control) {
   let boxes
@@ -6109,7 +6110,12 @@ function textNeedOf(doc, control, cell, props, page) {
     const end = caret(last, doc.getCellParagraphLength(0, 0, control, cell, last))
     if (top.pageIndex !== end.pageIndex) return null
     const lines = Math.round((end.y + end.height - top.y) * UNITS_PER_PX)
-    return lines + props.paddingTop + props.paddingBottom
+    // the space before its first paragraph lies above its lines and the engine grows the
+    // row for it (not for the space after its last); paragraph spacing reads back in pixels
+    // of twice the engine's units
+    const before = Number(parse(doc.getCellParaPropertiesAt(0, 0, control, cell, 0)).spacingBefore)
+    const space = Number.isFinite(before) ? Math.round((before * UNITS_PER_PX) / 2) : 0
+    return lines + space + props.paddingTop + props.paddingBottom
   } catch {
     return null
   }

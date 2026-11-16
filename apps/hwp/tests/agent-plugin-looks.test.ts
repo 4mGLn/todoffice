@@ -3516,6 +3516,30 @@ describe('a test paper in two columns', () => {
     expect(rowHeights(doc())).toEqual(raised)
   })
 
+  it('counts the spacing of the paragraphs of a head cell in what its text needs', () => {
+    const { plugin, doc } = raisedHead()
+    expect(plugin.formatParagraph('첫째 줄', null, { spacingBefore: 6 })).not.toHaveProperty(
+      'tallerRows',
+    )
+    expect(plugin.formatParagraph('다섯째 줄', null, { spacingAfter: 6 })).not.toHaveProperty(
+      'tallerRows',
+    )
+    const spaced = rowHeights(doc())[1]!
+    const { foot, starts } = columnStarts(doc())
+    for (const start of starts) expect(start).toBeGreaterThanOrEqual(foot)
+    expect(
+      plugin.formatCells(
+        1,
+        { fromRow: 2, fromCol: 1, toRow: 2, toCol: 8 },
+        { heightMm: (spaced * 25.4) / 7200 },
+      ),
+    ).not.toHaveProperty('overflowingRows')
+    expect(plugin.fillCells(1, [{ row: 2, col: 5, text: '계' }], true)).toMatchObject({
+      ok: true,
+      tallerRows: [{ table: 1, row: 2 }],
+    })
+  })
+
   it('says a head row overflows only when its text runs past it once the change is done', () => {
     const tall = raisedHead()
     expect(
