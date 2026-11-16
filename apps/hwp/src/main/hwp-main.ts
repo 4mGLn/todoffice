@@ -33,6 +33,7 @@ import { badJob, printJobToPdf, printJobToPrinter } from './print-document'
 import { registerHwpPrintLayout } from './print-layout'
 import { tm } from './dialog-strings'
 import { fieldKindsOf } from './field-kinds'
+import { fontFileReadsOfProcess } from './font-file-reads'
 import type { FieldKinds } from './field-kinds'
 import { lostMemoCountOf } from './memos'
 import {
@@ -613,6 +614,10 @@ function registerHwpIpc(): void {
   })
   ipcMain.handle(HWP_CHANNELS.memoModalState, () => memoModalByWc.size > 0)
 
+  // the editor's font detection reads within this view's own open-file limit (font-file-reads.ts)
+  ipcMain.handle(HWP_CHANNELS.fontFileReads, (e) =>
+    fontFileReadsOfProcess(e.sender.getOSProcessId()),
+  )
   ipcMain.handle(HWP_CHANNELS.consumePending, (e) => {
     noteHwpPathConsumed(e.sender.id)
     return openPathByWc.get(e.sender.id) ?? null
