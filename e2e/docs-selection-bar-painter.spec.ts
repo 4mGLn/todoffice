@@ -83,23 +83,29 @@ async function setBold(editor: Page, word: string): Promise<void> {
       if (i >= 0) at = pos + i
       return at < 0
     })
-    // End on a focused caret at the document start, away from the word. A
-    // range set by script on a never-focused editor stays out of the DOM, so
-    // the click that first focuses the editor races ProseMirror's 20 ms focus
-    // timer, which writes the stale range back over the clicked caret when
-    // the click's selectionchange is read late (seen on slow CI runners).
+    // End on a caret at the document start, away from the word. A range set by
+    // script on a never-focused editor stays out of the DOM, so the click that
+    // first focuses the editor races ProseMirror's 20 ms focus timer, which
+    // writes the stale selection back over the clicked caret when the click's
+    // selectionchange is read late (seen on slow CI runners).
+    let start = -1
+    ed.state.doc.descendants((n: { isText: boolean }, pos: number) => {
+      if (start < 0 && n.isText) start = pos
+      return start < 0
+    })
     ed.chain()
       .setTextSelection({ from: at, to: at + w.length })
       .setMark('bold')
-      .focus('start')
+      .setTextSelection(start)
       .run()
   }, word)
-  // Tiptap focuses on the next animation frame
+  // Focus the editor with a real click on the first word: whichever side wins
+  // the focus race, the caret ends in that word, and every later click lands
+  // in a focused editor. (A scripted focus is not reported as focus on CI.)
+  const c = await wordCenter(editor, 'alpha')
+  await editor.mouse.click(c.x, c.y)
   await expect
-    .poll(async () => {
-      const s = await selection(editor)
-      return s.focused && s.text === ''
-    })
+    .poll(async () => (await selection(editor)).focused && (await caretInWord(editor, 'alpha')))
     .toBe(true)
 }
 
