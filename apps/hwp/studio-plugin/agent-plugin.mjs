@@ -2101,9 +2101,10 @@ const onOneLine = (a, b) =>
 
 /**
  * Note in `advances` the natural advance, in page pixels, of a space of each character shape
- * (by id) that no last line gave, from the runs of the first line of body paragraph k: the
- * engine's diagnostic gives a run's natural width, and justification widens only its spaces,
- * so the run less its characters as drawn, other than spaces, is its spaces' natural width.
+ * (by id) that `advances` does not hold yet, from the runs of the first line of body
+ * paragraph k: the engine's diagnostic gives a run's natural width, and justification widens
+ * only its spaces, so the run less its characters as drawn, other than spaces, is its spaces'
+ * natural width.
  * Only where the diagnostic's line is the paragraph's text as the carets count it, and only
  * from a run without a tab, which the diagnostic measures at a default width.
  */
@@ -2168,8 +2169,9 @@ const HANGING_ALIGNMENTS = new Set(['left', 'justify'])
  * `{ width }` in points to a tenth, the mark and the spaces round it as set without
  * justification, in the font and size the paragraph has now. A justified line widens its
  * spaces only, so the mark's other characters are read where they are drawn, and each space
- * is read on a last line, which is not widened, from a space of the same character shape:
- * `natural` holds those read on the last lines of the paragraphs measured with it.
+ * is given the natural advance of a space of the same character shape in `natural`, read on
+ * the last lines of the paragraphs measured with it, which are not widened, or from the
+ * natural widths of their first lines (firstLineSpaces).
  * Otherwise `{ skip }`, why it is not hung: `empty` (no words, not counted), `noMark`,
  * `alignment` (right, centre or spread: line 2 is not set under the words there), `split`
  * (the mark runs over two lines), `tab` (a tab whose stop moves with the first line's indent or with a
