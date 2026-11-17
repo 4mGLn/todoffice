@@ -33,7 +33,7 @@
 
 - 고친 곳은 다음과 같다.
   - `vendor/rhwp-core`(패치 0055, `0.9.0-ieum.32`)
-  - `apps/hwp/scripts/rhwp-patches.mjs`(빌드 패치 (20) 묶음)
+  - `apps/hwp/scripts/rhwp-patches.mjs`(빌드 패치 (21) 묶음)
   - `apps/hwp/studio-plugin/hancom-keys.mjs`(`nestedTableCommand`, 셀 안에 표로 넣기)
   - `apps/hwp/studio-plugin/agent-plugin.mjs`(`tableCalls`), `apps/hwp/src/renderer/ai/hwp-skill.ts`
   - `docs/contracts.md`, `skills/ieumoffice/SKILL.md`

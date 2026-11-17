@@ -173,11 +173,25 @@
  *   like the page. The aliases keep their place and the list is weighed by its first real
  *   name. Upstream had the same defect (edwardkim/rhwp#9077) and fixed it on devel the same
  *   way (PR #9093); the patch is dropped with the release that has that fix.
+ *
+ * studio-note-text, studio-note-typing, studio-submode-symbols
+ *   While a footnote or endnote is open the studio keeps the body caret where it was and
+ *   tracks the note's place apart. Its paste, copy and cut ignored that: a paste went into the
+ *   body at the note's mark, and Ctrl+C and Ctrl+X in the note copied nothing. Its 문자표
+ *   dialog put the symbol at the body caret too, and the note's keys let only undo, redo,
+ *   go-to and select-all through, so Ctrl+F10 did nothing there (2026-11-17 feedback). The
+ *   paste, copy and cut events ask studio-plugin/note-text.mjs first, the note's keys let
+ *   문자표 through, and the dialog hands its character to the module when a note, a header
+ *   or a footer is being edited. A click in a note leaves a selection anchor that nothing
+ *   cleared, so text typed after it read as selected; typing, composing and the note's keys
+ *   now ask the module first, which takes a real selection out (as typing over a selection
+ *   does) and drops an empty one.
  */
 
 import { CLIPBOARD_HTML_MODULE } from '../studio-plugin/clipboard-html.mjs'
 import { EASY_WORDS_COMMAND } from '../studio-plugin/agent-plugin.mjs'
 import { HANCOM_KEYS_MODULE, studioCommandIds } from '../studio-plugin/hancom-keys.mjs'
+import { NOTE_TEXT_MODULE } from '../studio-plugin/note-text.mjs'
 import { PC_FONTS_MODULE } from '../studio-plugin/pc-fonts.mjs'
 
 /** Must equal RENDERER_SCHEME in packages/electron-utils/src/renderer-scheme.ts. */
@@ -200,6 +214,9 @@ export { CLIPBOARD_HTML_MODULE }
 
 /** Module specifier the studio-pc-fonts patch imports; build-studio.mjs aliases it. */
 export { PC_FONTS_MODULE }
+
+/** Module specifier the studio-note-text patches import; build-studio.mjs aliases it. */
+export { NOTE_TEXT_MODULE }
 
 const PATCHES = {
   'sdk-scheme': {
@@ -1507,6 +1524,127 @@ const PATCHES = {
       },
     ],
   },
+  // Paste, copy and cut in a footnote or endnote being edited, and 문자표 from its keys
+  // (studio-plugin/note-text.mjs)
+  'studio-note-text': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-keyboard\.ts$/,
+    edits: [
+      {
+        find: "import * as _connector from './input-handler-connector';",
+        replace: [
+          "import * as _connector from './input-handler-connector';",
+          `import { ieumNoteCopy, ieumNoteCut, ieumNoteKey, ieumNotePaste } from '${NOTE_TEXT_MODULE}';`,
+        ].join('\n'),
+      },
+      // the note's keys let 문자표 (Ctrl+F10, Alt+F10) through as they do undo and redo
+      {
+        find: "  'edit:select-all',\n]);",
+        replace: "  'edit:select-all',\n  'insert:symbols',\n]);",
+      },
+      // Backspace and Delete take the note's selection out, Enter replaces it, a move leaves it
+      {
+        find: [
+          '  if (this.cursor.isInFootnote()) {',
+          '    if (dispatchSubmodeGlobalShortcut.call(this, e)) return;',
+        ].join('\n'),
+        replace: [
+          '  if (this.cursor.isInFootnote()) {',
+          '    if (dispatchSubmodeGlobalShortcut.call(this, e)) return;',
+          '    if (ieumNoteKey(this, e)) return;',
+        ].join('\n'),
+      },
+      {
+        find: [
+          'export function onCopy(this: any, e: ClipboardEvent): boolean {',
+          '  if (!this.active) return false;',
+        ].join('\n'),
+        replace: [
+          'export function onCopy(this: any, e: ClipboardEvent): boolean {',
+          '  if (!this.active) return false;',
+          '  if (ieumNoteCopy(this, e)) return true;',
+        ].join('\n'),
+      },
+      {
+        find: [
+          'export function onCut(this: any, e: ClipboardEvent): void {',
+          '  if (!this.active) return;',
+        ].join('\n'),
+        replace: [
+          'export function onCut(this: any, e: ClipboardEvent): void {',
+          '  if (!this.active) return;',
+          '  if (ieumNoteCut(this, e)) return;',
+        ].join('\n'),
+      },
+      {
+        find: '  // HF는 이번 이슈에서 rich clipboard round-trip을 만들지 않는다.',
+        replace: [
+          '  if (ieumNotePaste(this, e)) return;',
+          '  // HF는 이번 이슈에서 rich clipboard round-trip을 만들지 않는다.',
+        ].join('\n'),
+      },
+    ],
+  },
+  // typing or composing in a note replaces its selection, and drops the anchor a click left
+  'studio-note-typing': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]engine[\\/]input-handler-text\.ts$/,
+    edits: [
+      {
+        find: "import { normalizeTextNewlines } from '../core/text-newlines';",
+        replace: [
+          "import { normalizeTextNewlines } from '../core/text-newlines';",
+          `import { ieumNoteBeforeEdit } from '${NOTE_TEXT_MODULE}';`,
+        ].join('\n'),
+      },
+      {
+        find: '  // 선택 영역이 있으면 삭제 후 조합 시작',
+        replace: ['  ieumNoteBeforeEdit(this);', '  // 선택 영역이 있으면 삭제 후 조합 시작'].join(
+          '\n',
+        ),
+      },
+      {
+        find: ['  // 각주 편집 모드', '  if (this.cursor.isInFootnote()) {', '    try {'].join(
+          '\n',
+        ),
+        replace: [
+          '  // 각주 편집 모드',
+          '  if (this.cursor.isInFootnote()) {',
+          '    ieumNoteBeforeEdit(this);',
+          '    try {',
+        ].join('\n'),
+      },
+    ],
+  },
+  // 문자표 into the note, header or footer being edited instead of at the body caret
+  'studio-submode-symbols': {
+    file: /[\\/]rhwp-studio[\\/]src[\\/]ui[\\/]symbols-dialog\.ts$/,
+    edits: [
+      {
+        find: "import { InsertTextCommand } from '@/engine/command';",
+        replace: [
+          "import { InsertTextCommand } from '@/engine/command';",
+          `import { ieumInsertAtSubmodeCaret } from '${NOTE_TEXT_MODULE}';`,
+        ].join('\n'),
+      },
+      {
+        find: [
+          '    const pos = ih.getCursorPosition();',
+          '    ih.executeOperation({',
+          "      kind: 'command',",
+          '      command: new InsertTextCommand(pos, this.selectedChar),',
+          '    });',
+        ].join('\n'),
+        replace: [
+          '    if (!ieumInsertAtSubmodeCaret(ih, this.selectedChar)) {',
+          '      const pos = ih.getCursorPosition();',
+          '      ih.executeOperation({',
+          "        kind: 'command',",
+          '        command: new InsertTextCommand(pos, this.selectedChar),',
+          '      });',
+          '    }',
+        ].join('\n'),
+      },
+    ],
+  },
 }
 
 /** The patches the studio build applies, in order; the SDK's own is applied by the renderer builds. */
@@ -1548,6 +1686,9 @@ export const STUDIO_PATCHES = /** @type {const} */ ([
   'studio-memo-label-ko',
   'studio-memo-label-en',
   'studio-cell-block-paste',
+  'studio-note-text',
+  'studio-note-typing',
+  'studio-submode-symbols',
   'studio-pc-fonts',
   'studio-font-file-reads',
   'studio-missing-font-marks',
@@ -1920,6 +2061,50 @@ export const hancomHooks = [
 ]
 
 /**
+ * What studio-plugin/note-text.mjs uses of the studio, on the same terms as pluginHooks: the
+ * note's caret and selection, the engine's note calls, and the snapshot step that brings the
+ * caret back into the note on undo.
+ */
+export const noteTextHooks = [
+  {
+    file: 'src/engine/cursor.ts',
+    needles: [
+      'isInFootnote(): boolean',
+      'isInHeaderFooter(): boolean',
+      'get fnSectionIdx(): number',
+      'get fnParaIdx(): number',
+      'get fnControlIdx(): number',
+      'get fnInnerParaIdx(): number',
+      'get fnCharOffset(): number',
+      'get fnFootnoteIndex(): number',
+      'get fnPageNum(): number',
+      'getFootnoteSelectionOrdered(): {',
+      'clearSelection(): void',
+      'getPosition(): DocumentPosition',
+    ],
+  },
+  {
+    file: 'src/core/wasm-bridge.ts',
+    needles: [
+      'getFootnoteInfo(sec: number, para: number, controlIdx: number)',
+      'insertTextInFootnote(sec: number, para: number, controlIdx: number, fnParaIdx: number, charOffset: number, text: string)',
+      'deleteTextInFootnote(sec: number, para: number, controlIdx: number, fnParaIdx: number, charOffset: number, count: number)',
+      'splitParagraphInFootnote(sec: number, para: number, controlIdx: number, fnParaIdx: number, charOffset: number',
+      'mergeParagraphInFootnote(sec: number, para: number, controlIdx: number, fnParaIdx: number)',
+    ],
+  },
+  {
+    file: 'src/engine/input-handler.ts',
+    needles: [
+      'executeOperation(desc: OperationDescriptor): void',
+      'private replaceHeaderFooterSelection(',
+      'isFormMode(): boolean',
+      "if (ctx?.mode === 'footnote') {",
+    ],
+  },
+]
+
+/**
  * The studio commands the Hangul keys run that the studio's command sources no longer name;
  * `sources` is the text of every file in src/command/commands.
  */
@@ -1934,7 +2119,7 @@ export function missingHancomCommands(sources) {
 /** The hooks a studio source tree lacks; `read` gives the text of one of its files, or null. */
 export function missingPluginHooks(read) {
   const missing = []
-  for (const { file, needles } of [...pluginHooks, ...hancomHooks]) {
+  for (const { file, needles } of [...pluginHooks, ...hancomHooks, ...noteTextHooks]) {
     const text = read(file)
     for (const needle of needles) {
       if (text === null || !text.includes(needle)) missing.push(`${file}: ${needle}`)

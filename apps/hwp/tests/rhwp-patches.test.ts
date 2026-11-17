@@ -15,6 +15,7 @@ import {
   hancomHooks,
   missingHancomCommands,
   missingPluginHooks,
+  noteTextHooks,
   patchTargets,
   pluginHooks,
 } from '../scripts/rhwp-patches.mjs'
@@ -103,7 +104,7 @@ describe('a patch whose text is gone', () => {
 
 describe('what the plugin reaches into the studio for', () => {
   const complete = (file: string) => {
-    const needles = [...pluginHooks, ...hancomHooks]
+    const needles = [...pluginHooks, ...hancomHooks, ...noteTextHooks]
       .filter((hook) => hook.file === file)
       .flatMap((hook) => hook.needles)
     return needles.length > 0 ? needles.join('\n') : null
@@ -754,6 +755,7 @@ describe('the studio source the build fetched', () => {
     'src/command/commands/table.ts',
     'src/command/shortcut-map.ts',
     'src/ui/table-cell-props-dialog.ts',
+    'src/ui/symbols-dialog.ts',
     'src/ui/toolbar.ts',
     'src/command/registry.ts',
     'src/i18n/locales/ko.ts',
