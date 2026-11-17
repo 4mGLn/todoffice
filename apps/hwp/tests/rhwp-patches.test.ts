@@ -742,6 +742,7 @@ describe('the studio source the build fetched', () => {
     'src/embed/protocol.ts',
     'src/core/wasm-bridge.ts',
     'src/core/local-fonts.ts',
+    'src/engine/cursor.ts',
     'src/engine/input-handler.ts',
     'src/engine/input-handler-keyboard.ts',
     'src/engine/input-handler-text.ts',
