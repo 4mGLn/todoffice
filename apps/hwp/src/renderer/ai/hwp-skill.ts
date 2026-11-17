@@ -2348,13 +2348,13 @@ function pageMapLines(map: AgentPageMap): string[] {
         line.column === undefined
           ? 'on a new page with insert_break (kind page'
           : 'in the next column with insert_break (kind column'
-      return `${named} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}, and the empty line between keeps them apart in Hancom Hangul too${line.kept ? ', though it keeps with the next line' : ''}: to print it with ${after}, start it ${anew}, find with its words).`
+      return `${named} is left alone at the foot${where} in this layout, ${after} starts on page ${line.nextPage}, and an empty line stands between them${line.kept ? ': it keeps with the next line, which is that empty line' : ', so keeping it with the next line would keep it with that empty line'}. To print it with ${after}, start it ${anew}, find with its words).`
     }
     if (line.kept) {
-      return `${named} stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with ${after} on page ${line.nextPage}: leave it.`
+      return `${named} stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so it does not stand alone in print: leave it.`
     }
     const style = line.style || 'its style'
-    return `${named} is left alone at the foot${where}, ${after} starts on page ${line.nextPage}: keep this line with ${after} by giving it a style of its own with style_paragraphs (a new name, ${line.style ? `based_on ${line.style}, ` : ''}keep_with_next true, applied with find to this line only). Do not give ${style} itself keep_with_next: every paragraph of that style would keep with the next one.`
+    return `${named} is left alone at the foot${where} in this layout, ${after} starts on page ${line.nextPage}: keep this line with ${after} by giving it a style of its own with style_paragraphs (a new name, ${line.style ? `based_on ${line.style}, ` : ''}keep_with_next true, applied with find to this line only). Do not give ${style} itself keep_with_next: every paragraph of that style would keep with the next one.`
   })
   const below = map.pages.flatMap((page) =>
     'pastFoot' in page && page.pastFoot

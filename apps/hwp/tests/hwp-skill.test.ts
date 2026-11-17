@@ -5971,9 +5971,9 @@ describe('what an edit did to the pages and tables, in its answer', () => {
     expect(JSON.parse(lines[0]!)).toMatchObject({ pages: 3 })
     expect(JSON.parse(lines[0]!)).not.toHaveProperty('map')
     expect(lines.slice(1)).toEqual([
-      'Page 1: the caption “<표 1> 이용자 수” (style 바탕글) is left alone at the foot, its table starts on page 2: keep this line with its table by giving it a style of its own with style_paragraphs (a new name, based_on 바탕글, keep_with_next true, applied with find to this line only). Do not give 바탕글 itself keep_with_next: every paragraph of that style would keep with the next one.',
-      'Page 2: the line “□ 소요 예산” (style 소제목) stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so Hancom Hangul prints it with the text after it on page 3: leave it.',
-      'Page 2: the heading “□ 추진 배경” (style 소제목) is left alone at the foot of column 2, the text after it starts on page 3, and the empty line between keeps them apart in Hancom Hangul too, though it keeps with the next line: to print it with the text after it, start it in the next column with insert_break (kind column, find with its words).',
+      'Page 1: the caption “<표 1> 이용자 수” (style 바탕글) is left alone at the foot in this layout, its table starts on page 2: keep this line with its table by giving it a style of its own with style_paragraphs (a new name, based_on 바탕글, keep_with_next true, applied with find to this line only). Do not give 바탕글 itself keep_with_next: every paragraph of that style would keep with the next one.',
+      'Page 2: the line “□ 소요 예산” (style 소제목) stands alone at the foot in this layout, but it keeps with the next line (keep_with_next), so it does not stand alone in print: leave it.',
+      'Page 2: the heading “□ 추진 배경” (style 소제목) is left alone at the foot of column 2 in this layout, the text after it starts on page 3, and an empty line stands between them: it keeps with the next line, which is that empty line. To print it with the text after it, start it in the next column with insert_break (kind column, find with its words).',
       'Page 2: 4 line(s) of text lie below the foot of the page and are cut off in print.',
       'Table 2 runs over pages 2 to 3.',
       'Page 3 is empty.',
