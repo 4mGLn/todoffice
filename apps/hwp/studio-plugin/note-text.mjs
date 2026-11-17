@@ -64,11 +64,44 @@ function inNote(handler) {
   }
 }
 
-/** The note's selection when it holds anything, start before end. */
-function noteSelection(cursor) {
-  const ordered = cursor.getFootnoteSelectionOrdered?.() ?? null
+/** The number and the space after it at the head of a note's first paragraph. */
+const NOTE_NUMBER_CHARS = 2
+
+/**
+ * Where the text of the note's first paragraph starts. The places before it hold the note's
+ * automatic number; they are not text, and taking them out loses the number. A note without a
+ * number slot (its number typed as text by a document generator) is text from its first place.
+ * The AI's note tools read the note the same way (agent-plugin.mjs, notesOf).
+ */
+function noteTextStart(wasm, target) {
+  try {
+    const { sectionIdx: sec, paraIdx: para, controlIdx: ctrl } = target
+    if (wasm.getFootnoteInfo(sec, para, ctrl)?.numberSlot === -1) return 0
+    const edit = wasm.getNoteEditInfo?.(sec, para, ctrl)
+    return Number.isInteger(edit?.charOffset) ? edit.charOffset : NOTE_NUMBER_CHARS
+  } catch {
+    return NOTE_NUMBER_CHARS
+  }
+}
+
+/** A place moved off the note's number, to where its text starts. */
+function pastNumber(place, textStart) {
+  return place.fnParaIdx === 0 && place.charOffset < textStart
+    ? { fnParaIdx: 0, charOffset: textStart }
+    : place
+}
+
+/**
+ * The note's selection when it holds any text, start before end. A selection that reaches into
+ * the note's number (a whole first paragraph picked by a triple click, a drag from the number)
+ * starts after it.
+ */
+function noteSelection(handler) {
+  const ordered = handler.cursor.getFootnoteSelectionOrdered?.() ?? null
   if (!ordered) return null
-  const { start, end } = ordered
+  const textStart = noteTextStart(handler.wasm, noteTarget(handler.cursor))
+  const start = pastNumber(ordered.start, textStart)
+  const end = pastNumber(ordered.end, textStart)
   if (start.fnParaIdx === end.fnParaIdx && start.charOffset === end.charOffset) return null
   return { start, end }
 }
@@ -144,11 +177,11 @@ export function replaceNoteRange(wasm, target, start, end, text) {
  */
 function replaceNoteSelection(handler, text, operationType) {
   const cursor = handler.cursor
-  const selection = noteSelection(cursor)
+  const selection = noteSelection(handler)
   if (!selection && !text) return false
   const target = noteTarget(cursor)
   const caret = { fnParaIdx: cursor.fnInnerParaIdx, charOffset: cursor.fnCharOffset }
-  const start = selection?.start ?? caret
+  const start = selection?.start ?? pastNumber(caret, noteTextStart(handler.wasm, target))
   const bodyPosition = cursor.getPosition()
   let after = null
   cursor.clearSelection()
@@ -188,7 +221,7 @@ export function ieumNotePaste(handler, event) {
 /** The note's selected text, or null when nothing in a note is selected. */
 function selectedNoteText(handler) {
   if (!inNote(handler)) return null
-  const selection = noteSelection(handler.cursor)
+  const selection = noteSelection(handler)
   if (!selection) return null
   try {
     const target = noteTarget(handler.cursor)
@@ -226,8 +259,7 @@ export function ieumNoteCut(handler, event) {
 export function ieumNoteBeforeEdit(handler) {
   if (!inNote(handler)) return
   try {
-    if (noteSelection(handler.cursor))
-      replaceNoteSelection(handler, '', 'deleteSelectionInFootnote')
+    if (noteSelection(handler)) replaceNoteSelection(handler, '', 'deleteSelectionInFootnote')
     else handler.cursor.clearSelection()
   } catch (error) {
     console.warn('[note-text] the note selection was not cleared:', error)
@@ -253,7 +285,7 @@ export function ieumNoteKey(handler, event) {
   if (!inNote(handler) || event.ctrlKey || event.metaKey || event.altKey) return false
   const key = event.key
   if (key === 'Backspace' || key === 'Delete') {
-    if (!noteSelection(handler.cursor)) {
+    if (!noteSelection(handler)) {
       handler.cursor.clearSelection()
       return false
     }

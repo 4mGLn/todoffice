@@ -57,6 +57,47 @@ async function noteTexts(frame: Frame): Promise<string[]> {
   })
 }
 
+/** Whether the first footnote still has its automatic number. */
+async function noteNumbered(frame: Frame): Promise<boolean> {
+  return frame.evaluate(async () => {
+    const studio = (window as unknown as { rhwpStudio: Studio }).rhwpStudio
+    await studio.plugins.load('ieum-agent')
+    const listed = (await studio.plugins.invoke('ieum-agent', 'listNotes', [])) as {
+      notes: { noAutoNumber?: true }[]
+    }
+    return listed.notes.length > 0 && listed.notes[0]!.noAutoNumber !== true
+  })
+}
+
+/** The first header paragraph's info, as the engine gives it. */
+async function headerInfo(frame: Frame): Promise<string> {
+  return frame.evaluate(() => {
+    const studio = (window as unknown as { rhwpStudio: Studio & { __hf?: boolean } }).rhwpStudio
+    if (!studio.__hf) {
+      studio.automation.registerCommand({
+        id: 'ext:e2e-hf',
+        label: 'E2E header',
+        execute(services) {
+          const s = services as {
+            wasm: { getHeaderFooterParaInfo(sec: number, h: boolean, a: number, p: number): string }
+            getInputHandler(): { cursor: { hfSectionIdx: number; hfApplyTo: number } }
+          }
+          const c = s.getInputHandler().cursor
+          ;(window as unknown as { __hf: string }).__hf = s.wasm.getHeaderFooterParaInfo(
+            c.hfSectionIdx,
+            true,
+            c.hfApplyTo,
+            0,
+          )
+        },
+      })
+      studio.__hf = true
+    }
+    studio.automation.execute('ext:e2e-hf')
+    return (window as unknown as { __hf: string }).__hf
+  })
+}
+
 /** The first body paragraph's text. */
 async function bodyText(frame: Frame): Promise<string> {
   return frame.evaluate(() => {
@@ -267,6 +308,86 @@ test.describe('hwp: footnote paste and symbols', () => {
       expect(await bodyText(frame)).toBe('body')
     } finally {
       await closeAndSaveVideo(launched, 'hwp-footnote-paste')
+    }
+  })
+
+  // The Hangul input method's symbol list (ㄴ, then the Hanja key) composes ㄴ and commits 「 in
+  // its place; the browser sees a composition, as Chrome's IME emulation sends it here. A triple
+  // click selects the first paragraph from its first place, which holds the note's number.
+  test('composed 「법」 goes into the footnote; replacing its first line keeps the number', async () => {
+    test.setTimeout(240_000)
+    const launched = await launchShell({ onboardingSeen: true, videoDir: 'hwp-footnote-ime' })
+    const { app, page } = launched
+    try {
+      const hwp = await openHwp(app, page)
+      const frame = await studioFrame(hwp)
+      const box = await canvasBox(hwp)
+      await hwp.mouse.click(box.x + 160, box.y + 145)
+      await hwp.keyboard.type('body')
+      await command(frame, 'insert:footnote')
+      await expect.poll(() => noteTexts(frame)).toEqual([''])
+      await hwp.keyboard.type('see ')
+
+      const cdp = await hwp.context().newCDPSession(hwp)
+      const compose = async (steps: string[], commit: string) => {
+        for (const text of steps) {
+          await cdp.send('Input.imeSetComposition', {
+            text,
+            selectionStart: text.length,
+            selectionEnd: text.length,
+          })
+        }
+        await cdp.send('Input.insertText', { text: commit })
+      }
+      await compose(['ㄴ'], '「')
+      await compose(['ㅂ', '버', '법'], '법')
+      await compose(['ㄴ'], '」')
+      await expect.poll(() => noteTexts(frame)).toEqual(['see 「법」'])
+      expect(await bodyText(frame)).toBe('body')
+
+      // the whole first line selected, a symbol composed over it: the text goes, the number stays
+      await selectNoteLine(hwp, frame, 0)
+      await compose(['ㄴ'], '「')
+      await expect.poll(() => noteTexts(frame)).toEqual(['「'])
+      expect(await noteNumbered(frame)).toBe(true)
+
+      // and a paste over the whole first line
+      await hwp.keyboard.type('x')
+      await selectNoteLine(hwp, frame, 0)
+      await app.evaluate(({ clipboard }) => clipboard.writeText('「법」 제1조'))
+      await hwp.keyboard.press('Control+v')
+      await expect.poll(() => noteTexts(frame)).toEqual(['「법」 제1조'])
+      expect(await noteNumbered(frame)).toBe(true)
+      expect(await bodyText(frame)).toBe('body')
+    } finally {
+      await closeAndSaveVideo(launched, 'hwp-footnote-ime')
+    }
+  })
+
+  test('문자표 while a header is open goes into the header', async () => {
+    test.setTimeout(240_000)
+    const launched = await launchShell({ onboardingSeen: true, videoDir: 'hwp-header-symbol' })
+    const { app, page } = launched
+    try {
+      const hwp = await openHwp(app, page)
+      const frame = await studioFrame(hwp)
+      const box = await canvasBox(hwp)
+      await hwp.mouse.click(box.x + 160, box.y + 145)
+      await hwp.keyboard.type('body')
+      await command(frame, 'page:header-create')
+      await hwp.keyboard.type('head ')
+      await hwp.keyboard.press('Control+F10')
+      const dialog = frame.locator('.sym-dialog')
+      await dialog.waitFor()
+      await dialog.locator('.sym-block-item').nth(29).click()
+      await dialog.locator('.sym-cell', { hasText: '「' }).first().click()
+      await dialog.locator('.dialog-btn-primary').click()
+      await dialog.locator('.dialog-close').click()
+      await hwp.keyboard.type('x')
+      await expect.poll(() => headerInfo(frame)).toContain('"text":"head 「x"')
+      expect(await bodyText(frame)).toBe('body')
+    } finally {
+      await closeAndSaveVideo(launched, 'hwp-header-symbol')
     }
   })
 })

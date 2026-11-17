@@ -18,11 +18,22 @@ interface Place {
 const chars = (text: string) => Array.from(text)
 
 /** A note's paragraphs behind the engine's note calls, counting code points as the engine does. */
-function fakeWasm(paragraphs: string[]) {
+/**
+ * `numbered`: the first paragraph starts with the note's number (two places, as a note the editor
+ * inserts); the engine reports the slot and where the text starts. Without it the note has no
+ * number slot and is text from its first place.
+ */
+function fakeWasm(paragraphs: string[], numbered = false) {
   const paras = [...paragraphs]
   return {
     paras,
-    getFootnoteInfo: () => ({ ok: true, paraCount: paras.length, texts: [...paras] }),
+    getFootnoteInfo: () => ({
+      ok: true,
+      paraCount: paras.length,
+      numberSlot: numbered ? 0 : -1,
+      texts: [...paras],
+    }),
+    getNoteEditInfo: () => ({ ok: true, kind: 'footnote', fnParaIndex: 0, charOffset: 2 }),
     insertTextInFootnote: (
       _s: number,
       _p: number,
@@ -355,6 +366,64 @@ describe('typing and keys in a note', () => {
     expect(ieumNoteKey(handler, key('Backspace'))).toBe(false)
     ieumNoteBeforeEdit(handler)
     expect(handler.steps).toEqual([])
+  })
+})
+
+describe("a note's number at the head of its first paragraph", () => {
+  // what the editor holds for a new note "1) see more": two places of number, then the text
+  const numbered = () => fakeWasm(['  see more', 'next'], true)
+
+  it('a paste over the whole first paragraph (a triple click selects from 0) keeps the number', () => {
+    const wasm = numbered()
+    const handler = fakeHandler(wasm, {
+      anchor: { fnParaIdx: 0, charOffset: 0 },
+      caret: { fnParaIdx: 0, charOffset: 10 },
+    })
+    ieumNotePaste(handler, clipboardEvent({ 'text/plain': '「법」' }).event)
+    expect(wasm.paras).toEqual(['  「법」', 'next'])
+    expect(handler.steps[0]!.after).toMatchObject({ innerParaIdx: 0, charOffset: 5 })
+  })
+
+  it('copy and cut leave the number out', () => {
+    const wasm = numbered()
+    const handler = fakeHandler(wasm, {
+      anchor: { fnParaIdx: 0, charOffset: 1 },
+      caret: { fnParaIdx: 1, charOffset: 2 },
+    })
+    const { event, written } = clipboardEvent({})
+    expect(ieumNoteCut(handler, event)).toBe(true)
+    expect(written['text/plain']).toBe('see more\nne')
+    expect(wasm.paras).toEqual(['  xt'])
+  })
+
+  it('typing over a selection of the number alone takes nothing out', () => {
+    const wasm = numbered()
+    const handler = fakeHandler(wasm, {
+      anchor: { fnParaIdx: 0, charOffset: 0 },
+      caret: { fnParaIdx: 0, charOffset: 2 },
+    })
+    ieumNoteBeforeEdit(handler)
+    expect(wasm.paras).toEqual(['  see more', 'next'])
+    expect(handler.steps).toEqual([])
+    expect(handler.cursor.getFootnoteSelectionOrdered()).toBeNull()
+  })
+
+  it('a paste with the caret in the number goes in after it', () => {
+    const wasm = numbered()
+    const handler = fakeHandler(wasm, { caret: { fnParaIdx: 0, charOffset: 0 } })
+    ieumNotePaste(handler, clipboardEvent({ 'text/plain': 'X' }).event)
+    expect(wasm.paras).toEqual(['  Xsee more', 'next'])
+  })
+
+  it('a note without a number slot is text from its first place', () => {
+    const wasm = fakeWasm(['23) typed'], false)
+    const handler = fakeHandler(wasm, {
+      anchor: { fnParaIdx: 0, charOffset: 0 },
+      caret: { fnParaIdx: 0, charOffset: 3 },
+    })
+    const { event, written } = clipboardEvent({})
+    ieumNoteCopy(handler, event)
+    expect(written['text/plain']).toBe('23)')
   })
 })
 
