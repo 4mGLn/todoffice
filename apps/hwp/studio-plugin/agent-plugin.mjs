@@ -1515,6 +1515,15 @@ function containerOf(doc, hit) {
         splitKeepingText(lengthOf, k, lengthOf(k), () =>
           expectOk(doc.splitParagraph(sec, k, doc.getLogicalLength(sec, k)), 'split the paragraph'),
         ),
+      // the page setup of a first paragraph stays in front, and so may an object at its very start
+      splitStart: (k) => {
+        splitKeepingText(lengthOf, k, 0, () =>
+          expectOk(doc.splitParagraph(sec, k, 0), 'split the paragraph'),
+        )
+        if (holdsContentObject(doc, sec, k)) {
+          throw fail('HAS_OBJECTS', 'the split would have moved an object of the paragraph')
+        }
+      },
       runLooks: (k, length) =>
         parse(doc.getCharShapeRuns(sec, k, 0, length)).map((run) =>
           parse(doc.getCharPropertiesAt(sec, k, run.startOffset ?? 0)),
@@ -1625,6 +1634,10 @@ function containerOf(doc, hit) {
           doc.splitParagraphInCellByPath(sec, para, at(k), PAST_PARAGRAPH_END),
           'split the paragraph',
         ),
+      ),
+    splitStart: (k) =>
+      splitKeepingText(lengthOf, k, 0, () =>
+        expectOk(doc.splitParagraphInCellByPath(sec, para, at(k), 0), 'split the paragraph'),
       ),
     insert: (k, text) => expectOk(doc.insertTextInCellByPath(sec, para, at(k), 0, text), 'insert'),
     deleteText: (k, count) =>
@@ -4316,18 +4329,18 @@ function titleBoxOf(spec) {
 const PAGE_CONTROLS = new Set(['secd', 'cold', 'pgnp', 'head', 'foot', 'pghd', 'nwno'])
 
 /**
- * Whether body paragraph `box.index` holds an object that is content (a table, a picture, a
- * note, a field), as opposed to the controls that set up the page. The engine names the
- * controls of the first section's body by paragraph; in a later section they cannot be told
- * apart here, so any object counts there.
+ * Whether body paragraph `para` of section `sec` holds an object that is content (a table, a
+ * picture, a note, a field), as opposed to the controls that set up the page. The engine names
+ * the controls of the first section's body by paragraph; in a later section they cannot be
+ * told apart here, so any object counts there.
  */
-function holdsContentObject(doc, sec, box) {
-  if (box.objectPositions(box.index).length === 0) return false
+function holdsContentObject(doc, sec, para) {
+  if (memoFreeObjectPositions(doc, sec, para).length === 0) return false
   if (sec !== 0) return true
   try {
     return parse(doc.getControls()).some(
       (control) =>
-        control.list === 0 && control.para === box.index && !PAGE_CONTROLS.has(control.ctrlId),
+        control.list === 0 && control.para === para && !PAGE_CONTROLS.has(control.ctrlId),
     )
   } catch {
     return true
@@ -8517,21 +8530,16 @@ export const agentPlugin = {
 
     /**
      * A new paragraph is made by splitting the one next to it, the way Enter does, so that
-     * it takes that paragraph's formatting. Where an object sits at the split, though, the
-     * engine may carry it into the new paragraph (it depends on the kind of object). So:
-     * "before" is only done in a paragraph without objects, and "after" a paragraph whose
-     * object sits at its end (a table on a line of its own, typically) adds an empty
-     * paragraph behind it instead of splitting (`plain`). The page setup the first
-     * paragraph of a document holds (`onlyPageSetup`) is no such object: it stays in front
-     * when that paragraph is split at its start.
+     * it takes that paragraph's formatting: "before" at its very start (splitStart), "after"
+     * at its very end, so nothing of it moves. Where an object sits at the split, though,
+     * the engine may carry it into the new paragraph (it depends on the kind of object). So
+     * "before" refuses when an object stays in front (the page setup of a first paragraph
+     * may), and "after" a paragraph whose object sits at its end (a table on a line of its
+     * own, typically) adds an empty paragraph behind it instead of splitting (`plain`).
      */
-    const guardObjects = (box, where, count, onlyPageSetup = false) => {
+    const guardObjects = (box, where) => {
+      if (where === 'before') return { box }
       const positions = box.objectPositions(box.index)
-      if (where === 'before') {
-        return positions.length > 0 && !onlyPageSetup
-          ? { refusal: { ok: false, reason: 'has_objects', count } }
-          : { box }
-      }
       const plain = positions.some((position) => position >= box.length(box.index))
       return { box, plain }
     }
@@ -8593,11 +8601,7 @@ export const agentPlugin = {
     const locate = (doc, anchor, occurrence, where) => {
       if (where === 'end') {
         const sec = doc.getSectionCount() - 1
-        return guardObjects(
-          containerOf(doc, { sec, para: doc.getParagraphCount(sec) - 1 }),
-          where,
-          1,
-        )
+        return guardObjects(containerOf(doc, { sec, para: doc.getParagraphCount(sec) - 1 }), where)
       }
       const hits = searchAll(doc, anchor)
       const picked = pickHit(hits, occurrence)
@@ -8616,13 +8620,7 @@ export const agentPlugin = {
           },
         }
       }
-      const box = containerOf(doc, picked.hit)
-      return guardObjects(
-        box,
-        where,
-        hits.length,
-        where === 'before' && !box.inTable && !holdsContentObject(doc, picked.hit.sec, box),
-      )
+      return guardObjects(containerOf(doc, picked.hit), where)
     }
 
     /**
@@ -8853,7 +8851,7 @@ export const agentPlugin = {
               }
               if (where === 'before') {
                 // splitting at the start leaves an empty paragraph in front, formatted like this one
-                box.split(at, 0)
+                box.splitStart(at)
                 const first = texts.shift()
                 if (first) box.insert(at, first)
               }
@@ -9003,7 +9001,7 @@ export const agentPlugin = {
               const head = where === 'before' && here === 0 && at === 0 && !box.inTable
               // the columns where the anchor is, which the new paragraph lies in too
               const zone = box.inTable ? null : columnsAt(doc, here, box.place(at, 0).para)
-              if (where === 'before') box.split(at, 0)
+              if (where === 'before') box.splitStart(at)
               else {
                 openAfter(box, at, plain)
                 at += 1
@@ -9171,7 +9169,7 @@ export const agentPlugin = {
                 if (!box) throw fail('CHANGED', 'the document changed mid-call')
                 const before = objectsOf(doc)
                 let at = box.index
-                if (where === 'before') box.split(at, 0)
+                if (where === 'before') box.splitStart(at)
                 else {
                   openAfter(box, at, plain)
                   at += 1
@@ -10444,7 +10442,7 @@ export const agentPlugin = {
             return refuse('in_table', table ? { table } : {})
           }
           const box = containerOf(doc, picked.hit)
-          if (holdsContentObject(doc, picked.hit.sec, box)) return refuse('has_objects')
+          if (holdsContentObject(doc, picked.hit.sec, box.index)) return refuse('has_objects')
           const length = box.length(box.index)
           const text = box.text(box.index, length)
           if (!text.trim()) return refuse('not_found')
@@ -12431,7 +12429,7 @@ export const agentPlugin = {
                 }
               })
               let first = box.index
-              if (where === 'before') box.split(first, 0)
+              if (where === 'before') box.splitStart(first)
               else {
                 openAfter(box, first, plain)
                 first += 1
