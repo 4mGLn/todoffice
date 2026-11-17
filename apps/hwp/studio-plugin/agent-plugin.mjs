@@ -1515,7 +1515,7 @@ function containerOf(doc, hit) {
         splitKeepingText(lengthOf, k, lengthOf(k), () =>
           expectOk(doc.splitParagraph(sec, k, doc.getLogicalLength(sec, k)), 'split the paragraph'),
         ),
-      // the page setup of a first paragraph stays in front, and so may an object at its very start
+      // the page setup of a first paragraph stays in front of the split; content left there would part from its line
       splitStart: (k) => {
         splitKeepingText(lengthOf, k, 0, () =>
           expectOk(doc.splitParagraph(sec, k, 0), 'split the paragraph'),
@@ -6632,8 +6632,7 @@ function columnWidthPt(doc, sec) {
 }
 
 /**
- * The room under a head table laid across the columns, as test papers leave it before the
- * first question. A column's first line takes no space before it, so this is all the room.
+ * A column's first line takes no space before it, so this is all the room under the head table.
  */
 const HEAD_TABLE_GAP_MM = 3
 
@@ -8537,12 +8536,10 @@ export const agentPlugin = {
 
     /**
      * A new paragraph is made by splitting the one next to it, the way Enter does, so that
-     * it takes that paragraph's formatting: "before" at its very start (splitStart), "after"
-     * at its very end, so nothing of it moves. Where an object sits at the split, though,
-     * the engine may carry it into the new paragraph (it depends on the kind of object). So
-     * "before" refuses when an object stays in front (the page setup of a first paragraph
-     * may), and "after" a paragraph whose object sits at its end (a table on a line of its
-     * own, typically) adds an empty paragraph behind it instead of splitting (`plain`).
+     * it takes that paragraph's formatting. Where an object sits at the split, though, the
+     * engine may carry it into the new paragraph (it depends on the kind of object). So
+     * "after" a paragraph whose object sits at its end (a table on a line of its own,
+     * typically) adds an empty paragraph behind it instead of splitting (`plain`).
      */
     const guardObjects = (box, where) => {
       if (where === 'before') return { box }

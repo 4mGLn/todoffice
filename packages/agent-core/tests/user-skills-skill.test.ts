@@ -577,7 +577,6 @@ describe('a skill named by its bare name', () => {
     const use = createUserSkillsSkill(deps).tools.find((tool) => tool.name === USE_SKILL_TOOL)!
     const { id } = use.inputSchema.properties as Record<string, { description: string }>
     expect(id!.description).toMatch(/as the skills list gives it/)
-    // the sources the shell lists skills under (UserSkillSourceValue)
     expect(id!.description).toMatch(/e\.g\. (builtin|app|user|plugin|codex|project):[a-z0-9-]+$/)
   })
 

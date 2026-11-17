@@ -2185,7 +2185,6 @@ describe('columns and breaks', () => {
       height: number
     }
     const line = JSON.parse(doc().getCursorRect(0, 0, 0)) as { y: number }
-    // 3 mm is 11.3 px of the engine's layout (1 mm, the outer margin a pasted table has, left 4.4)
     expect(line.y - (box.y + box.height)).toBeGreaterThan(11)
   })
 
@@ -3537,11 +3536,6 @@ describe('a paragraph that holds an object of its line', () => {
     expect(cellText(0)).toBe('셀 글과 뒤 글.')
   })
 
-  /**
-   * The paragraphs of a saved document that hold `text`, as the .hwpx writes them: without
-   * the paragraph's own tag and its line places, which tell where it lies on the page. A
-   * .hwp is read back and written as .hwpx to be told the same way.
-   */
   const savedLines = async (doc: HwpDocument, texts: string[]) => {
     const forms = [doc.exportHwpx(), new HwpDocument(doc.exportHwp()).exportHwpx()]
     return Promise.all(
@@ -3615,7 +3609,6 @@ describe('a paragraph that holds an object of its line', () => {
       expect(textOf(again, 0)).toBe('1. 일차함수 의 그래프의 기울기는?')
       expect(controlsOf(again, 'eqed')).toEqual([0])
     }
-    // a line in front of the first words goes under the head: the head and the equation stay with the words
     expect(plugin.insertParagraphs('의 그래프의 기울기는?', null, 'before', ['x'])).toMatchObject({
       ok: true,
     })
@@ -3643,7 +3636,6 @@ describe('a paragraph that holds an object of its line', () => {
     const made = open(blank(['머리', '수식 [[1]]', '표 앞', '끝']))
     made.plugin.insertEquations([{ find: '[[1]]', script: 'a over b' }])
     made.plugin.insertTable('표 앞', null, 'after', [['칸 끝말', '둘째 칸']], false)
-    // no tool puts an equation into a cell: it is moved there in the saved file
     const zip = await JSZip.loadAsync(made.doc().exportHwpx())
     const xml = await zip.file('Contents/section0.xml')!.async('string')
     const equation = xml.match(/<hp:equation [\s\S]*?<\/hp:equation>/)![0]

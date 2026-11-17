@@ -660,7 +660,6 @@ describe('form fields in the real engine', () => {
   })
 
   it('adds a paragraph in front of a line with a filled field and keeps the field as it was', () => {
-    // in front of a paragraph is done by splitting at its very start, which moves nothing of it
     const editor = openEditor({ fields: true })
     editor.plugin.fillField(1, '홍길동')
     const lines = editor.lines()

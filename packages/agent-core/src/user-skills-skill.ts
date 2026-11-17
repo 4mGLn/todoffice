@@ -523,8 +523,6 @@ export function createUserSkillsSkill(deps: UserSkillsDeps): AgentSkill {
    * matched without case, as one name wins over the others (pickEnabledUserSkills), and never
    * finds a skill that stands back for another: of those that may be used here, the winner,
    * else the first; with none such one of that name that may not, so the answer says why.
-   * An id under a source no skill of its name has (app:hwp-document for the built-in) is
-   * taken for that name only where exactly one skill of it may be used here.
    */
   const find = (id: string) => {
     const all = deps.list()
