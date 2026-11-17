@@ -61,6 +61,6 @@
       "0055-nested-table-path-calls.patch"
     ],
     "wasmPack": "0.15.0",
-    "wasmSha256": "bcb3c42c8834833e303530e4634d35ed43e71a6789a826baf15274c0c16c15c3"
+    "wasmSha256": "526e567b3c2adaa5a4519511420c3a1d3f18d4e20fde9c72bb01dd11cf203397"
   }
 }
