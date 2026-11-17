@@ -6632,6 +6632,12 @@ function columnWidthPt(doc, sec) {
 }
 
 /**
+ * The room under a head table laid across the columns, as test papers leave it before the
+ * first question. A column's first line takes no space before it, so this is all the room.
+ */
+const HEAD_TABLE_GAP_MM = 3
+
+/**
  * Take the table of the first paragraph out of the line of text and lay it across the
  * columns as the head of the page: it hangs from the top of the text area and pushes the
  * text of every column below it, as the head of a test paper sits over two columns. A table
@@ -6654,6 +6660,7 @@ function floatAcrossColumns(doc, sec, para, control) {
         horzAlign: 'Left',
         vertOffset: 0,
         horzOffset: 0,
+        outerBottom: hwpunitOf(HEAD_TABLE_GAP_MM),
       }),
     ),
     'lay the table across the columns',

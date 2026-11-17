@@ -2163,6 +2163,32 @@ describe('columns and breaks', () => {
     expect(top()).toBe(before)
   })
 
+  it('leaves 3 mm under a head table laid across the columns, over the first line of each column', () => {
+    const { plugin, doc } = open(blank(PAPER))
+    plugin.setColumns({ count: 2 })
+    plugin.insertTable(PAPER[0]!, null, 'before', [['학년', '반']], {
+      header: true,
+      acrossColumns: true,
+    })
+    const outerBottom = (from: HwpDocument) =>
+      (
+        JSON.parse(from.getTableProperties(0, 0, tableIn(from, 0).control)) as {
+          outerBottom: number
+        }
+      ).outerBottom
+    expect(outerBottom(doc())).toBe(850)
+    for (const bytes of [doc().exportHwpx(), doc().exportHwp()]) {
+      expect(outerBottom(new HwpDocument(bytes))).toBe(850)
+    }
+    const box = JSON.parse(doc().getTableBBox(0, 0, tableIn(doc(), 0).control)) as {
+      y: number
+      height: number
+    }
+    const line = JSON.parse(doc().getCursorRect(0, 0, 0)) as { y: number }
+    // 3 mm is 11.3 px of the engine's layout (1 mm, the outer margin a pasted table has, left 4.4)
+    expect(line.y - (box.y + box.height)).toBeGreaterThan(11)
+  })
+
   it('takes a table across the columns only as the head of the document', () => {
     const { plugin, steps } = open(blank(PAPER))
     plugin.setColumns({ count: 2 })
