@@ -2351,7 +2351,7 @@ function pageMapLines(map: AgentPageMap): string[] {
       return `${named} is left alone at the foot${where} in this layout, ${after} starts on page ${line.nextPage}, and an empty line stands between them${line.kept ? ': it keeps with the next line, which is that empty line' : ', so keeping it with the next line would keep it with that empty line'}. To print it with ${after}, start it ${anew}, find with its words).`
     }
     if (line.kept) {
-      return `${named} stands alone at the foot${where} in this layout, but it keeps with the next line (keep_with_next), so it does not stand alone in print: leave it.`
+      return `${named} stands alone at the foot${where} in this layout. It keeps with the next line (keep_with_next), which Hancom Hangul honours when it prints: leave it.`
     }
     const style = line.style || 'its style'
     return `${named} is left alone at the foot${where} in this layout, ${after} starts on page ${line.nextPage}: keep this line with ${after} by giving it a style of its own with style_paragraphs (a new name, ${line.style ? `based_on ${line.style}, ` : ''}keep_with_next true, applied with find to this line only). Do not give ${style} itself keep_with_next: every paragraph of that style would keep with the next one.`
