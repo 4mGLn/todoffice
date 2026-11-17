@@ -1762,6 +1762,16 @@ function bodyObjectBefore(doc, sec, para, end) {
 }
 
 /**
+ * Whether body paragraph `para` of section `sec` holds a table, or a picture or shape not
+ * set in its line (a head table laid across the columns, a floating picture).
+ */
+function holdsObjectOutOfLine(doc, sec, para) {
+  return bodyControlsOf(doc, sec, para).some(
+    (control) => control.ctrlId === 'tbl' || control.props?.TreatAsChar === 0,
+  )
+}
+
+/**
  * The places of the controls of a body paragraph, without the memos: a memo is a field
  * that the memo guard watches, not an object that a paragraph edit must step around.
  */
@@ -8539,10 +8549,16 @@ export const agentPlugin = {
      * it takes that paragraph's formatting. Where an object sits at the split, though, the
      * engine may carry it into the new paragraph (it depends on the kind of object). So
      * "after" a paragraph whose object sits at its end (a table on a line of its own,
-     * typically) adds an empty paragraph behind it instead of splitting (`plain`).
+     * typically) adds an empty paragraph behind it instead of splitting (`plain`). Nothing
+     * goes "before" a body paragraph that holds an object out of its line: the object goes
+     * on with the paragraph, and the engine lays the new line into the object's place.
      */
-    const guardObjects = (box, where) => {
-      if (where === 'before') return { box }
+    const guardObjects = (doc, box, where) => {
+      if (where === 'before') {
+        return !box.inTable && holdsObjectOutOfLine(doc, box.place(box.index, 0).sec, box.index)
+          ? { refusal: { ok: false, reason: 'has_objects', count: 1, outOfLine: true } }
+          : { box }
+      }
       const positions = box.objectPositions(box.index)
       const plain = positions.some((position) => position >= box.length(box.index))
       return { box, plain }
@@ -8605,7 +8621,11 @@ export const agentPlugin = {
     const locate = (doc, anchor, occurrence, where) => {
       if (where === 'end') {
         const sec = doc.getSectionCount() - 1
-        return guardObjects(containerOf(doc, { sec, para: doc.getParagraphCount(sec) - 1 }), where)
+        return guardObjects(
+          doc,
+          containerOf(doc, { sec, para: doc.getParagraphCount(sec) - 1 }),
+          where,
+        )
       }
       const hits = searchAll(doc, anchor)
       const picked = pickHit(hits, occurrence)
@@ -8624,7 +8644,7 @@ export const agentPlugin = {
           },
         }
       }
-      return guardObjects(containerOf(doc, picked.hit), where)
+      return guardObjects(doc, containerOf(doc, picked.hit), where)
     }
 
     /**

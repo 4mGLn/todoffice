@@ -2424,6 +2424,8 @@ const equationPlace = (equation: { before: string; after: string; previous?: str
 
 const HAS_OBJECTS_HELP =
   'Nothing was changed: a table, a picture, an equation or a form field sits in that paragraph, and the change would have moved or removed it. Use the paragraph before or after it as the anchor, or tell the user. An equation can be removed first with edit_equation (its number is in list_equations).'
+const OUT_OF_LINE_HELP =
+  'Nothing was changed: that paragraph holds a table or an object not set in its line (a head table laid across the columns, a floating picture or shape). It would move on with the paragraph, and this editor would lay what you add over the place of that object. Anchor to the paragraph before it with where "after", or tell the user.'
 const SPANS_OBJECT_ADVICE =
   'Replace the words in front of it or the words behind it on their own, with replace_text; an equation itself is changed with edit_equation (list_equations shows the words round each).'
 const SPANS_OBJECT_HELP = `Nothing was changed: an equation or another object of the line (a footnote mark, a picture set in the text) stands inside the text to be replaced, and the new text has no place for it. ${SPANS_OBJECT_ADVICE}`
@@ -2871,7 +2873,7 @@ function placeRefusal(result: AgentPlaceRefusal): string {
     case 'unsupported_place':
       return 'That text is inside an equation, which is not a paragraph that can be edited here.'
     case 'has_objects':
-      return HAS_OBJECTS_HELP
+      return result.outOfLine ? OUT_OF_LINE_HELP : HAS_OBJECTS_HELP
     default:
       return NOT_FOUND_HELP
   }

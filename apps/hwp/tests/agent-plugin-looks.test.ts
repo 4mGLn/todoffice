@@ -3592,7 +3592,9 @@ describe('a paragraph that holds an object of its line', () => {
   })
 
   it('lays a head table across the columns in front of a first line that holds an equation', () => {
-    const { plugin, doc } = open(blank(['1. 일차함수 [[1]]의 그래프의 기울기는?', '① -3', '끝']))
+    const { plugin, doc, steps } = open(
+      blank(['1. 일차함수 [[1]]의 그래프의 기울기는?', '① -3', '끝']),
+    )
     plugin.insertEquations([{ find: '[[1]]', script: 'y=2x-3' }])
     plugin.setColumns({ count: 2 })
     expect(
@@ -3609,13 +3611,49 @@ describe('a paragraph that holds an object of its line', () => {
       expect(textOf(again, 0)).toBe('1. 일차함수 의 그래프의 기울기는?')
       expect(controlsOf(again, 'eqed')).toEqual([0])
     }
-    expect(plugin.insertParagraphs('의 그래프의 기울기는?', null, 'before', ['x'])).toMatchObject({
+    const before = steps()
+    const refused = { ok: false, reason: 'has_objects', count: 1, outOfLine: true }
+    expect(plugin.insertParagraphs('의 그래프의 기울기는?', null, 'before', ['x'])).toEqual(refused)
+    expect(
+      plugin.insertTable('의 그래프의 기울기는?', null, 'before', [['a', 'b']], false),
+    ).toEqual(refused)
+    expect(steps()).toBe(before)
+    expect(textOf(doc(), 0)).toBe('1. 일차함수 의 그래프의 기울기는?')
+    expect(controlsOf(doc(), 'tbl')).toEqual([0])
+  })
+
+  it('adds a line in front of one with a picture set in it or a footnote, not of one with a floating picture', () => {
+    const start = blank(['머리', '그림이 든 줄', '떠 있는 그림 줄', '각주가 붙는 줄', '끝'])
+    start.insertPicture(0, 1, 2, '', ONE_PIXEL, 2000, 2000, 1, 1, 'png', '')
+    start.setPictureProperties(0, 1, 0, JSON.stringify({ treatAsChar: true }))
+    start.insertPicture(0, 2, 2, '', ONE_PIXEL, 2000, 2000, 1, 1, 'png', '')
+    const { plugin, doc, steps } = open(start)
+    plugin.insertNote('footnote', '붙는 줄', null, '각주')
+    expect(plugin.insertParagraphs('그림이 든', null, 'before', ['앞 1'])).toMatchObject({
       ok: true,
     })
-    expect(textOf(doc(), 0)).toBe('x')
-    expect(textOf(doc(), 1)).toBe('1. 일차함수 의 그래프의 기울기는?')
-    expect(controlsOf(doc(), 'tbl')).toEqual([1])
-    expect(places(doc(), 1)).toEqual([0, 8])
+    expect(plugin.insertParagraphs('각주가 붙는', null, 'before', ['앞 2'])).toMatchObject({
+      ok: true,
+    })
+    const before = steps()
+    expect(plugin.insertParagraphs('떠 있는', null, 'before', ['앞 3'])).toEqual({
+      ok: false,
+      reason: 'has_objects',
+      count: 1,
+      outOfLine: true,
+    })
+    expect(steps()).toBe(before)
+    expect(bodyText(doc())).toEqual([
+      '머리',
+      '앞 1',
+      '그림이 든 줄',
+      '떠 있는 그림 줄',
+      '앞 2',
+      '각주가 붙는 줄',
+      '끝',
+    ])
+    expect(places(doc(), 2)).toEqual([2])
+    expect(controlsOf(doc(), 'fn')).toEqual([5])
   })
 
   it('leaves the first line of a later section alone, whose section stays in front of a split', () => {

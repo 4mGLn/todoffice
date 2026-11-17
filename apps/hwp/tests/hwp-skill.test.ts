@@ -954,6 +954,24 @@ describe('insert_paragraphs', () => {
     expect(changes).toEqual([])
   })
 
+  it('names a table or an object out of the line as what keeps a line from going in front', async () => {
+    const refusal = { ok: false, reason: 'has_objects', count: 1, outOfLine: true } as const
+    const { call, changes } = setup({
+      insertParagraphs: async () => refusal,
+      insertTable: async () => refusal,
+    })
+    for (const [tool, input] of [
+      ['insert_paragraphs', { where: 'before', anchor: '제목', paragraphs: ['x'] }],
+      ['insert_table', { where: 'before', anchor: '제목', rows: [['a', 'b']] }],
+    ] as const) {
+      const result = await call(tool, input)
+      expect(result.isError).toBe(true)
+      expect(result.output).toContain('holds a table or an object not set in its line')
+      expect(result.output).not.toContain('equation')
+    }
+    expect(changes).toEqual([])
+  })
+
   it('lists the places when the anchor is ambiguous', async () => {
     const { call } = setup({
       insertParagraphs: async () => ({
