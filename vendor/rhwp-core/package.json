@@ -1,6 +1,6 @@
 {
   "name": "@rhwp/core",
-  "version": "0.9.0-ieum.31",
+  "version": "0.9.0-ieum.33",
   "description": "rhwp v0.9.0 HWP/HWPX engine (WebAssembly) rebuilt with the patches in ./patches",
   "private": true,
   "type": "module",
@@ -57,7 +57,8 @@
       "0051-column-separator-setter.patch",
       "0052-picture-crop-image-extent.patch",
       "0053-picture-z-order-with-shapes.patch",
-      "0054-duplicate-floating-control.patch"
+      "0054-duplicate-floating-control.patch",
+      "0055-nested-table-path-calls.patch"
     ],
     "wasmPack": "0.15.0",
     "wasmSha256": "bcb3c42c8834833e303530e4634d35ed43e71a6789a826baf15274c0c16c15c3"
