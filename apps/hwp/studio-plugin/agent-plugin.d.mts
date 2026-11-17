@@ -726,6 +726,7 @@ export interface AgentCellPlace {
 export type AgentMergeCellsResult =
   | { ok: true; merged: number; place: AgentPlace }
   | { ok: false; reason: 'no_such_table'; count: number }
+  /** a table inside another table's cell whose cell borders are drawn by objects */
   | { ok: false; reason: 'unsupported_place' }
   | { ok: false; reason: 'no_such_cell'; rows: number; cols: number }
   | { ok: false; reason: 'crosses_merged' | 'named_cells'; cells: AgentCellPlace[] }
@@ -733,6 +734,7 @@ export type AgentMergeCellsResult =
 export type AgentSplitCellResult =
   | { ok: true; unmerged: boolean; place: AgentPlace }
   | { ok: false; reason: 'no_such_table'; count: number }
+  /** unsupported_place: a table inside another table's cell whose cell borders are drawn by objects */
   | { ok: false; reason: 'unsupported_place' | 'not_merged' | 'holds_object' }
   | { ok: false; reason: 'no_such_cell'; rows: number; cols: number }
 
@@ -757,6 +759,7 @@ export type AgentFormatCellsResult =
   | { ok: false; reason: 'column_count'; cols: number }
   /** a column is covered only by merged cells, so its width cannot be read */
   | { ok: false; reason: 'merged_columns'; cols: number }
+  /** a table inside another table's cell whose cell borders are drawn by objects */
   | { ok: false; reason: 'unsupported_place'; count: number }
   | {
       ok: false
@@ -1035,8 +1038,9 @@ export type AgentTableLinesRefusal =
   | {
       ok: false
       /**
-       * nested: the table sits inside a cell of another table, where the engine cannot add
-       * or remove lines. no_such_line: the row or column is outside the table.
+       * nested: the table sits inside a cell of another table and its cell borders are drawn
+       * by objects, which the engine cannot move yet. no_such_line: the row or column is
+       * outside the table.
        * would_empty: nothing would be left of the table.
        */
       reason: 'nested' | 'no_such_line' | 'would_empty'
