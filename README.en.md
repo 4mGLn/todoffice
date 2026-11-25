@@ -8,7 +8,9 @@ TodOffice is a desktop office suite being developed for writing and editing docu
 
 Whether we’re doing homework or writing a report at work, we want an office suite that feels at home in Mongolian. We want to read menus in Mongolian, write in Cyrillic, and open a page in traditional Mongolian script with the text flowing from top to bottom.
 
-Developers in Korea built IeumOffice on the open-source GenOffice project. Their work gave us a place to start. With TodOffice, we’re adapting the IeumOffice editors to the ways people write in Mongolia. The people who use these tools every day know which menu labels make sense and where writing a document gets awkward.
+IeumOffice began when a teacher of Korean at a high school in South Korea adapted the open-source GenOffice project to make a tool for their own reading and writing. That story made us think that people who work with documents every day in Mongolia could also shape their tools around their own language and ways of writing. [Why IeumOffice was made](docs/upstream-readme.en.md#why-it-was-made)
+
+As ties between Mongolia and South Korea have grown, being able to open the documents we share has become more important. South Korean public agencies publish documents such as reports in HWP and HWPX formats. We chose IeumOffice as the starting point for TodOffice because it already supported those formats, let people edit documents on their own computers, and offered a way to connect AI. That gave us room to focus on Mongolian menus and on writing in both Cyrillic and traditional Mongolian script. [Korea–Mongolia summit briefing](https://www.mofa.go.kr/www/brd/m_29514/view.do?seq=98) · [Public report published in HWP and HWPX](https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000336&nttId=129238)
 
 Part of Mongolia’s development is learning to build and improve the software and services we need. We’re starting with a tool people use every day. Someday we’d like to see a student open a blank page in TodOffice and write their first assignment in traditional Mongolian script, from top to bottom.
 
