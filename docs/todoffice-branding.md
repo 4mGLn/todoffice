@@ -4,7 +4,7 @@ The product name is **TodOffice** in every interface language. The local app ID 
 
 The terminal command, stdio MCP entry and installed agent skill are `todoffice`. The app's HTTP MCP server is `todoffice-editor`, and guide resource URIs begin `todoffice://guide/`. Command records, skills and audit data use `~/.todoffice`; project-local state uses `.todoffice/`. Existing GenOffice and IeumOffice registrations remain separate.
 
-No TodOffice public repository, website, support email, feedback survey or update feed has been supplied. Product link constants are empty, handlers are guarded, and packaging uses `publish: null`. Configure and review these endpoints before a public release. The version remains unchanged.
+The public [TodOffice installer repository](https://github.com/4mGLn/todoffice) is the distribution location for the desktop installers. The scripts resolve the latest stable GitHub release and select a package for the user's platform. Attach the root `install.sh` and `install.ps1` files to each stable release under those exact names alongside the platform packages. The README commands use GitHub’s `releases/latest/download/` links to those assets. The app's own service links and update feed are still unconfigured, and packaging uses `publish: null`.
 
 The Vermilion artwork and its light/dark palette reference are in [design/brand](../design/brand/). The sidebar uses the supplied outlined wordmark in ink (#111111) or ivory (#F3F1EC), with the symbol in vermilion (#E6482E) in both themes. The launcher uses that symbol on an ivory tile. Its small optical size enlarges the symbol for slots up to 32 px. Production SVG inputs live in `apps/shell/build/brand/`; regenerate PNG, ICO, ICNS and sidebar assets with `node tools/gen-brand-assets.mjs`.
 

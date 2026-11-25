@@ -216,10 +216,10 @@ default (Parallel's free Search MCP, then DuckDuckGo).
 - **English only** in code, comments, commit messages, and docs. User-facing
   strings go through the i18n resources (`src/renderer/i18n/`, plus the inline
   main-process dictionaries in `src/main/`), which are the only places
-  non-English text belongs (plus test fixture text). The two documents written
-  for Korean readers, [README.md](README.md) and
-  [docs/releasing.ko.md](docs/releasing.ko.md), are the exception;
-  [README.en.md](README.en.md) is the English README.
+  non-English text belongs (plus test fixture text). Documentation exceptions
+  include the [default Mongolian README](README.md), the
+  [Korean README](README.ko.md), and the [Korean release guide](docs/releasing.ko.md).
+  Keep the Mongolian, [English](README.en.md), and Korean READMEs in sync.
 - The UI has 22 languages (`LANGS` in `packages/i18n/src/index.ts`). A new or
   changed UI string has to exist in all of them, as a real translation rather
   than a copy of the English text.

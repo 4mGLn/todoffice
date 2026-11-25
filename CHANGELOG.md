@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add desktop installers for the latest stable GitHub release and installation instructions in Mongolian, English, and Korean.
+
 - Show the TodOffice project license first in the About notices.
 
 - Name the Linux AppImage `todoffice-<version>.AppImage` and match the installation help.

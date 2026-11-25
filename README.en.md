@@ -1,27 +1,48 @@
 # TodOffice
 
-A local desktop office suite based on IeumOffice, intended to selectively import future GenOffice improvements. No additional GenOffice changes have been imported in this local development step. Development focuses on Mongol bichig (Mongolian Traditional Script), Mongolian Cyrillic, and document editing.
+[Монгол](README.md) · [English](README.en.md) · [한국어](README.ko.md)
 
-```bash
-npm ci
-npm run build:all
-npm run dev
+TodOffice is a desktop office suite being developed for writing and editing documents in Mongolian.
+
+## Why do we need TodOffice?
+
+Whether we’re doing homework or writing a report at work, we want an office suite that feels at home in Mongolian. We want to read menus in Mongolian, write in Cyrillic, and open a page in traditional Mongolian script with the text flowing from top to bottom.
+
+Developers in Korea built IeumOffice on the open-source GenOffice project. Their work gave us a place to start. With TodOffice, we’re adapting the IeumOffice editors to the ways people write in Mongolia. The people who use these tools every day know which menu labels make sense and where writing a document gets awkward.
+
+Part of Mongolia’s development is learning to build and improve the software and services we need. We’re starting with a tool people use every day. Someday we’d like to see a student open a blank page in TodOffice and write their first assignment in traditional Mongolian script, from top to bottom.
+
+## Installation
+
+As of 2026-11-25, the first official release is pending on [GitHub Releases](https://github.com/4mGLn/todoffice/releases). Once published, the commands below install the package for your computer from the latest stable release. If that release has no matching package, the installer reports it and stops.
+
+**Linux (x64) and macOS (Apple silicon or Intel)** — Run in a terminal.
+
+```sh
+curl -fsSL https://github.com/4mGLn/todoffice/releases/latest/download/install.sh | sh
 ```
 
-This directory is the Git and npm workspace root. Editors live in `apps/`, shared code in `packages/`, and product documentation in `docs/`. Local analysis and work records live in ignored `.agents/.analysis/` and `.agents/docs/`. See [repository layout and commands](docs/repository-layout.md).
+On Linux, run `~/.local/bin/todoffice-desktop` to open the app. On macOS, the installer places it in `~/Applications/TodOffice.app`.
 
-No public TodOffice repository, website, update feed, or contact address is configured. The app does not redirect users to upstream product services or automatically migrate upstream settings.
+**Windows (x64 or ARM64)** — Run in PowerShell.
 
-As of 2026-11-25, `mn-Cyrl` and `mn-Mong` are **incomplete translation previews**. Mongol bichig has vertical application chrome and an explicit Docs writing-direction setting. Missing interface text and manuals use English fallback; full localization and all-format vertical editing are unfinished.
+```powershell
+irm https://github.com/4mGLn/todoffice/releases/latest/download/install.ps1 | iex
+```
 
-Formatting glyphs stay upright in Mongol bichig. Editor rails use 192px normally and 172px in narrow windows, and collapsing frees the tool panel’s space. New Docs drafts in Mongol bichig start in vertical section layout; existing files keep their stored direction.
+## Mongolian language support
 
-Home cards, ribbon tabs and Settings now use regular dimensions and spacing in Mongol bichig. Primary interface names include contextual traditional-script drafts that still require native review. Basic actions use familiar Mongolian; specialist menu names use English-sound Mongol bichig spellings.
+As of 2026-11-25, the Mongolian Cyrillic (`mn-Cyrl`) and traditional Mongolian script (`mn-Mong`) translations are **previews**. Interface text and help that still need translation appear in English.
+
+- In traditional-script mode, menus run vertically. A new blank document in the Docs editor starts with text running from top to bottom in columns that progress from left to right. Existing documents keep their saved writing direction. Docs also lets you choose the direction explicitly. Support for vertical editing in other file formats varies.
+- Home cards, menu tabs, and settings use consistent sizes and spacing. The B, I, and U formatting icons stay upright. Collapsing the tool panel leaves only the navigation rail.
+- Common actions use familiar Mongolian terms. Some specialist terms are written in traditional script to reflect their English pronunciation. The new terms and transliterations still need review by native speakers familiar with the script.
+
+## Documentation and license
 
 - [Product identity and local registrations](docs/todoffice-branding.md)
-- [Mongolian localization sources and review limits](docs/mongolian-localization-review.md)
-- [Mongolian support and verification scope](docs/mongolian-support.md)
+- [Mongolian translation sources and review status](docs/mongolian-localization-review.md)
+- [Mongolian language support and verification scope](docs/mongolian-support.md)
 - [Original IeumOffice introduction](docs/upstream-readme.en.md)
-- [Korean introduction](README.md)
 
-Required licenses and source credits remain in [LICENSE](LICENSE) and [NOTICE](NOTICE). Internal `@genoffice/*` package names and serialized document identifiers remain compatible with upstream.
+TodOffice selectively incorporates improvements from GenOffice. It retains the internal `@genoffice/*` package names and the identifiers stored in documents for upstream compatibility. For licensing and upstream credits, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
