@@ -41,6 +41,7 @@
     "build": "npm run build -w @genoffice/docs",
     "build:all": "npm run build -w @genoffice/docs && npm run build -w @genoffice/sheets && npm run build -w @genoffice/slides && npm run build -w @genoffice/pdf && npm run build -w @genoffice/markdown && npm run build -w @genoffice/html && npm run build -w @genoffice/mindmap && npm run build -w @genoffice/hwp && npm run build -w @genoffice/epub && npm run build -w @genoffice/diagram && npm run build -w @genoffice/cli && npm run build -w @genoffice/shell",
     "shell": "npm run build:all && electron apps/shell",
+    "verify:gui": "tsx e2e/gui-check.ts",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "notices": "node tools/gen-third-party-notices.mjs",
     "licenses": "node tools/check-licenses.mjs && node tools/check-drawio-bundle.mjs",
@@ -70,6 +71,7 @@
     "playwright-core": "^1.61.1",
     "pngjs": "^7.0.0",
     "prettier": "^3.9.6",
+    "tsx": "^4.21.0",
     "typescript-eslint": "^8.65.0"
   }
 }

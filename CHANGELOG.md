@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a focused Playwright CLI check for Home settings and Mongolian DOCX editing in the built desktop app.
+
 - Fall back to plain file copies when Linux network mounts reject the platform copy operation. This covers shared atomic writes and copying images into HTML and Markdown document asset folders.
 - Improve DOCX compatibility with custom XML wrappers, literal dollar sequences in list labels and shape text, and images inserted into headers and footers.
 

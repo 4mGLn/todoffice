@@ -56,6 +56,8 @@ cd apps/shell && npx vitest run tests/<파일>.test.ts   # 파일 하나만
 - `npm run test:parallel`(`tools/run-workspace-tests.mjs`)은 같은 작업 공간들을 2개씩 동시에 돌린다. 출력은 작업 공간별로 모아 보여 주고, 끝에 작업 공간마다 걸린 시간과 성공 여부 표가 나온다. 동시 실행 수는 `TEST_JOBS=<n>`, 작업 공간마다의 vitest 워커 수는 `VITEST_MAX_WORKERS`로 바꾼다. 빠르지만 다른 일이 도는 PC에서는 시간 초과가 날 수 있으므로, 합치기 전 검사는 `npm test`로 한다.
 - 원본 코드에서도 실패하던 테스트인지는 손대지 않은 원본 사본에서 같은 파일을 돌려 확인한다. 짐작으로 넘기지 않는다.
 
+[데스크톱 GUI 검증](gui-verification.md)에서 Playwright CLI로 변경한 화면을 골라 확인하는 방법을 안내한다.
+
 ## 환경변수
 
 | 이름                                                            | 역할                                                                                                               | 쓰이는 곳                                                                                                         |

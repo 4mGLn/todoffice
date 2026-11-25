@@ -39,6 +39,8 @@ The previous outer `docs/` was workspace reporting, distinct from the product's 
 
 Original command receipts and logs keep their historical absolute paths. The local relocation manifest records the old-to-new mapping; those historical paths are not assertions about the current layout. `.agents/`, dependency trees, caches and distribution artifacts must not be added to a public commit accidentally.
 
+For focused checks against the built Electron app, see [desktop GUI verification](gui-verification.md).
+
 ## Relocation verification
 
 The existing Git HEAD, branch, refs, index, local configuration and staging state were preserved. Source hashes and file/link inventories were compared before and immediately after the move. Updates after that comparison are limited to path/documentation changes and synchronization of the existing native vertical-layout test; runtime product code was not changed.
