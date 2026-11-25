@@ -9,5 +9,6 @@ test('keeps established coverage separate from preview choices', () => {
   assert.equal(validLanguageCount(22, '22 UI languages', policy), true)
   assert.equal(validLanguageCount(24, '24 fully translated UI languages', policy), false)
   assert.equal(validLanguageCount(24, '24 UI languages including 2 preview locales', policy), true)
-  assert.equal(validLanguageCount(21, '21 UI languages', policy), false)
+  const outdatedCount = policy.established - 1
+  assert.equal(validLanguageCount(outdatedCount, outdatedCount + ' UI languages', policy), false)
 })

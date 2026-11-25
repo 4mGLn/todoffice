@@ -1,6 +1,14 @@
 /* Shared chrome/AI-panel tokens come from @genoffice/ui/tokens.css (imported
  * before this file in main.tsx); only shell-specific tokens live here. */
 :root {
+  --home-account-avatar-text: #fff;
+  --home-card-hover-shadow: rgb(0 0 0 / 8%);
+  --home-star-hover: #f5a623;
+  --home-row-menu-shadow: rgb(0 0 0 / 14%);
+  --home-button-focus-ring: rgb(35 36 37 / 20%);
+  --home-danger-action-text: #fff;
+  --home-folder-menu-shadow: rgb(0 0 0 / 13%);
+  --home-sort-menu-shadow: rgb(0 0 0 / 10%);
   /* guide/onboarding accent is the brand blue */
   --accent: #0f7fff;
   --accent-hover: #0e72e5;
@@ -252,7 +260,7 @@ body.vib .home {
 
 .account-avatar.logged-in {
   background: var(--accent);
-  color: #fff;
+  color: var(--home-account-avatar-text);
 }
 
 .account-badge {
@@ -372,7 +380,7 @@ body.vib .home {
 
 .quick-card:hover {
   border-color: var(--border-hover);
-  box-shadow: 0 3px 12px rgb(0 0 0 / 8%);
+  box-shadow: 0 3px 12px var(--home-card-hover-shadow);
 }
 
 .quick-card svg {
@@ -802,7 +810,7 @@ body.vib .home {
 }
 
 .star-btn:hover {
-  color: #f5a623;
+  color: var(--home-star-hover);
 }
 
 .rename-input {
@@ -882,7 +890,7 @@ body.vib .home {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 10px 28px rgb(0 0 0 / 14%);
+  box-shadow: 0 10px 28px var(--home-row-menu-shadow);
   animation: menu-in 0.1s ease;
 }
 
@@ -953,7 +961,7 @@ body.vib .home {
 
 .btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgb(35 36 37 / 20%);
+  box-shadow: 0 0 0 3px var(--home-button-focus-ring);
 }
 
 .btn-secondary {
@@ -970,7 +978,7 @@ body.vib .home {
 .btn-danger {
   background: var(--color-error);
   border: none;
-  color: #fff;
+  color: var(--home-danger-action-text);
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -1296,7 +1304,7 @@ body.vib .home {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 13%);
+  box-shadow: 0 8px 24px var(--home-folder-menu-shadow);
   animation: menu-in 0.1s ease;
 }
 
@@ -1637,7 +1645,7 @@ body.vib .home {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+  box-shadow: 0 8px 24px var(--home-sort-menu-shadow);
   padding: 4px;
   z-index: 5;
 }

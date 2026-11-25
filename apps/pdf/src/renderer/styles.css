@@ -1,6 +1,8 @@
 /* Shared chrome/AI-panel tokens come from @genoffice/ui/tokens.css (imported
  * before this file in main.tsx); only pdf-specific values live here. */
 :root {
+  --pdf-night-backdrop: #1e1e1e;
+  --pdf-night-page-shadow: rgb(0 0 0 / 55%);
   --accent: #c43e1c;
   --accent-dark: #a33517;
   --accent-soft: #fbeae5;
@@ -1446,11 +1448,11 @@ button {
 }
 
 .pdf-night {
-  background: #1e1e1e;
+  background: var(--pdf-night-backdrop);
 }
 
 .pdf-night .pdf-page {
-  box-shadow: 0 1px 4px rgb(0 0 0 / 55%);
+  box-shadow: 0 1px 4px var(--pdf-night-page-shadow);
 }
 
 .pdf-sign-drop {

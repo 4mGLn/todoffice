@@ -5,6 +5,13 @@
  * brand blue #0f7fff only on the focus ring. */
 
 .onb-overlay {
+  --onb-overlay-bg: rgba(35, 36, 37, 0.4);
+  --onb-card-bg: #fff;
+  --onb-card-shadow-ambient: rgba(35, 36, 37, 0.22);
+  --onb-card-shadow-near: rgba(35, 36, 37, 0.08);
+  --onb-card-dark-bg: #2a2a2a;
+  --onb-card-dark-shadow-ambient: rgba(0, 0, 0, 0.5);
+  --onb-card-dark-shadow-near: rgba(0, 0, 0, 0.3);
   /* onboarding tokens, scoped to the overlay (home.css keeps its own --accent) */
   --onb-font-sans:
     'Arial', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
@@ -27,7 +34,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(35, 36, 37, 0.4);
+  background: var(--onb-overlay-bg);
   backdrop-filter: blur(4px);
   font-family: var(--onb-font-sans);
 }
@@ -45,10 +52,10 @@
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 48px);
   border-radius: 14px;
-  background: #fff;
+  background: var(--onb-card-bg);
   box-shadow:
-    0 24px 64px rgba(35, 36, 37, 0.22),
-    0 2px 8px rgba(35, 36, 37, 0.08);
+    0 24px 64px var(--onb-card-shadow-ambient),
+    0 2px 8px var(--onb-card-shadow-near);
   padding: 41px 32px 25px;
 }
 
@@ -341,10 +348,10 @@
 }
 
 [data-theme='dark'] .onb-card {
-  background: #2a2a2a;
+  background: var(--onb-card-dark-bg);
   box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.5),
-    0 2px 8px rgba(0, 0, 0, 0.3);
+    0 24px 64px var(--onb-card-dark-shadow-ambient),
+    0 2px 8px var(--onb-card-dark-shadow-near);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -360,10 +367,10 @@
     --onb-border-strong: #555;
   }
   :root:not([data-theme='light']):not([data-theme='dark']) .onb-card {
-    background: #2a2a2a;
+    background: var(--onb-card-dark-bg);
     box-shadow:
-      0 24px 64px rgba(0, 0, 0, 0.5),
-      0 2px 8px rgba(0, 0, 0, 0.3);
+      0 24px 64px var(--onb-card-dark-shadow-ambient),
+      0 2px 8px var(--onb-card-dark-shadow-near);
   }
 }
 /* Motion accessibility: suppress all animation for users who opt out */
