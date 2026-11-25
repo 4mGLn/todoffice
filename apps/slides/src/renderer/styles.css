@@ -6047,7 +6047,7 @@ body.vib .slide-list {
    otherwise swallows the clicks */
 /* Floating stage toolbar, matched to the reference stage-toolbar:
    white bar (padding 3px 5px, ~35px tall); 24px borderless tool buttons
-   with 12px #374151 labels; thin span dividers separate the groups; the
+ * with 12px #374151 labels; thin span dividers separate the groups; the
    assistant toggle shows a gray selected state while the panel is open */
 .stage-ai-bar {
   position: absolute;

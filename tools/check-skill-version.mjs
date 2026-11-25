@@ -37,7 +37,13 @@ if (!baseRef) baseRef = 'HEAD'
 const changed = [
   ...git(['diff', '--name-only', '--diff-filter=AMR', baseRef]).stdout.split('\n'),
   // new skills not yet committed (local runs; CI sees them as committed)
-  ...git(['ls-files', '--others', '--exclude-standard', 'skills', '.agents/skills/todoffice']).stdout.split('\n'),
+  ...git([
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+    'skills',
+    '.agents/skills/todoffice',
+  ]).stdout.split('\n'),
 ].filter((f) => SKILL_FILE.test(f))
 
 /** frontmatter fields the check cares about, and the body with the frontmatter removed */

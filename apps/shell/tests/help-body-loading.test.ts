@@ -63,15 +63,15 @@ async function finish(index: number, text: string) {
 }
 
 describe('help bodies remain attached to the requested topic and language', () => {
-  it('never shows the previous locale body under the English fallback metadata', async () => {
+  it('clears the previous body when switching to traditional Mongolian', async () => {
     await finish(0, PREVIOUS_BODY)
     expect(host.querySelector('.help-article')?.textContent).toContain(PREVIOUS_BODY)
     await act(async () => {
       host.querySelector<HTMLButtonElement>('#switch-script')!.click()
     })
     expect(delayed.requests[1]).toMatchObject({ id: 'getting-started', lang: 'mn-Mong' })
-    expect(host.querySelector('.help-article')?.getAttribute('lang')).toBe('en')
-    expect(host.querySelector('.help-language-fallback')?.textContent).toContain('English manual')
+    expect(host.querySelector('.help-article')?.getAttribute('lang')).toBe('mn-Mong')
+    expect(host.querySelector('.help-language-fallback')).toBeNull()
     expect(host.querySelector('.help-article')?.textContent).not.toContain(PREVIOUS_BODY)
     await finish(1, NEXT_BODY)
     expect(host.querySelector('.help-article')?.textContent).toContain(NEXT_BODY)

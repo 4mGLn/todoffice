@@ -9,7 +9,10 @@ function validateTree(dir) {
     if (seen.has(path)) return
     seen.add(path)
     const result = spawnSync('skills-ref', ['validate', dir], { stdio: 'inherit' })
-    if (result.error) throw new Error('Install skills-ref on PATH (see docs/repository-layout.md)', { cause: result.error })
+    if (result.error)
+      throw new Error('Install skills-ref on PATH (see docs/repository-layout.md)', {
+        cause: result.error,
+      })
     if (result.status !== 0) process.exitCode = 1
     return
   }
@@ -22,5 +25,6 @@ function validateTree(dir) {
     }
   }
 }
-for (const dir of ['.agents/skills', '.claude/skills', 'apps/shell/resources/builtin-skills']) validateTree(dir)
+for (const dir of ['.agents/skills', '.claude/skills', 'apps/shell/resources/builtin-skills'])
+  validateTree(dir)
 console.log('Checked ' + seen.size + ' distinct skill directories')

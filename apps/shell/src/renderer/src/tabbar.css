@@ -13,6 +13,13 @@
 }
 
 .tab-bar {
+  --tabstrip-hover-plate: rgba(255, 255, 255, 0.85);
+  --tabstrip-drag-shadow: rgba(0, 0, 0, 0.18);
+  --tabstrip-close-hover: rgba(0, 0, 0, 0.1);
+  --tabstrip-menu-hover: rgba(0, 0, 0, 0.08);
+  --tabstrip-dark-hover-plate: rgba(255, 255, 255, 0.08);
+  --tabstrip-dark-close-hover: rgba(255, 255, 255, 0.12);
+  --tabstrip-dark-menu-hover: rgba(255, 255, 255, 0.1);
   --tabstrip-bg: #ebebeb;
   --tabstrip-text: #454746;
   --tabstrip-text-active: #1f1f1f;
@@ -175,7 +182,7 @@ body.overlay-title-bar .tab-bar-drag-spacer {
 }
 
 .tab-item:not(.active):hover .tab-plate {
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--tabstrip-hover-plate);
 }
 
 .tab-item.active {
@@ -212,7 +219,7 @@ body.overlay-title-bar .tab-bar-drag-spacer {
 
 /* mid drag-to-reorder: the dragged tab's plate carries a lift shadow */
 .tab-item.drag-source .tab-plate {
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 6px var(--tabstrip-drag-shadow);
 }
 
 /* ---- drag-to-reorder (Chrome-style: the grabbed tab follows the pointer, neighbours slide aside) ---- */
@@ -281,7 +288,7 @@ body.overlay-title-bar .tab-bar-drag-spacer {
 }
 
 .tab-close:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--tabstrip-close-hover);
 }
 
 /* "+" new tab button: lives inside the strip so it hugs the last tab, Chrome-style */
@@ -327,7 +334,7 @@ body.overlay-title-bar .tab-bar-drag-spacer {
 .tab-new-btn:hover,
 .tab-overflow-btn:hover,
 .tab-app-menu-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--tabstrip-menu-hover);
 }
 
 .app-frame-content {
@@ -348,17 +355,17 @@ body.overlay-title-bar .tab-bar-drag-spacer {
 }
 
 [data-theme='dark'] .tab-item:not(.active):hover .tab-plate {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--tabstrip-dark-hover-plate);
 }
 
 [data-theme='dark'] .tab-close:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--tabstrip-dark-close-hover);
 }
 
 [data-theme='dark'] .tab-new-btn:hover,
 [data-theme='dark'] .tab-overflow-btn:hover,
 [data-theme='dark'] .tab-app-menu-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--tabstrip-dark-menu-hover);
 }
 
 /* System dark: same overrides when following OS preference */
@@ -373,15 +380,15 @@ body.overlay-title-bar .tab-bar-drag-spacer {
     background: var(--surface);
   }
   :root:not([data-theme='light']):not([data-theme='dark']) .tab-item:not(.active):hover .tab-plate {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--tabstrip-dark-hover-plate);
   }
   :root:not([data-theme='light']):not([data-theme='dark']) .tab-close:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--tabstrip-dark-close-hover);
   }
   :root:not([data-theme='light']):not([data-theme='dark']) .tab-new-btn:hover,
   :root:not([data-theme='light']):not([data-theme='dark']) .tab-overflow-btn:hover,
   :root:not([data-theme='light']):not([data-theme='dark']) .tab-app-menu-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--tabstrip-dark-menu-hover);
   }
 }
 /* Motion accessibility: suppress all animation for users who opt out */

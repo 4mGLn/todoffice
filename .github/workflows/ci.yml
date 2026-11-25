@@ -105,7 +105,7 @@ jobs:
           fi
           npm run check:skill-version
 
-      # Whole-tree, not changed-files: every one of the manual's 22 languages
+      # Whole-tree, not changed-files: every manual locale
       # has to match the English article's structure. A language that quietly
       # falls behind is exactly what no reviewer sees, and it is invisible in a
       # diff — the change that causes it looks like an ordinary translation.

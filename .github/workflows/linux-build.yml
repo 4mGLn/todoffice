@@ -147,21 +147,20 @@ jobs:
           set -euo pipefail
           dir="apps/shell/release/linux-unpacked"
           for bin in \
-            "$dir/ieumoffice" \
+            "$dir/todoffice" \
             "$dir/resources/native/xlsx-sidecar" \
-            "$dir/resources/cli/ieumoffice" \
-            "$dir/resources/ieumoffice-launch"; do
+            "$dir/resources/cli/todoffice" \
+            "$dir/resources/todoffice-launch"; do
             test -x "$bin" || { echo "missing or not executable: $bin"; exit 1; }
           done
           compgen -G "apps/shell/release/todoffice-*.AppImage" >/dev/null
-          compgen -G "apps/shell/release/ieumoffice_*_amd64.deb" >/dev/null
-          compgen -G "apps/shell/release/ieumoffice-*.x86_64.rpm" >/dev/null
-          test -f "apps/shell/release/latest-linux.yml"
+          compgen -G "apps/shell/release/todoffice_*_amd64.deb" >/dev/null
+          compgen -G "apps/shell/release/todoffice-*.x86_64.rpm" >/dev/null
           # Ubuntu 24.04 renamed part of electron-builder's default deb
           # dependencies in the 64-bit time_t transition, so the control file
           # must carry "plain | t64" alternatives (electron-builder.cjs
           # deb.depends); an rpm/dnf install carries no such renames.
-          depends="$(dpkg-deb -f apps/shell/release/ieumoffice_*_amd64.deb Depends)"
+          depends="$(dpkg-deb -f apps/shell/release/todoffice_*_amd64.deb Depends)"
           for name in libgtk-3-0 libnotify4 libxtst6 libatspi2.0-0 libsecret-1-0; do
             grep -Eq "$name[[:space:]]*\|[[:space:]]*$name"t64 <<<"$depends" || {
               echo "deb Depends is missing the t64 alternative for $name: $depends"
@@ -177,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm -v "$PWD/apps/shell/release:/pkg:ro" ubuntu:24.04 \
-            bash -c 'set -o pipefail; apt-get update -qq && apt-get -s install /pkg/ieumoffice_*_amd64.deb | tail -n 5'
+            bash -c 'set -o pipefail; apt-get update -qq && apt-get -s install /pkg/todoffice_*_amd64.deb | tail -n 5'
 
       # Newer Ubuntu kernels ship an AppArmor policy that blocks unprivileged
       # user namespaces, which kills the Chromium zygote even with --no-sandbox
@@ -194,7 +193,7 @@ jobs:
       - name: Smoke test the packaged app
         run: |
           set -euo pipefail
-          exe="apps/shell/release/linux-unpacked/ieumoffice"
+          exe="apps/shell/release/linux-unpacked/todoffice"
           work="$RUNNER_TEMP/smoke"
           mkdir -p "$work"
           printf '# Smoke test\n\nHello from the Linux build.\n' > "$work/note.md"
@@ -223,19 +222,19 @@ jobs:
             ( ulimit -Sn 1024; exec xvfb-run --auto-servernum -- "$start" --no-sandbox --user-data-dir="$work/profile-$name" ) >"$work/$name.log" 2>&1 &
             local job=$!
             for _ in $(seq 1 60); do
-              pgrep -f -- "$dir/ieumoffice --type=renderer" >/dev/null && break
+              pgrep -f -- "$dir/todoffice --type=renderer" >/dev/null && break
               sleep 1
             done
-            pids="$(pgrep -f -- "$dir/ieumoffice --type=(zygote|renderer)" || true)"
+            pids="$(pgrep -f -- "$dir/todoffice --type=(zygote|renderer)" || true)"
             for pid in $pids; do
               soft="$soft $(awk '/^Max open files/ {print $4}' "/proc/$pid/limits" 2>/dev/null || true)"
             done
-            pkill -f -- "$dir/ieumoffice" || true
+            pkill -f -- "$dir/todoffice" || true
             kill "$job" 2>/dev/null || true
             wait "$job" 2>/dev/null || true
             echo $soft
           }
-          launched="$(child_limits "$dir/resources/ieumoffice-launch" launcher)"
+          launched="$(child_limits "$dir/resources/todoffice-launch" launcher)"
           echo "through the launcher: ${launched:-none found}"
           if [ -z "$launched" ]; then
             echo "::error::no zygote or renderer process was found"
@@ -248,7 +247,7 @@ jobs:
               exit 1
             fi
           done
-          echo "started directly (for comparison): $(child_limits "$dir/ieumoffice" direct)"
+          echo "started directly (for comparison): $(child_limits "$dir/todoffice" direct)"
 
       # Every ELF file the packages carry (Electron, its libraries, the xlsx
       # sidecar, and any native program added later) must load on the floor
@@ -299,16 +298,16 @@ jobs:
               set -euo pipefail
               export DEBIAN_FRONTEND=noninteractive
               apt-get update -qq
-              apt-get install -y -qq --no-install-recommends /pkg/ieumoffice_*_amd64.deb \
+              apt-get install -y -qq --no-install-recommends /pkg/todoffice_*_amd64.deb \
                 libgbm1 libasound2 xvfb xauth > /dev/null
               ldd --version | sed -n 1p
-              /opt/IeumOffice/resources/native/xlsx-sidecar < /dev/null
+              /opt/TodOffice/resources/native/xlsx-sidecar < /dev/null
               # the post-install step pointed the desktop entry at the launcher (#488)
-              test -x /opt/IeumOffice/resources/ieumoffice-launch
-              grep -q "^Exec=/opt/IeumOffice/resources/ieumoffice-launch " /usr/share/applications/ieumoffice.desktop
-              if ldd /opt/IeumOffice/ieumoffice | grep "not found"; then exit 1; fi
+              test -x /opt/TodOffice/resources/todoffice-launch
+              grep -q "^Exec=/opt/TodOffice/resources/todoffice-launch " /usr/share/applications/todoffice.desktop
+              if ldd /opt/TodOffice/todoffice | grep "not found"; then exit 1; fi
               mkdir -p /tmp/out
-              xvfb-run --auto-servernum -- /opt/IeumOffice/ieumoffice --headless-export /work/table.csv --to pdf --out /tmp/out/table.pdf --json --no-sandbox
+              xvfb-run --auto-servernum -- /opt/TodOffice/todoffice --headless-export /work/table.csv --to pdf --out /tmp/out/table.pdf --json --no-sandbox
               test -s /tmp/out/table.pdf
             '
 
@@ -350,7 +349,7 @@ jobs:
           node packages/cli/pack-tarball.mjs \
             --from apps/shell/release/linux-unpacked/resources \
             --out apps/shell/release --platform linux --arch x64
-          cat apps/shell/release/ieumoffice-cli_*.tar.gz.sha256
+          cat apps/shell/release/todoffice-cli_*.tar.gz.sha256
 
       - name: The standalone archive runs without GTK or the app
         run: |
@@ -362,8 +361,8 @@ jobs:
               set -euo pipefail
               ulimit -v 2097152
               mkdir -p /tmp/cli
-              tar -xzf /dist/ieumoffice-cli_*.tar.gz -C /tmp/cli
-              cli=/tmp/cli/ieumoffice-cli/cli/ieumoffice
+              tar -xzf /dist/todoffice-cli_*.tar.gz -C /tmp/cli
+              cli=/tmp/cli/todoffice-cli/cli/todoffice
               "$cli" --version
               printf "# Standalone\n\n- one\n- two\n" > /tmp/note.md
               "$cli" create --type docx --from /tmp/note.md --out /tmp/note.docx --json
@@ -384,14 +383,13 @@ jobs:
       - name: Upload the release files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ieumoffice-linux-x64
+          name: todoffice-linux-x64
           path: |
             apps/shell/release/*.AppImage
             apps/shell/release/*.deb
             apps/shell/release/*.rpm
             apps/shell/release/*cli*.tar.gz
             apps/shell/release/*cli*.tar.gz.sha256
-            apps/shell/release/*-linux.yml
           if-no-files-found: error
           retention-days: 14
 
@@ -413,11 +411,17 @@ jobs:
       - name: Attach to the release
         run: |
           set -euo pipefail
-          gh run download "$GITHUB_RUN_ID" --name ieumoffice-linux-x64 --dir linux
+          gh run download "$GITHUB_RUN_ID" --name todoffice-linux-x64 --dir linux
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "not a version tag: $TAG"; exit 1; }
           gh release view "$TAG" >/dev/null || { echo "no release $TAG: publish it first"; exit 1; }
-          feed=$(ls linux/*-linux.yml)
-          built=$(sed -n 's/^version: *//p' $feed | tr -d "'\"")
-          [ "v$built" = "$TAG" ] || { echo "built $built, but the release is $TAG"; exit 1; }
-          gh release upload "$TAG" linux/*.AppImage linux/*.deb linux/*.rpm linux/*cli*.tar.gz linux/*cli*.tar.gz.sha256 $feed --clobber
+          version=${TAG#v}
+          assets=(
+            "linux/todoffice-$version.AppImage"
+            "linux/todoffice_${version}_amd64.deb"
+            "linux/todoffice-$version.x86_64.rpm"
+            "linux/todoffice-cli_${version}_linux-x64.tar.gz"
+            "linux/todoffice-cli_${version}_linux-x64.tar.gz.sha256"
+          )
+          for asset in "${assets[@]}"; do test -f "$asset"; done
+          gh release upload "$TAG" "${assets[@]}" --clobber
           gh release view "$TAG" --json assets --jq '.assets[].name'

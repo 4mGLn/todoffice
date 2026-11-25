@@ -88,6 +88,31 @@ const ALLOW = [
     reason: 'the acknowledgement and trademark paragraphs',
   },
   {
+    path: /^docs\/upstream-readme(?:\.en)?\.md$/,
+    span: /github\.com\/genspark-ai\/genoffice/g,
+    reason: 'the original project link in the archived upstream README',
+  },
+  {
+    path: /^docs\/upstream-readme(?:\.en)?\.md$/,
+    section: /^## (?:License and acknowledgement|라이선스와 출처)$/,
+    reason: 'license, attribution and trademark text in the archived upstream README',
+  },
+  {
+    path: 'apps/shell/src/renderer/src/i18n/help/help-product-links.ts',
+    span: /genspark-ai\\\/genoffice/g,
+    reason: 'the exact upstream repository name in the service-link removal pattern',
+  },
+  {
+    path: 'apps/shell/tests/help-product-links.test.ts',
+    span: /github\.com\/genspark-ai\/genoffice/g,
+    reason: 'test fixture for preserving source attribution',
+  },
+  {
+    path: 'apps/shell/tests/third-party-notices.test.ts',
+    span: /Copyright 2026 Mainfunc, Inc\./g,
+    reason: 'test fixture for the required copyright notice',
+  },
+  {
     path: 'packages/agent-core/src/redact-range.ts',
     span: /https:\/\/genspark\.ai\/genoffice\/redaction\/2026/g,
     reason:

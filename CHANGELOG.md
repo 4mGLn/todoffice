@@ -5,6 +5,8 @@
 - Fall back to plain file copies when Linux network mounts reject the platform copy operation. This covers shared atomic writes and copying images into HTML and Markdown document asset folders.
 - Improve DOCX compatibility with custom XML wrappers, literal dollar sequences in list labels and shape text, and images inserted into headers and footers.
 
+- Add draft translations of all 27 help topics in Mongolian Cyrillic and traditional Mongolian script.
+
 - Add desktop installers for the latest stable GitHub release and installation instructions in Mongolian, English, and Korean.
 
 - Show the TodOffice project license first in the About notices.

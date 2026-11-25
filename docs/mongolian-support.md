@@ -36,9 +36,9 @@ npm run check:mongolian-coverage -- --json /tmp/todoffice-mongolian-coverage.jso
 npm run check:help-langs
 ```
 
-Both commands are expected to fail while the translation backlog remains. Do not turn those failures into a full-localization claim. The source inventory covers literal English dictionary leaves; referenced constants, dynamic templates and embedded vendor interfaces require additional review.
+`check:help-langs` checks all 27 topics in each script against the English manual. Both Mongolian editions have draft articles. The interface inventory still reports unmapped messages and exits with a failure. It covers literal English dictionary leaves. Referenced constants, dynamic templates and embedded vendor interfaces require additional review.
 
-The manual currently lacks 27 articles in each Mongolian locale, 54 articles in total. Help displays an explicit untranslated notice and the English article in horizontal English layout. HWP's embedded editor and draw.io retain their existing English fallback where no Mongolian language pack exists.
+The app continues to fall back to horizontal English if an article is unavailable in the selected language. HWP's embedded editor and draw.io retain their English fallback where no Mongolian language pack exists.
 
 ## Compact controls (2026-11-25)
 

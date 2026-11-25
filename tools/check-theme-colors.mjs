@@ -26,8 +26,13 @@ const COMMENT_LINE = /^\s*(\/\*|\*)/
 function git(commandArgs, { allowFailure = false } = {}) {
   const result = spawnSync('git', commandArgs, {
     encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024,
     stdio: ['ignore', 'pipe', 'inherit'],
   })
+  if (result.error) {
+    console.error('Unable to read Git output for the theme color check:', result.error.message)
+    process.exit(1)
+  }
   if (result.status !== 0 && !allowFailure) process.exit(result.status ?? 1)
   return result
 }

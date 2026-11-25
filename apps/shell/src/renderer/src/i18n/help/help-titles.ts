@@ -1,4 +1,3 @@
-import { withMongolianLocales } from '@genoffice/i18n'
 /**
  * Per-language titles for the manual's sidebar and article headings.
  *
@@ -12,7 +11,7 @@ import { withMongolianLocales } from '@genoffice/i18n'
 import { brandText } from '@genoffice/i18n'
 import type { HelpGroupId } from './help-registry'
 
-/** UI title locales; preview Mongolian headings explicitly fall back to English. */
+/** Locales with manual titles. */
 export const HELP_TITLE_LANGS = [
   'zh',
   'zh-TW',
@@ -44,7 +43,9 @@ export type HelpTitleLang = (typeof HELP_TITLE_LANGS)[number]
 
 /** Sidebar group headings, per language. */
 const GROUP_TITLES: Record<HelpGroupId, Record<HelpTitleLang, string>> = {
-  start: withMongolianLocales({
+  start: {
+    'mn-Cyrl': 'Эхлэх',
+    'mn-Mong': 'ᠡᠬᠢᠯᠡᠯ',
     zh: '入门',
     'zh-TW': '入門',
     en: 'Getting started',
@@ -67,8 +68,10 @@ const GROUP_TITLES: Record<HelpGroupId, Record<HelpTitleLang, string>> = {
     hi: 'शुरुआत',
     vi: 'Bắt đầu',
     tr: 'Başlarken',
-  }),
-  apps: withMongolianLocales({
+  },
+  apps: {
+    'mn-Cyrl': 'Хэрэглүүрүүд',
+    'mn-Mong': 'ᠬᠡᠷᠡᠭᠰᠡᠯ',
     zh: '应用',
     'zh-TW': '應用程式',
     en: 'Applications',
@@ -91,8 +94,10 @@ const GROUP_TITLES: Record<HelpGroupId, Record<HelpTitleLang, string>> = {
     hi: 'ऐप्स',
     vi: 'Ứng dụng',
     tr: 'Uygulamalar',
-  }),
-  ai: withMongolianLocales({
+  },
+  ai: {
+    'mn-Cyrl': 'AI боломжууд',
+    'mn-Mong': 'AI ᠶᠢᠨ ᠴᠢᠳᠠᠪᠤᠷᠢ',
     zh: 'AI 能力',
     'zh-TW': 'AI 功能',
     en: 'AI features',
@@ -115,8 +120,10 @@ const GROUP_TITLES: Record<HelpGroupId, Record<HelpTitleLang, string>> = {
     hi: 'AI सुविधाएँ',
     vi: 'Tính năng AI',
     tr: 'AI özellikleri',
-  }),
-  manage: withMongolianLocales({
+  },
+  manage: {
+    'mn-Cyrl': 'Файл ба тохиргоо',
+    'mn-Mong': 'ᠹᠠᠢᠯ ᠪᠠ ᠲᠣᠬᠢᠷᠠᠭᠤᠯᠭ᠎ᠠ',
     zh: '文件与设置',
     'zh-TW': '檔案與設定',
     en: 'Files & settings',
@@ -139,13 +146,15 @@ const GROUP_TITLES: Record<HelpGroupId, Record<HelpTitleLang, string>> = {
     hi: 'फ़ाइलें और सेटिंग्स',
     vi: 'Tệp và cài đặt',
     tr: 'Dosyalar ve ayarlar',
-  }),
+  },
 }
 
 /** Article titles, per language, keyed by topic id. A language lands here when
  *  its bodies land in ./topics; until then the title falls back to English. */
 const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
-  'getting-started': withMongolianLocales({
+  'getting-started': {
+    'mn-Cyrl': 'Түргэн эхлэл',
+    'mn-Mong': 'ᠲᠦᠷᠭᠡᠨ ᠡᠬᠢᠯᠡᠯ',
     zh: '快速入门：界面与基本操作',
     'zh-TW': '快速上手：介面與基本操作',
     en: 'Quick start: the interface and the basics',
@@ -168,8 +177,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'त्वरित प्रारंभ: इंटरफ़ेस और बुनियादी बातें',
     vi: 'Bắt đầu nhanh: giao diện và những điều cơ bản',
     tr: 'Hızlı başlangıç: arayüz ve temeller',
-  }),
-  'home-screen': withMongolianLocales({
+  },
+  'home-screen': {
+    'mn-Cyrl': 'Нүүр хуудас',
+    'mn-Mong': 'ᠡᠬᠢᠯᠡᠯ ᠦᠨ ᠬᠠᠭᠤᠳᠠᠰᠤ',
     zh: '主屏（Home）：文件都在哪',
     'zh-TW': '首頁（Home）：檔案都在哪裡',
     en: 'The Home screen: where your files live',
@@ -192,8 +203,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'होम स्क्रीन: आपकी फ़ाइलें कहाँ हैं',
     vi: 'Màn hình Trang chủ: tập tin của bạn ở đâu',
     tr: 'Giriş ekranı: dosyalarınız nerede',
-  }),
-  'tabs-and-windows': withMongolianLocales({
+  },
+  'tabs-and-windows': {
+    'mn-Cyrl': 'Таб ба цонх',
+    'mn-Mong': 'ᠲᠠᠪ ᠪᠠ ᠴᠣᠩᠬᠣ',
     zh: '标签页与窗口管理',
     'zh-TW': '分頁與視窗管理',
     en: 'Tabs and window management',
@@ -216,8 +229,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'टैब और विंडो प्रबंधन',
     vi: 'Quản lý thẻ và cửa sổ',
     tr: 'Sekmeler ve pencere yönetimi',
-  }),
-  shortcuts: withMongolianLocales({
+  },
+  shortcuts: {
+    'mn-Cyrl': 'Гарын товчлол',
+    'mn-Mong': 'ᠳᠠᠷᠤᠭᠤᠯ ᠤᠨ ᠲᠣᠪᠴᠢᠯᠠᠯ',
     zh: '快捷键一览',
     'zh-TW': '快捷鍵一覽',
     en: 'Keyboard shortcuts',
@@ -240,8 +255,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'कीबोर्ड शॉर्टकट',
     vi: 'Phím tắt',
     tr: 'Klavye kısayolları',
-  }),
-  docs: withMongolianLocales({
+  },
+  docs: {
+    'mn-Cyrl': 'Docs – Бичвэр',
+    'mn-Mong': 'Docs · ᠪᠠᠷᠢᠮᠲᠠ',
     zh: 'Docs：文字处理',
     'zh-TW': 'Docs：文字處理',
     en: 'Docs: word processing',
@@ -264,8 +281,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'Docs: शब्द प्रसंस्करण',
     vi: 'Docs: xử lý văn bản',
     tr: 'Docs: kelime işlem',
-  }),
-  sheets: withMongolianLocales({
+  },
+  sheets: {
+    'mn-Cyrl': 'Sheets – Хүснэгт',
+    'mn-Mong': 'Sheets · ᠬᠦᠰᠦᠨᠦᠭᠲᠦ',
     zh: 'Sheets：电子表格',
     'zh-TW': 'Sheets：試算表',
     en: 'Sheets: spreadsheets',
@@ -288,8 +307,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'Sheets: स्प्रेडशीट',
     vi: 'Sheets: bảng tính',
     tr: 'Sheets: elektronik tablolar',
-  }),
-  slides: withMongolianLocales({
+  },
+  slides: {
+    'mn-Cyrl': 'Slides – Танилцуулга',
+    'mn-Mong': 'Slides · ᠦᠵᠡᠭᠦᠯᠦᠯᠭᠡ',
     zh: 'Slides：演示文稿',
     'zh-TW': 'Slides：簡報',
     en: 'Slides: presentations',
@@ -312,8 +333,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'Slides: प्रस्तुतियाँ',
     vi: 'Slides: trình chiếu',
     tr: 'Slides: sunumlar',
-  }),
-  pdf: withMongolianLocales({
+  },
+  pdf: {
+    'mn-Cyrl': 'PDF засварлагч',
+    'mn-Mong': 'PDF ᠵᠠᠰᠠᠭᠤᠷ',
     zh: 'PDF：阅读、注释与涂黑',
     'zh-TW': 'PDF：閱讀、註解與塗黑',
     en: 'PDF: reading, annotating and redacting',
@@ -336,9 +359,11 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'PDF: पढ़ना, एनोटेट करना और कालापन',
     vi: 'PDF: đọc, chú thích và che nội dung',
     tr: 'PDF: okuma, açıklama ekleme ve karartma',
-  }),
+  },
   // the PDF tools window's own title (i18n/pdf-tools/*.ts windowTitle)
-  'pdf-tools': withMongolianLocales({
+  'pdf-tools': {
+    'mn-Cyrl': 'PDF хэрэгслүүд',
+    'mn-Mong': 'PDF ᠪᠠᠭᠠᠵᠢ',
     zh: 'PDF 工具',
     'zh-TW': 'PDF 工具',
     en: 'PDF tools',
@@ -361,8 +386,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'PDF टूल',
     vi: 'Công cụ PDF',
     tr: 'PDF araçları',
-  }),
-  markdown: withMongolianLocales({
+  },
+  markdown: {
+    'mn-Cyrl': 'Markdown засварлагч',
+    'mn-Mong': 'ᠮᠠᠷᠺᠳᠠᠤᠨ ᠵᠠᠰᠠᠭᠤᠷ',
     zh: 'Markdown 编辑器',
     'zh-TW': 'Markdown 編輯器',
     en: 'The Markdown editor',
@@ -385,8 +412,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'Markdown एडिटर',
     vi: 'Trình soạn thảo Markdown',
     tr: 'Markdown düzenleyici',
-  }),
-  html: withMongolianLocales({
+  },
+  html: {
+    'mn-Cyrl': 'HTML засварлагч',
+    'mn-Mong': 'HTML ᠵᠠᠰᠠᠭᠤᠷ',
     zh: 'HTML 编辑器',
     'zh-TW': 'HTML 編輯器',
     en: 'The HTML editor',
@@ -409,8 +438,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'HTML एडिटर',
     vi: 'Trình soạn thảo HTML',
     tr: 'HTML düzenleyici',
-  }),
-  epub: withMongolianLocales({
+  },
+  epub: {
+    'mn-Cyrl': 'EPUB цахим ном',
+    'mn-Mong': 'EPUB ᠴᠠᠬᠢᠯᠭᠠᠨ ᠨᠣᠮ',
     zh: 'EPUB 电子书：阅读、编辑与翻译',
     'zh-TW': 'EPUB 電子書：閱讀、編輯與翻譯',
     en: 'EPUB e-books: reading, editing and translating',
@@ -433,8 +464,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'EPUB ई-बुक: पढ़ना, संपादित करना और अनुवाद करना',
     vi: 'Sách điện tử EPUB: đọc, chỉnh sửa và dịch',
     tr: 'EPUB e-kitaplar: okuma, düzenleme ve çeviri',
-  }),
-  diagram: withMongolianLocales({
+  },
+  diagram: {
+    'mn-Cyrl': 'Диаграм засварлагч',
+    'mn-Mong': 'ᠳᠠᠶᠢᠠᠭᠷᠠᠮ ᠵᠠᠰᠠᠭᠤᠷ',
     zh: '图表：绘制和编辑 draw.io 文件',
     'zh-TW': '圖表：繪製與編輯 draw.io 檔案',
     en: 'Diagrams: drawing and editing draw.io files',
@@ -457,8 +490,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'आरेख: draw.io फ़ाइलें बनाना और संपादित करना',
     vi: 'Sơ đồ: vẽ và chỉnh sửa tệp draw.io',
     tr: 'Diyagramlar: draw.io dosyalarını çizme ve düzenleme',
-  }),
-  'ai-panel': withMongolianLocales({
+  },
+  'ai-panel': {
+    'mn-Cyrl': 'AI туслахын самбар',
+    'mn-Mong': 'AI ᠲᠤᠰᠠᠯᠠᠭᠴᠢ ᠶᠢᠨ ᠰᠠᠮᠪᠠᠷ',
     zh: 'AI 助手面板',
     'zh-TW': 'AI 助理面板',
     en: 'The AI assistant panel',
@@ -481,8 +516,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'AI सहायक पैनल',
     vi: 'Bảng điều khiển trợ lý AI',
     tr: 'AI asistan paneli',
-  }),
-  'ai-models': withMongolianLocales({
+  },
+  'ai-models': {
+    'mn-Cyrl': 'AI загвар ба тохиргоо',
+    'mn-Mong': 'AI ᠶᠢᠨ ᠵᠠᠭᠪᠤᠷ ᠪᠠ ᠲᠣᠬᠢᠷᠠᠭᠤᠯᠭ᠎ᠠ',
     zh: 'AI 模型与设置',
     'zh-TW': 'AI 模型與設定',
     en: 'AI models and settings',
@@ -505,9 +542,11 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'AI मॉडल और सेटिंग्स',
     vi: 'Mô hình AI và cài đặt',
     tr: 'AI modelleri ve ayarlar',
-  }),
+  },
   // the same words as the section heading in Settings → AI (`setSubTitle`)
-  skills: withMongolianLocales({
+  skills: {
+    'mn-Cyrl': 'AI ур чадвар',
+    'mn-Mong': 'AI ᠶᠢᠨ ᠤᠷᠠᠨ ᠴᠢᠳᠠᠪᠤᠷᠢ',
     zh: '技能',
     'zh-TW': '技能',
     en: 'Skills',
@@ -530,8 +569,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'कौशल',
     vi: 'Kỹ năng',
     tr: 'Beceriler',
-  }),
-  projects: withMongolianLocales({
+  },
+  projects: {
+    'mn-Cyrl': 'Төслүүд',
+    'mn-Mong': 'ᠲᠥᠰᠦᠯ',
     zh: '项目',
     'zh-TW': '專案',
     en: 'Projects',
@@ -554,8 +595,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'प्रोजेक्ट',
     vi: 'Dự án',
     tr: 'Projeler',
-  }),
-  'mcp-servers': withMongolianLocales({
+  },
+  'mcp-servers': {
+    'mn-Cyrl': 'MCP серверүүд',
+    'mn-Mong': 'MCP ᠰᠧᠷᠸᠧᠷ',
     zh: '连接 MCP 服务器',
     'zh-TW': '連接 MCP 伺服器',
     en: 'Connecting MCP servers',
@@ -578,8 +621,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'MCP सर्वर जोड़ना',
     vi: 'Kết nối máy chủ MCP',
     tr: 'MCP sunucularını bağlama',
-  }),
-  'agent-mode': withMongolianLocales({
+  },
+  'agent-mode': {
+    'mn-Cyrl': 'Агентын горим',
+    'mn-Mong': 'ᠠᠭᠧᠨᠲ ᠤᠨ ᠭᠣᠷᠢᠮ',
     zh: '智能体模式',
     'zh-TW': '代理程式模式',
     en: 'Agent mode',
@@ -602,8 +647,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'एजेंट मोड',
     vi: 'Chế độ tác tử',
     tr: 'Ajan modu',
-  }),
-  subscription: withMongolianLocales({
+  },
+  subscription: {
+    'mn-Cyrl': 'Захиалгаа холбох',
+    'mn-Mong': 'ᠵᠠᠬᠢᠶᠠᠯᠭ᠎ᠠ ᠬᠣᠯᠪᠣᠬᠤ',
     zh: '订阅连接',
     'zh-TW': '訂閱連線',
     en: 'Subscription connection',
@@ -626,8 +673,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'सदस्यता कनेक्शन',
     vi: 'Kết nối gói đăng ký',
     tr: 'Abonelik bağlantısı',
-  }),
-  fonts: withMongolianLocales({
+  },
+  fonts: {
+    'mn-Cyrl': 'Фонт',
+    'mn-Mong': 'ᠹᠣᠨᠲ',
     zh: '字体：系统字体与安装字体文件',
     'zh-TW': '字型：系統字型與安裝字型檔',
     en: 'Fonts: system fonts and installing font files',
@@ -650,8 +699,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'फ़ॉन्ट: सिस्टम फ़ॉन्ट और फ़ॉन्ट फ़ाइलें इंस्टॉल करना',
     vi: 'Phông chữ: phông hệ thống và cài đặt tệp phông chữ',
     tr: 'Yazı tipleri: sistem yazı tipleri ve yazı tipi dosyaları kurma',
-  }),
-  'file-ops': withMongolianLocales({
+  },
+  'file-ops': {
+    'mn-Cyrl': 'Файлын үйлдлүүд',
+    'mn-Mong': 'ᠹᠠᠢᠯ ᠤᠨ ᠦᠢᠯᠡᠳᠦᠯ',
     zh: '文件操作：重命名、删除、导出',
     'zh-TW': '檔案操作：重新命名、刪除、匯出',
     en: 'File operations: rename, delete, export',
@@ -674,8 +725,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'फ़ाइल कार्रवाइयाँ: नाम बदलना, हटाना, निर्यात',
     vi: 'Thao tác tập tin: đổi tên, xóa, xuất',
     tr: 'Dosya işlemleri: yeniden adlandırma, silme, dışa aktarma',
-  }),
-  'google-drive': withMongolianLocales({
+  },
+  'google-drive': {
+    'mn-Cyrl': 'Google Drive',
+    'mn-Mong': 'Google Drive',
     zh: 'Google 云端硬盘',
     'zh-TW': 'Google 雲端硬碟',
     en: 'Google Drive',
@@ -698,8 +751,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'Google Drive',
     vi: 'Google Drive',
     tr: 'Google Drive',
-  }),
-  'settings-integrations': withMongolianLocales({
+  },
+  'settings-integrations': {
+    'mn-Cyrl': 'Тохиргоо ба холболт',
+    'mn-Mong': 'ᠲᠣᠬᠢᠷᠠᠭᠤᠯᠭ᠎ᠠ ᠪᠠ ᠬᠣᠯᠪᠣᠯᠲᠠ',
     zh: '设置、语言、主题与 MCP 集成',
     'zh-TW': '設定、語言、主題與 MCP 整合',
     en: 'Settings, language, theme and MCP integrations',
@@ -722,8 +777,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'सेटिंग्स, भाषा, थीम और MCP इंटीग्रेशन',
     vi: 'Cài đặt, ngôn ngữ, chủ đề và tích hợp MCP',
     tr: 'Ayarlar, dil, tema ve MCP entegrasyonları',
-  }),
-  install: withMongolianLocales({
+  },
+  install: {
+    'mn-Cyrl': 'TodOffice суулгах',
+    'mn-Mong': 'TodOffice ᠶᠢ ᠤᠭᠰᠠᠷᠠᠬᠤ',
     zh: '安装 GenOffice',
     'zh-TW': '安裝 GenOffice',
     en: 'Installing GenOffice',
@@ -746,8 +803,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'GenOffice इंस्टॉल करना',
     vi: 'Cài đặt GenOffice',
     tr: 'GenOffice kurulumu',
-  }),
-  cli: withMongolianLocales({
+  },
+  cli: {
+    'mn-Cyrl': 'Командын мөр ба агентууд',
+    'mn-Mong': 'ᠵᠠᠷᠯᠢᠭ ᠤᠨ ᠮᠥᠷ ᠪᠠ ᠠᠭᠧᠨᠲ',
     zh: '命令行与智能体',
     'zh-TW': '命令列與智慧代理',
     en: 'Command line and agents',
@@ -770,8 +829,10 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'कमांड लाइन और एजेंट',
     vi: 'Dòng lệnh và tác nhân',
     tr: 'Komut satırı ve ajanlar',
-  }),
-  mcp: withMongolianLocales({
+  },
+  mcp: {
+    'mn-Cyrl': 'Кодын агент холбох',
+    'mn-Mong': 'ᠺᠣᠳ ᠤᠨ ᠠᠭᠧᠨᠲ ᠬᠣᠯᠪᠣᠬᠤ',
     zh: '连接编程助手',
     'zh-TW': '連接程式設計助手',
     en: 'Connecting a coding agent',
@@ -794,7 +855,7 @@ const TOPIC_TITLES: Record<string, Record<HelpTitleLang, string>> = {
     hi: 'कोडिंग एजेंट से कनेक्ट करना',
     vi: 'Kết nối tác nhân lập trình',
     tr: 'Bir kodlama ajanı bağlama',
-  }),
+  },
 }
 
 /** Sidebar group heading in the reader's language; English when unknown. */
