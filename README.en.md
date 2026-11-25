@@ -14,7 +14,7 @@ Part of Mongolia’s development is learning to build and improve the software a
 
 ## Installation
 
-As of 2026-11-25, the first official release is pending on [GitHub Releases](https://github.com/4mGLn/todoffice/releases). Once published, the commands below install the package for your computer from the latest stable release. If that release has no matching package, the installer reports it and stops.
+As of 2026-11-26, the first official release is pending on [GitHub Releases](https://github.com/4mGLn/todoffice/releases). Once published, the commands below install the package for your computer from the latest stable release. If that release has no matching package, the installer reports it and stops.
 
 **Linux (x64) and macOS (Apple silicon or Intel)** — Run in a terminal.
 
@@ -32,7 +32,7 @@ irm https://github.com/4mGLn/todoffice/releases/latest/download/install.ps1 | ie
 
 ## Mongolian language support
 
-As of 2026-11-25, the Mongolian Cyrillic (`mn-Cyrl`) and traditional Mongolian script (`mn-Mong`) translations are **previews**. Interface text and help that still need translation appear in English.
+As of 2026-11-26, the Mongolian Cyrillic (`mn-Cyrl`) and traditional Mongolian script (`mn-Mong`) translations are **previews**. All 27 help topics have draft translations in both scripts. They still need native-speaker review. Untranslated interface text appears in English.
 
 - In traditional-script mode, menus run vertically. A new blank document in the Docs editor starts with text running from top to bottom in columns that progress from left to right. Existing documents keep their saved writing direction. Docs also lets you choose the direction explicitly. Support for vertical editing in other file formats varies.
 - Home cards, menu tabs, and settings use consistent sizes and spacing. The B, I, and U formatting icons stay upright. Collapsing the tool panel leaves only the navigation rail.

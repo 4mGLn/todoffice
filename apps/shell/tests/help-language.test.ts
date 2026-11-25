@@ -1,29 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import type { Lang } from '@genoffice/i18n'
 import { LocaleProvider } from '../src/renderer/src/locale'
 import { HelpScreen } from '../src/renderer/src/i18n/help/HelpScreen'
-import { helpBody } from '../src/renderer/src/i18n/help/help-registry'
-
-/**
- * The manual ships 21 editions — 294 bodies, 21 sets of titles, 21 figure
- * sets — and every one of them has to be reachable.
- *
- * The screen used to read `document.documentElement.lang`, which is the BCP-47
- * tag (`zh-CN`, `ja-JP`), and then pick between two branches: `zh` or `en`.
- * That left 19 editions unrendered, showed English titles over whatever body
- * matched `startsWith('zh')`, and gave zh-TW readers the zh-CN edition —
- * while the files sat in the bundle the whole time and the mechanical
- * language checker counted them as present.
- *
- * So these assert on rendered output in four languages, including one the old
- * code could not have got right by accident.
- */
+import * as helpRegistry from '../src/renderer/src/i18n/help/help-registry'
 
 const actEnvironment = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean
@@ -38,6 +23,8 @@ import gettingStartedJa from '../src/renderer/src/i18n/help/topics/getting-start
 import gettingStartedZh from '../src/renderer/src/i18n/help/topics/getting-started.zh.md?raw'
 import gettingStartedZhTW from '../src/renderer/src/i18n/help/topics/getting-started.zh-TW.md?raw'
 import gettingStartedDe from '../src/renderer/src/i18n/help/topics/getting-started.de.md?raw'
+import gettingStartedMnCyrl from '../src/renderer/src/i18n/help/topics/getting-started.mn-Cyrl.md?raw'
+import gettingStartedMnMong from '../src/renderer/src/i18n/help/topics/getting-started.mn-Mong.md?raw'
 import { topicTitle } from '../src/renderer/src/i18n/help/help-titles'
 
 const TOPIC = 'getting-started'
@@ -70,6 +57,8 @@ const BODIES: Partial<Record<Lang, string>> = {
   zh: proseFrom(gettingStartedZh),
   'zh-TW': proseFrom(gettingStartedZhTW),
   de: proseFrom(gettingStartedDe),
+  'mn-Cyrl': proseFrom(gettingStartedMnCyrl),
+  'mn-Mong': proseFrom(gettingStartedMnMong),
 }
 
 const TITLES: Partial<Record<Lang, string>> = {
@@ -78,6 +67,8 @@ const TITLES: Partial<Record<Lang, string>> = {
   zh: topicTitle(TOPIC, 'zh'),
   'zh-TW': topicTitle(TOPIC, 'zh-TW'),
   de: topicTitle(TOPIC, 'de'),
+  'mn-Cyrl': topicTitle(TOPIC, 'mn-Cyrl'),
+  'mn-Mong': topicTitle(TOPIC, 'mn-Mong'),
 }
 
 beforeEach(() => {
@@ -89,6 +80,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   act(() => root.unmount())
   host.remove()
 })
@@ -111,7 +103,7 @@ afterEach(() => {
  */
 async function settle(host: HTMLDivElement, expected: string): Promise<void> {
   for (let i = 0; i < 60; i++) {
-    const text = host.querySelector('.help-article')?.textContent ?? ''
+    const text = host.querySelector('.help-article')?.textContent?.replace(/\s+/g, ' ') ?? ''
     if (text.includes(expected)) return
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1))
@@ -153,6 +145,14 @@ describe('the manual renders in the reader’s language', () => {
   it.each(['mn-Cyrl', 'mn-Mong'] as const)(
     'labels untranslated %s help as English and resets its text direction',
     async (lang) => {
+      const load = helpRegistry.helpBody
+      const hasBody = helpRegistry.helpHasBody
+      vi.spyOn(helpRegistry, 'helpHasBody').mockImplementation((id, locale) =>
+        id === TOPIC && locale === lang ? false : hasBody(id, locale),
+      )
+      vi.spyOn(helpRegistry, 'helpBody').mockImplementation((id, locale) =>
+        load(id, id === TOPIC && locale === lang ? 'en' : locale),
+      )
       const view = await render(lang, BODIES.en!, lang)
       const notice = view.querySelector('.help-language-fallback')
       const article = view.querySelector<HTMLElement>('.help-article')
@@ -168,10 +168,20 @@ describe('the manual renders in the reader’s language', () => {
     },
   )
 
+  it.each(['mn-Cyrl', 'mn-Mong'] as const)('renders the shipped %s help body', async (lang) => {
+    const phrase = BODIES[lang]!
+    const view = await render(lang, phrase, lang)
+    const article = view.querySelector<HTMLElement>('.help-article')
+    expect(view.querySelector('.help-language-fallback')).toBeNull()
+    expect(article?.lang).toBe(lang)
+    expect(article?.textContent?.replace(/\s+/g, ' ')).toContain(phrase)
+    expect(article?.style.writingMode).toBe('')
+  })
+
   it('resolves each topic body in the language asked for', async () => {
     for (const [lang, phrase] of Object.entries(BODIES) as Array<[Lang, string]>) {
-      const body = await helpBody(TOPIC, lang)
-      expect(body ?? '', `body for ${lang}`).toContain(phrase)
+      const body = await helpRegistry.helpBody(TOPIC, lang)
+      expect((body ?? '').replace(/\s+/g, ' '), `body for ${lang}`).toContain(phrase)
     }
   })
 
@@ -193,7 +203,7 @@ describe('the manual renders in the reader’s language', () => {
     // zh and zh-TW are separate files, not a variant of one: the Simplified
     // text appearing in the Traditional one is the failure `startsWith('zh')`
     // would have shipped
-    const traditional = (await helpBody(TOPIC, 'zh-TW')) ?? ''
+    const traditional = (await helpRegistry.helpBody(TOPIC, 'zh-TW')) ?? ''
     expect(traditional).toContain(BODIES['zh-TW']!)
     expect(traditional).not.toContain(BODIES.zh!)
     expect(traditional).not.toContain(BODIES.en!)

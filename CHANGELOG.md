@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add draft translations of all 27 help topics in Mongolian Cyrillic and traditional Mongolian script.
+
 - Add desktop installers for the latest stable GitHub release and installation instructions in Mongolian, English, and Korean.
 
 - Show the TodOffice project license first in the About notices.
