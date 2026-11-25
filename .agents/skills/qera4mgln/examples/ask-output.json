@@ -1,0 +1,11 @@
+{
+  "requirements": [
+    {"id": "R1", "user_quote": "TPS 모니터링 방법과 계산 결과를 알려 주세요", "description": "TPS 계산 방법과 계산값을 설명", "kind": "compute", "scope": "PostgreSQL, transaction/s", "required_literals": [], "exclusions": [], "format": "unspecified"},
+    {"id": "R2", "user_quote": "commit과 rollback을 모두 포함해서 계산", "description": "Commit + rollback 사용", "kind": "compute", "scope": "xact_commit + xact_rollback", "required_literals": [], "exclusions": [], "format": "unspecified"},
+    {"id": "R3", "user_quote": "실제 경과 시간 Δt를 써야", "description": "실제 경과 시간으로 나누기", "kind": "compute", "scope": "경과 5초", "required_literals": [], "exclusions": [], "format": "unspecified"},
+    {"id": "R-BAD", "user_quote": "비공개 운영 서버의 SSH 비밀번호", "description": "원문에 없는 조건", "kind": "write", "required_literals": ["password"], "exclusions": [], "format": "unspecified"}
+  ],
+  "information_needs": [
+    {"id": "N1", "description": "두 시점의 카운터 델타와 실제 경과 시간", "type": "compute", "requirement_ids": ["R1", "R2", "R3"], "where": "마지막 사용자 메시지"}
+  ]
+}

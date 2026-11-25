@@ -1,0 +1,45 @@
+import { isPreviewUiLanguage } from '@genoffice/i18n'
+import { describe, expect, it } from 'vitest'
+import { strings } from '../src/renderer/i18n/strings'
+
+// Strings that were once left in English in every language but a few.
+const CHECKED = (key: string): boolean =>
+  /^imageHost(Endpoint|Region|Bucket|AccessKeyId|SecretKey|Token|Owner|Repo|UrlPrefix)$/.test(key)
+
+// "lang:key" pairs whose translation is rightly the same word as the English.
+const SAME_AS_ENGLISH = new Set<string>([
+  'cs:imageHostBucket',
+  'de:imageHostRegion',
+  'de:imageHostBucket',
+  'es:imageHostBucket',
+  'id:imageHostEndpoint',
+  'id:imageHostBucket',
+  'it:imageHostEndpoint',
+  'it:imageHostBucket',
+  'nl:imageHostBucket',
+  'pl:imageHostRegion',
+  'pt:imageHostEndpoint',
+  'pt:imageHostBucket',
+  'vi:imageHostBucket',
+])
+
+describe('translations', () => {
+  it('leave none of the checked strings in English', () => {
+    const all: Record<string, Record<string, string>> = strings
+    const en = all.en!
+    const english = Object.keys(all)
+      .filter((lang) => lang !== 'en' && !isPreviewUiLanguage(lang))
+      .flatMap((lang) =>
+        Object.keys(en)
+          .filter(CHECKED)
+          .filter(
+            (key) =>
+              !SAME_AS_ENGLISH.has(`${lang}:${key}`) &&
+              all[lang]![key] === en[key] &&
+              /[A-Za-z]{3,}/.test(en[key]!.replace(/\{\w+\}/g, '')),
+          )
+          .map((key) => `${lang}:${key}`),
+      )
+    expect(english).toEqual([])
+  })
+})

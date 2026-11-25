@@ -1,0 +1,8 @@
+{
+  "messages": [
+    {"role": "user", "content": "PostgreSQL TPS는 commit과 rollback을 모두 포함해서 계산해 주세요."},
+    {"role": "user", "content": "관측은 5초 간격으로 하되 TPS 분모는 실제 경과 시간 Δt를 써야 합니다."},
+    {"role": "assistant", "content": "네, 이전 계산 규칙을 적용하겠습니다."},
+    {"role": "user", "content": "예시 카운터: T0 commit=1000 rollback=100; T1 commit=1500 rollback=120; 실제 경과 시간은 5초입니다. TPS 모니터링 방법과 계산 결과를 알려 주세요."}
+  ]
+}

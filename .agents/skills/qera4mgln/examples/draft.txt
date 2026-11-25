@@ -1,0 +1,1 @@
+PostgreSQL TPS는 commit 증가량만 계산하면 100 TPS입니다. 기본 관측 간격은 5초입니다.
