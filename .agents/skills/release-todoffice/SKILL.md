@@ -1,25 +1,25 @@
 ---
 name: release-todoffice
-description: TodOffice의 버전·설치 파일·업데이트 경로를 점검하거나 한국어 릴리스 노트를 작성하고 승인된 버전을 배포할 때 사용한다.
+description: Use when checking a TodOffice version, installer or update path, writing release notes in Korean, or publishing an approved version.
 ---
 
-# TodOffice 릴리스
+# Releasing TodOffice
 
-## 준비
+## Prepare the release
 
-1. 요청 범위(본문 초안, 로컬 패키지, 공개), 대상 플랫폼, 버전과 대상 커밋을 확인한다. 버전의 기준은 `apps/shell/package.json`이다. `docs/releasing.ko.md` 1절의 약관 확인이 필요한 빌드·배포라면 저장소 주인의 확인을 받는다.
-2. `docs/todoffice-branding.md`, `packages/i18n/src/product.ts`, `apps/shell/electron-builder.cjs`에서 제품 이름, 앱 ID, 공개 저장소와 업데이트 피드를 대조한다. 공개 대상이 비어 있으면 로컬 검증까지 진행하고 공개에 필요한 설정을 보고한다.
-3. 대상 플랫폼의 `.github/workflows/*-build.yml`에서 빌드 대상, 산출물 이름, 업로드 위치를 확인한다. 업스트림 이름이 남은 워크플로는 TodOffice 배포에 사용할 수 있도록 수정·검증되기 전까지 실행하지 않는다.
+1. Confirm what the user requested (draft notes, local packages or publication), the target platforms, the version and the target commit. Take the version from `apps/shell/package.json`. If the build or distribution requires the terms check in section 1 of `docs/releasing.ko.md`, obtain confirmation from the repository maintainer.
+2. Cross-check the product name, app ID, public repository and update feed in `docs/todoffice-branding.md`, `packages/i18n/src/product.ts` and `apps/shell/electron-builder.cjs`. If the publication destination is unset, complete local verification and report which settings are needed for publication.
+3. Check the target platform's `.github/workflows/*-build.yml` for build targets, artifact names and upload destinations. If a workflow still names the upstream product, run it only after it has been adapted and verified for TodOffice distribution.
 
-## 패키지와 본문 확인
+## Verify packages and release notes
 
-- `docs/standards.md`의 검사와 해당 플랫폼의 패키징 절차를 따른다. 설치 파일을 열어 제품 이름, 버전, 실행 파일을 확인한다. 업데이트용 파일을 제공할 때는 같은 빌드의 설치 파일과 피드에 적힌 이름·해시를 대조한다.
-- 직전 TodOffice 릴리스부터 대상 커밋까지 사용자가 체감할 변화를 확인한다. 첫 릴리스면 실제로 제공하는 기능과 설치 조건을 기준으로 쓴다.
-- 한국어 본문은 한두 줄 요약, **새로 들어간 것**, **고친 것**, 필요한 경우 **알려진 한계**와 **도움 주신 분**, 마지막 **설치** 순서로 쓴다. 설치 안내에는 검증한 플랫폼·아키텍처와 실제 파일 이름을 적는다. 번역투와 내부 용어를 다듬고 변경 내역을 다시 대조한다.
-- 업데이트 창을 확인할 때는 `GENOFFICE_FAKE_UPDATE=9.9.9 npm run dev`로 본문과 스크롤을 미리 볼 수 있다. 실제 업데이트 결과는 배포 채널의 이전 설치본으로 별도 확인한다.
+- Run the checks in `docs/standards.md` and follow the packaging procedure for the target platform. Open the installer and check the product name, version and executable. When providing update files, compare the file names and hashes in the feed with the installer from the same build.
+- Identify user-visible changes between the previous TodOffice release and the target commit. For the first release, describe the features actually provided and the installation requirements.
+- Write the notes in Korean. Start with a one- or two-line summary, then use **새로 들어간 것** (new features) and **고친 것** (fixes). Include **알려진 한계** (known limitations) and **도움 주신 분** (acknowledgments) when applicable. End with **설치** (installation). Give the verified platforms, architectures and actual installer file names. Replace awkward translations and internal jargon, then check the notes against the changes again.
+- To preview the text and scrolling in the update window, run `GENOFFICE_FAKE_UPDATE=9.9.9 npm run dev`. Verify the actual update separately from a previous installation on the distribution channel.
 
-## 공개와 후속 확인
+## Publish and verify
 
-- 공개 직전에 저장소, 커밋, 태그, 채널, 첨부 파일, 최종 본문을 대조하고 해당 공개에 대한 주인의 승인을 확인한다. 기존 태그나 설치 파일을 덮어쓰지 않는다.
-- 게시 후 공개 파일을 내려받아 확인한다. 업데이트 피드가 있는 플랫폼은 이전 설치본에서 버전 감지, 다운로드, 재시작과 버전을 확인한다. 실패하면 해당 채널과 증상을 기록하고 수정 버전을 준비한다.
-- 확인한 플랫폼과 남은 제약을 `docs/tracking/status.md`에 기록한다. 소개 사이트 공지는 TodOffice 소유의 사이트와 게시 대상이 정해졌을 때 진행한다.
+- Immediately before publishing, cross-check the repository, commit, tag, channel, attachments and final notes. Confirm the maintainer's approval for that specific publication. Do not overwrite existing tags or installers.
+- After publishing, download and inspect the public files. For platforms with an update feed, start from a previous installation and check version detection, download, restart and the resulting version. If an update fails, record the channel and symptoms and prepare a corrected version.
+- Record the platforms verified and the remaining limitations in `docs/tracking/status.md`. Publish a website announcement once both a TodOffice-owned site and the publication destination have been established.

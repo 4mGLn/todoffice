@@ -1,70 +1,70 @@
 # TodOffice
 
-워드·엑셀·파워포인트·PDF·마크다운·HTML·한글(HWP) 문서와 마인드맵(XMind 파일 `.xmind`), 다이어그램(draw.io 파일 `.drawio`)을 한 창에서 열고 고치는 데스크톱 오피스 프로그램이다. AI가 문서를 직접 고친다. 누구나 무료로 쓰도록 배포하며, 특정 직업군용이 아니다.
+TodOffice is a desktop office suite for opening and editing Word, Excel, PowerPoint, PDF, Markdown, HTML and Hangul (HWP) documents in one window. It also edits mind maps (XMind `.xmind` files) and diagrams (draw.io `.drawio` files). AI can edit documents directly. The app is distributed free of charge for anyone to use, regardless of profession.
 
-AI는 쓰는 사람이 이미 내고 있는 **Claude 또는 ChatGPT 구독**으로 돌아간다. Claude와 Codex는 PC에 설치된 그 회사의 프로그램을 실행해 답 한 차례를 받아 온다. ChatGPT는 앱이 OpenAI의 공식 방식으로 직접 로그인해 그 요금제로 부를 수도 있다(결정 0081). 문서를 고치는 일은 앱이 한다. 요금이 나가는 쪽으로는 사용자가 직접 고르지 않는 한 가지 않는다.
+AI features use the user's existing **Claude or ChatGPT subscription**. The Claude and Codex integrations launch the respective vendor's program installed on the user's computer to obtain one response at a time. The app can also sign in to OpenAI directly through its official flow and use the user's ChatGPT plan (decision 0081). The app applies the document edits. Use a separately billed connection only when the user explicitly selects it.
 
-한 사람이 자기 PC에서 쓰는 로컬 프로그램이다. 서버, 회원 계정, 사용 통계가 없다. 오픈소스 GenOffice(Apache-2.0)의 포크이고, 원본의 문서 엔진 개선을 계속 골라 받아온다. 그래서 코드 내부 이름은 원본 그대로이고, 고치는 범위는 필요한 만큼으로 좁게 잡는다. 배포하는 운영체제는 Windows이고, Mac용(Apple Silicon·Intel)과 Linux(x64)용은 베타로 낸다(결정 0031, 0065). Mac과 Linux는 저장소 주인이 직접 확인하지 못하고 사용자들의 보고로 확인한다. 화면 언어는 22개다.
+TodOffice runs locally for one person on their own computer. It has no server, product accounts or usage telemetry. It is a fork of the open-source GenOffice project (Apache-2.0) and selectively incorporates upstream document-engine improvements. Keep internal names intact and limit changes to what the task requires. Windows is the primary distribution target. macOS (Apple silicon and Intel) and Linux (x64) are beta targets (decisions 0031 and 0065). The repository maintainer relies on user reports for macOS and Linux verification. The interface has 22 languages.
 
-## TodOffice 저장소 배치 (2026-11-25)
+## Repository layout (2026-11-25)
 
-현재 디렉터리가 Git·npm workspace 루트다. 별도의 `app/` 폴더 없이 이곳에서 npm·Git 명령을 실행한다. 제품 문서는 `docs/`, 편집기는 `apps/`, 공유 코드는 `packages/`에 있다. 이전 작업 공간의 분석 자료와 작업 보고서는 `.agents/.analysis/`와 `.agents/docs/`에 보관하며 `.agents/skills/`만 버전 관리한다. 폴더 이동 전 로그의 절대 경로는 당시 기록이므로 새 검증 결과로 취급하지 않는다.
+This directory is the root of both the Git repository and the npm workspace. Run Git and npm commands here. There is no separate `app/` directory. Product documentation is in `docs/`, editors in `apps/`, and shared code in `packages/`. Analysis and work reports from the previous workspace are in `.agents/.analysis/` and `.agents/docs/`. The repository tracks `.agents/skills/` and the local development guide at `.agents/docs/local-development.md`. Absolute paths in logs from before the move are historical records. Use a fresh check for current verification.
 
-## 개발 하네스
+## Development workflow
 
-- 작업 폴더에서 가장 가까운 `AGENTS.md`와 아래의 작업별 문서를 읽는다. 구조와 실행 명령은 `docs/repository-layout.md`에 있다.
-- 여러 요구사항·파일·수정 요청이 얽힌 작업은 `.agents/skills/qera4mgln/SKILL.md`를 열어 요구사항, 근거, 검증 결과를 연결한다. 선택형 API 실행기는 별도의 사용자 요청이 있을 때만 사용한다.
-- 완료 보고 전 `.agents/skills/verify-work/SKILL.md`로 변경된 진입점을 확인한다. 저장소 스킬은 `.agents/skills/`, 배포 CLI 스킬 원본은 `.agents/skills/todoffice/`, 앱 내장 스킬은 `apps/shell/resources/builtin-skills/`에 둔다.
-- 스킬을 변경하면 공식 검증기로 `npm run check:agent-skills`를 실행한다. 설치 방법은 `docs/repository-layout.md`에 있다.
-- A2A 피어를 찾거나 작업을 위임하고 결과를 받을 때는 `.agents/skills/a2a-delegation/SKILL.md`를 따른다.
-- 외부 코드나 스킬을 가져올 때는 `.agents/skills/upstream-maintenance/SKILL.md`에서 출처·라이선스·호환성 확인 절차를 읽는다.
+- Read the `AGENTS.md` closest to the directory you are working in and the task-specific documents below. See `docs/repository-layout.md` for the layout and development commands.
+- For tasks spanning several requirements, files or revisions, use `.agents/skills/qera4mgln/SKILL.md` to connect each requirement to its evidence and verification result. Use the optional API runner only when the user specifically asks for it.
+- Before reporting completion, use `.agents/skills/verify-work/SKILL.md` to check the entry points affected by the change. Keep repository skills in `.agents/skills/`, the source of the distributed CLI skill in `.agents/skills/todoffice/`, and the app's built-in skills in `apps/shell/resources/builtin-skills/`.
+- After changing a skill, run the official validator with `npm run check:agent-skills`. Installation instructions are in `docs/repository-layout.md`.
+- Follow `.agents/skills/a2a-delegation/SKILL.md` when discovering A2A peers, delegating work or retrieving results.
+- Before importing external code or skills, read `.agents/skills/upstream-maintenance/SKILL.md` for provenance, licensing and compatibility checks.
 
-## 절대 어기지 않는 것
+## Mandatory rules
 
-1. **구독 프로그램의 로그인 정보에 손대지 않는다.** Codex의 로그인 파일(`~/.codex/auth.json`)과 Claude의 로그인 저장소를 읽거나 복사하거나 저장하는 코드를 쓰지 않는다. 시험이나 디버깅 중에도 마찬가지다. 앱 화면에 Claude·ChatGPT 로그인 양식을 만들지 않고, 두 회사의 프로그램을 고치지 않는다. 예외는 하나다. ChatGPT 직접 연결(결정 0081)은 앱이 OpenAI에 자기 이름으로 등록해 받은 토큰을 시스템 브라우저 로그인으로 받아 봉인해 보관한다. 그 토큰은 이 앱의 것이고, 프로그램의 로그인을 빌리지 않는다.
-2. **AI 대화를 요금이 나가는 연결로 스스로 바꾸지 않는다.** 키 제공자와 종량 로그인은 사용자가 직접 골랐을 때만 대화에 쓰인다. 막히면 멈추고 알린다.
-3. **구독 프로그램은 앱이 끌 수 있는 도구를 모두 끈 채로, 셸 없이, 앱보다 오래 살지 않게 실행한다.** Claude는 프로그램이 보고한 도구가 정해 둔 목록과 같을 때만 진행한다. 일반 대화와 모델 목록은 0개, 문서 편집 차례는 앱이 받을 답의 형식을 맡는 `StructuredOutput` 하나다(결정 0082). Codex는 끌 수 없는 자체 도구를 읽기 전용으로 가둔다. 프로그램은 실제 실행 파일로 직접 띄우고, 중단·종료 때 하위 프로세스까지 끝낸다. 예외는 둘이다. 하나는 에이전트 모드다(결정 0032). 사람이 고른 프로젝트 폴더에서만 정해 둔 도구를 켜고, 프로그램이 보고한 도구가 그 목록과 같을 때만 진행하며, 모든 권한 요청은 앱의 판단(`agentPolicyVerdict`)이나 사람의 답을 거친다. 에이전트 창의 "정해 둔 목록"에는 사람이 허락한 사용자 MCP 서버의 도구를 앱이 그 세션에 중계해 내놓은 것도 든다(결정 0100). 다른 하나는 그림 한 장을 위한 일회용 Codex 스레드에서 그림 도구 하나만 켜는 것이다(결정 0145). 나머지 잠금은 채팅과 같다. 기본 AI 창의 프로그램이 가진 도구 목록은 그대로다. 셸 없는 실행, 정리된 환경, 하위 프로세스까지의 종료는 그대로다.
-4. **문서 엔진의 동작과 문서 안에 저장되는 식별자를 바꾸지 않는다.** 저장·내보내기 결과는 원본과 같아야 하고, 원본 프로그램과 문서를 주고받을 수 있어야 한다.
-5. **코드 내부 이름을 바꾸지 않고, 원본이 PC에 등록한 것을 건드리지 않는다.** `@genoffice/*`, `GENOFFICE_*`는 그대로다. `genoffice` 명령어와 `~/.genoffice`는 읽지도 고치지도 않는다. `LICENSE`, `NOTICE`, 출처 표시는 남긴다.
+1. **Leave subscription login credentials alone.** Never write code that reads, copies or stores the Codex login file (`~/.codex/auth.json`) or Claude's credential store, including during testing and debugging. Do not add Claude or ChatGPT login forms to the app or modify either vendor's program. The sole exception is the direct ChatGPT connection (decision 0081). The app registers with OpenAI in its own name, receives its own token through the system browser and stores it sealed. This flow uses the app's own credentials.
+2. **Never switch an AI conversation to a separately billed connection automatically.** Use an API-key provider or a metered login for conversation only when the user explicitly chooses it. If the chosen connection is blocked, stop and tell the user.
+3. **Launch subscription programs without a shell, disable every tool the app can disable, and ensure the programs exit with the app.** For Claude, proceed only if the tools the program reports exactly match the expected set. Ordinary chat and model listing require zero tools. A document-editing turn permits only `StructuredOutput`, which defines the response format the app accepts (decision 0082). Confine Codex's built-in tools that cannot be disabled to read-only access. Launch the actual executable directly. On cancellation or shutdown, terminate the entire process tree.
 
-전체 규칙은 `docs/standards.md`, 보안 정책은 `docs/security.md`에 있다.
+   Two exceptions apply to tool access. In agent mode (decision 0032), enable only the designated tools in the project folder the user selected. Verify the reported set and route every permission request through the app's `agentPolicyVerdict` or a human decision. For that session, the allowed set includes tools the app relays from user-approved MCP servers (decision 0100). A disposable Codex thread for generating a single image may enable the image tool alone (decision 0145). All other chat restrictions apply. Keep the default AI window's tool set intact. Both exceptions still require a direct launch without a shell, a sanitized environment and termination of child processes.
+4. **Preserve document-engine behavior and identifiers stored in documents.** Save and export results must match upstream, and documents must remain interchangeable with the upstream application.
+5. **Preserve internal names and upstream registrations on the user's computer.** Keep `@genoffice/*` and `GENOFFICE_*`. Never read or modify the `genoffice` command or `~/.genoffice`. Retain `LICENSE`, `NOTICE` and attribution.
 
-## 일을 시작하기 전에
+See `docs/standards.md` for the full rules and `docs/security.md` for the security policy.
 
-항상: `docs/standards.md`, `docs/engineering-notes.md`, 고칠 모듈의 `AGENTS.md`.
+## Before starting a task
 
-하려는 일에 따라 먼저 읽을 것:
+Always read `docs/standards.md`, `docs/engineering-notes.md` and the `AGENTS.md` for the module you will change.
 
-| 하려는 일                                              | 먼저 읽을 것                                                                                             |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| 구독 연동(프로그램 실행, 상태 판정, 환경변수)을 고친다 | `docs/security.md` 전체, `packages/ai-provider/AGENTS.md`, `docs/engineering-notes.md`의 "구독 프로그램" |
-| 제공자 선택이나 AI 창의 보내기·막힘 처리를 고친다      | `docs/business-rules.md`의 "제공자 선택", "보내기 전의 문지기", "실행 중 막혔을 때"                      |
-| 편집기 뒷단(`apps/*/src/main`)이나 preload를 고친다    | `docs/engineering-notes.md`의 "빌드와 실행". 껍데기 앱을 다시 빌드해야 반영된다                          |
-| 화면 문구나 도움말을 더하거나 고친다                   | `docs/standards.md`의 "글과 언어", "제품 이름". 22개 언어(터키어 `tr` 포함) 모두 채운다                  |
-| 화면 스타일을 고친다                                   | `docs/standards.md`의 "화면 색"                                                                          |
-| 아이콘·그림을 더하거나 다른 회사 이름을 화면에 적는다  | `docs/standards.md`의 "상표와 아이콘"(결정 0052)                                                         |
-| 터미널 명령어·MCP·스킬을 고친다                        | `docs/contracts.md`. 출력 구조와 이름은 밖에서 기대고 있다                                               |
-| 가리기나 다른 파일로 읽기를 고친다                     | `docs/security.md`의 "문서 내용", `packages/file-parse/AGENTS.md`                                        |
-| 마인드맵 파일의 열기·저장을 고친다                     | `packages/xmind-engine/AGENTS.md`. 바뀐 것이 없는 저장은 원본 바이트 그대로다                            |
-| 다이어그램 편집기·draw.io 묶음을 고친다                | `apps/diagram/AGENTS.md`, `vendor/drawio/README.md`, 결정 0103                                           |
-| 설정 파일의 값을 더하거나 읽는 방식을 바꾼다           | `docs/engineering-notes.md`의 "설정 파일", `docs/contracts.md`의 "설정 파일"                             |
-| 원본의 변경을 받아온다                                 | `docs/operations.md`의 "원본의 개선 받아오기". 끝나면 `npm run check:no-genspark`                        |
-| 문서 엔진 패키지를 고쳐야 할 것 같다                   | 멈추고 사람에게 묻는다. 그 패키지의 `AGENTS.md`를 읽는다                                                 |
-| 에이전트 모드(도구를 켠 구독 프로그램)를 고친다        | `docs/tracking/decisions/0032-agent-mode-in-project-folder.md`, `docs/security.md`의 "에이전트 모드"     |
-| AI를 실제 구독으로 돌려 확인한다                       | `docs/operations.md`의 "실제 구독으로 확인하기". 사용자의 한도를 쓴다                                    |
-| 새 버전을 낸다 | `.agents/skills/release-todoffice/SKILL.md`와 `docs/todoffice-branding.md`에서 공개 대상·빌드·검증 절차를 확인한다. |
+| Task | Read first or action required |
+| --- | --- |
+| Change subscription integration, including program launch, status detection or environment variables | Read all of `docs/security.md`, `packages/ai-provider/AGENTS.md` and the [subscription programs section](docs/engineering-notes.md#구독-프로그램). |
+| Change provider selection or how the AI window sends requests and handles blocked requests | Read [provider selection](docs/business-rules.md#제공자-선택), [checks before sending](docs/business-rules.md#보내기-전의-문지기-모든-편집기-공통) and [handling a block during execution](docs/business-rules.md#실행-중-막혔을-때). |
+| Change an editor's main process (`apps/*/src/main`) or preload | Read [build and run](docs/engineering-notes.md#빌드와-실행). Rebuild the desktop shell for the changes to take effect. |
+| Add or edit interface text or help | Read [writing and languages](docs/standards.md#글과-언어) and [product names](docs/standards.md#제품-이름). Provide text in all 22 languages, including Turkish (`tr`). |
+| Change interface styles | Read [interface colors](docs/standards.md#화면-색). |
+| Add icons or artwork, or display another company's name | Read [trademarks and icons](docs/standards.md#상표와-아이콘) (decision 0052). |
+| Change CLI commands, MCP or skills | Read `docs/contracts.md`. External callers depend on output structures and names. |
+| Change masking or text extraction when a file is read outside its own editor | Read [document content](docs/security.md#문서-내용) and `packages/file-parse/AGENTS.md`. |
+| Change how mind maps open or save | Read `packages/xmind-engine/AGENTS.md`. Saving an unchanged file must preserve the original bytes. |
+| Change the diagram editor or bundled draw.io | Read `apps/diagram/AGENTS.md`, `vendor/drawio/README.md` and decision 0103. |
+| Add a setting or change how settings are read | Read the settings sections in the [engineering notes](docs/engineering-notes.md#설정-파일) and [contracts](docs/contracts.md#설정-파일-ai-settingsjson). |
+| Import an upstream change | Read [importing upstream improvements](docs/operations.md#원본의-개선-받아오기). Run `npm run check:no-genspark` afterward. |
+| A document-engine package appears to need changes | Stop and ask a human. Read the package's `AGENTS.md`. |
+| Change agent mode, which enables tools in a subscription program | Read `docs/tracking/decisions/0032-agent-mode-in-project-folder.md` and the [agent mode security policy](docs/security.md#에이전트-모드-결정-0032-0049). |
+| Test AI with a real subscription | Read [testing with a real subscription](docs/operations.md#실제-구독으로-확인하기). This consumes the user's quota. |
+| Publish a new version | Check the publication target, build and verification procedures in `.agents/skills/release-todoffice/SKILL.md` and `docs/todoffice-branding.md`. |
 
-## 문제가 생기면
+## When something goes wrong
 
-다음은 **즉시 사람에게 알린다.** 스스로 고치고 넘어가지 않는다.
+**Notify a human immediately** in any of the following situations. Do not quietly fix the problem and continue.
 
-- 코드가 구독 로그인 파일이나 로그인 저장소에 닿는 것을 발견했다.
-- 사용자가 고르지 않은 요금 경로(키 제공자, 종량 로그인)로 요청이 나갔거나 나갈 수 있다.
-- Claude가 도구를 가진 채 실행됐거나, 구독 프로그램이 앱이 꺼진 뒤에도 남아 있었다.
-- 가리기로 감춘 내용이 제공자에게 전송됐다.
-- 저장·내보내기 결과가 달라졌거나, 원본 프로그램으로 만든 문서를 열지 못한다.
-- 원본이 PC에 등록한 것(`genoffice` 명령어, `~/.genoffice`)을 읽거나 고쳤다.
-- 테스트나 확인 작업이 사용자의 구독 한도를 반복해서 썼다.
-- 약관에 걸리는 판단이 필요하다(구독을 새 경로로 쓰는 기능, 두 회사 이름·로고의 사용).
+- You find code that accesses a subscription login file or credential store.
+- A request used, or could use, a billing route the user did not choose (an API-key provider or metered login).
+- Claude ran with tools enabled, or a subscription program remained running after the app exited.
+- Content hidden by masking was sent to a provider.
+- Save or export results changed, or the app cannot open a document created by the upstream program.
+- Something read or modified an upstream registration on the computer (the `genoffice` command or `~/.genoffice`).
+- Tests or verification repeatedly consumed the user's subscription quota.
+- A change requires interpreting terms of service, such as using a subscription through a new route or using either vendor's name or logo.
 
-그 밖의 문제는 먼저 풀어 본다. 지금 풀 수 없으면 `docs/tracking/findings.md`에 "어떤 조건에서 무엇이 보이는지, 왜 중요한지, 왜 지금 못 푸는지"를 적는다.
+For other problems, first try to resolve them. If you cannot resolve one now, record the conditions under which it occurs, what you observed, why it matters and why it remains unresolved in `docs/tracking/findings.md`.
