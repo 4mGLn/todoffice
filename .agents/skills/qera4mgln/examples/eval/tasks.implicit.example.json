@@ -1,0 +1,33 @@
+{"_label":"SYNTHETIC example tasks (invented data, not from any benchmark). Each mixes explicit and implicit rubrics: later corrections, exclusions, totals, committed verdicts. Gold answers are unambiguous. Check with: python3 scripts/qera_rubric_lint.py examples/eval/tasks.implicit.example.json -v",
+ "tasks":[
+ {"id":"syn-budget",
+  "conversation":{"messages":[
+   {"role":"user","content":"Team lunch budget notes. Pizza costs 48 dollars, salad costs 22 dollars, drinks cost 30 dollars. Edit: drinks were actually 35 dollars. Ignore the dessert idea entirely, nobody ordered it."},
+   {"role":"user","content":"Give me the final tally of the lunch budget."}]},
+  "rubrics":["States the grand total is 105 dollars","Uses 35 dollars for drinks, the corrected figure, not 30","Does not include any dessert cost","Reports the final tally of the lunch budget"]},
+ {"id":"syn-server",
+  "conversation":{"messages":[
+   {"role":"user","content":"Inventory: server alpha has 16 gigabytes memory, server bravo has 32 gigabytes memory, server charlie has 64 gigabytes memory. Charlie was decommissioned last week, so exclude it. Later note: bravo was upgraded to 48 gigabytes."},
+   {"role":"user","content":"Sum up the memory of the servers for me."}]},
+  "rubrics":["States the combined memory is 64 gigabytes","Excludes the decommissioned charlie machine from the sum","Uses 48 gigabytes for bravo after the upgrade","Sums up the memory of the servers"]},
+ {"id":"syn-verdict",
+  "conversation":{"messages":[
+   {"role":"user","content":"Review thread. Maria argued we should migrate to the new queue library. Tomas replied the migration would take 6 weeks and the old library works fine. Final decision recorded by the lead: do not migrate this quarter; revisit in October."},
+   {"role":"user","content":"What did we end up deciding about the queue library migration?"}]},
+  "rubrics":["Commits to the verdict that the migration will not happen this quarter","Mentions revisiting the question in October","Does not present the migration as approved","Reports what was decided about the queue library migration"]},
+ {"id":"syn-schedule",
+  "conversation":{"messages":[
+   {"role":"user","content":"Meeting plan: kickoff on Monday at 9, review on Wednesday at 14, demo on Friday at 16. Correction: the review moved to Thursday at 11. Also drop the Monday kickoff, it was merged into the Thursday review."},
+   {"role":"user","content":"List the remaining meetings for the project."}]},
+  "rubrics":["Lists exactly two meetings: the Thursday review at 11 and the Friday demo at 16","Does not list the Monday kickoff","Does not list a Wednesday review","Lists the remaining meetings for the project"]},
+ {"id":"syn-stock",
+  "conversation":{"messages":[
+   {"role":"user","content":"Warehouse count. Bolts: 120 boxes. Nuts: 80 boxes. Washers: 200 boxes. Recount: nuts are 95 boxes, not 80. Washers belong to the other site, so leave them out of our figure."},
+   {"role":"user","content":"What is our number of boxes in the warehouse?"}]},
+  "rubrics":["States the total is 215 boxes","Uses the recounted 95 boxes for nuts","Excludes the washers because they belong to another site","Gives the number of boxes in the warehouse"]},
+ {"id":"syn-grade",
+  "conversation":{"messages":[
+   {"role":"user","content":"Grading sheet. Quiz one scored 70, quiz two scored 90, final exam scored 80. Weights: quizzes count 25 percent each, final counts 50 percent. Instructor note: quiz one was regraded to 80. The extra credit project is not counted toward this calculation."},
+   {"role":"user","content":"Compute the course result from the grading sheet."}]},
+  "rubrics":["States the weighted result is 82.5","Uses the regraded 80 for quiz one instead of 70","Does not add credit from the extra project","Computes the course result from the grading sheet"]}
+]}

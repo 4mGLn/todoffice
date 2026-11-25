@@ -1,0 +1,7 @@
+{"tasks":[
+ {"id":"tps-1",
+  "conversation":{"messages":[
+   {"role":"user","content":"Log: node A handled 40 TPS, node B handled 64 TPS. Later correction: node A actually handled 50 TPS."},
+   {"role":"user","content":"What was the total TPS across both nodes? Show the inputs."}]},
+  "rubrics":["States the total is 114 TPS","Uses 50 TPS for node A (the corrected value) and 64 TPS for node B"]}
+]}

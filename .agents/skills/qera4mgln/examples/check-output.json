@@ -1,0 +1,25 @@
+{
+  "requirement_checks": [
+    {"id": "R1", "status": "fail", "draft_quote": "", "problem": "최종 계산값이 잘못되었습니다.", "fix": "commit 및 rollback 델타를 더해 경과 시간으로 나눕니다."},
+    {"id": "R2", "status": "fail", "draft_quote": "", "problem": "rollback 델타 누락", "fix": "rollback도 더합니다."},
+    {"id": "R3", "status": "pass", "draft_quote": "기본 관측 간격은 5초입니다.", "problem": "", "fix": ""}
+  ],
+  "need_checks": [
+    {"id": "N1", "status": "partial", "findings": [
+      {"item_id": "T0", "value": "commit 1000, rollback 100", "quote": "T0 commit=1000 rollback=100", "location": "last user"},
+      {"item_id": "T1", "value": "commit 1500, rollback 120", "quote": "T1 commit=1500 rollback=120", "location": "last user"}
+    ], "stated_count": null,
+    "calculation": {
+      "operation": "ratio",
+      "inputs": [
+        {"value": 520, "quote": "T0 commit=1000 rollback=100; T1 commit=1500 rollback=120"},
+        {"value": 5, "quote": "실제 경과 시간은 5초입니다"}
+      ],
+      "result": 100
+    }
+    }
+  ],
+  "unsupported": [], "latent_gaps": [], "format_issues": [],
+  "repair_plan": ["100 TPS를 104 TPS로 수정", "rollback 증가량 20을 포함"],
+  "preserve": ["5초 관측 간격"]
+}

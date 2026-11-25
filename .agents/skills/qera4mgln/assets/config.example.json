@@ -1,0 +1,8 @@
+{
+  "mode": "adaptive",
+  "closed_world": true,
+  "model": "YOUR_OPENAI_COMPATIBLE_MODEL",
+  "api_base": "https://YOUR_PROVIDER.example/v1",
+  "timeout_seconds": 90,
+  "note": "Use QERA_API_KEY and QERA_API_BASE environment variables; never commit secrets."
+}
