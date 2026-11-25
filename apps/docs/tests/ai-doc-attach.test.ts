@@ -108,9 +108,7 @@ describe('docs AI panel: attach from a document', () => {
         await flush()
 
         expect(added).toHaveBeenCalledWith(['/docs/report.txt'])
-        const chips = [
-          ...container.querySelectorAll('.ai-attachments .ai-attachment-card-name'),
-        ]
+        const chips = [...container.querySelectorAll('.ai-attachments .ai-attachment-card-name')]
         expect(chips.map((chip) => chip.textContent)).toEqual(['report.txt'])
       } finally {
         cleanup()

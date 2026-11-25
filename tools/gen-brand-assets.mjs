@@ -270,7 +270,10 @@ try {
   for (const target of ICNS_TARGETS) write(target, icns)
 
   copyFileSync(LOCKUP_SVG, join(root, LOCKUP_TARGET))
-  writeFileSync(join(root, DARK_LOCKUP_TARGET), readFileSync(LOCKUP_SVG, 'utf8').replaceAll('#111111', '#F3F1EC'))
+  writeFileSync(
+    join(root, DARK_LOCKUP_TARGET),
+    readFileSync(LOCKUP_SVG, 'utf8').replaceAll('#111111', '#F3F1EC'),
+  )
   console.log(`wrote ${LOCKUP_TARGET}`)
 
   if (previewFile) await writePreview(page, resolve(previewFile))

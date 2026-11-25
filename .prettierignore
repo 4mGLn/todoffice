@@ -15,6 +15,7 @@ apps/shell/build/THIRD-PARTY-NOTICES.txt
 scripts/drivers/driver.*.mjs
 
 # Vendored third-party sources stay byte-identical to upstream.
+.agents/skills/qera4mgln/
 packages/*/src/vendor/
 vendor/rhwp-core/
 

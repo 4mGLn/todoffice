@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { lstatSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
@@ -41,7 +41,9 @@ const files = new Set()
 
 function addNullSeparated(output) {
   for (const file of output.toString().split('\0')) {
-    if (file && existsSync(join(repoRoot, file))) files.add(file)
+    if (file && lstatSync(join(repoRoot, file), { throwIfNoEntry: false })?.isFile()) {
+      files.add(file)
+    }
   }
 }
 
