@@ -615,7 +615,7 @@ function replaceAbstractNumLevel(
   )
   let body = abs[0]
   const existing = lvlRe.exec(body)?.[0]
-  if (existing) body = body.replace(existing, mergeLevelXml(existing, level, ilvl))
+  if (existing) body = body.replace(existing, () => mergeLevelXml(existing, level, ilvl))
   else {
     const lvlXml = customLevelXml(level, ilvl)
     const later = new RegExp(`<w:lvl [^>]*w:ilvl="(\\d)"`, 'g')
@@ -628,7 +628,7 @@ function replaceAbstractNumLevel(
     }
     body = body.slice(0, insertAt) + lvlXml + body.slice(insertAt)
   }
-  return xml.replace(abs[0], body)
+  return xml.replace(abs[0], () => body)
 }
 
 const IMAGE_EXT: Record<NewImage['mime'], string> = {
@@ -1185,12 +1185,13 @@ export async function saveDocx(
   const resolveHfNewPictures = async (partPath: string, xml: string, hf: HeaderFooter) => {
     const pictures = hf.newPictures
     if (!pictures || !xml.includes(NEW_PICTURE_TOKEN_PREFIX)) return xml
-    const relsPath = partPath.replace(/^word\/([^/]+)$/, 'word/_rels/$1.rels')
+    const relsPath = partPath.replace(/([^/]+)$/, '_rels/$1.rels')
     let relsXml =
       hfRelsOut.get(relsPath) ??
       (await zip.file(relsPath)?.async('string')) ??
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    relsXml = relsXml.replace(/<Relationships\b([^>]*)\/>/, '<Relationships$1></Relationships>')
     const rIds = new Map<string, string>()
     const docPrIds = new Map<string, number>()
     const out = xml.replace(
@@ -1202,9 +1203,13 @@ export async function saveDocx(
           let rId = rIds.get(token)
           if (rId === undefined) {
             rId = nextFreeRelId(relsXml)
+            const mediaPath = landMedia(picture)
+            const target = /^word\/[^/]+$/.test(partPath)
+              ? mediaPath.replace(/^word\//, '')
+              : `/${mediaPath}`
             relsXml = relsXml.replace(
               '</Relationships>',
-              `<Relationship Id="${rId}" Type="${IMAGE_REL_TYPE}" Target="${landMedia(picture).replace(/^word\//, '')}"/></Relationships>`,
+              `<Relationship Id="${rId}" Type="${IMAGE_REL_TYPE}" Target="${target}"/></Relationships>`,
             )
             rIds.set(token, rId)
           }
@@ -1218,8 +1223,18 @@ export async function saveDocx(
         return `${attr}="${prefix ?? ''}${id}"`
       },
     )
-    if (rIds.size > 0) hfRelsOut.set(relsPath, relsXml)
-    return out
+    if (rIds.size === 0) return out
+    hfRelsOut.set(relsPath, relsXml)
+    // A text-only header or footer can lack the prefixes used by a new drawing.
+    return out.replace(/<w:(?:hdr|ftr)\b[^>]*>/, (root) => {
+      const drawing = /\sxmlns:wp\s*=/.test(root)
+        ? ''
+        : ' xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
+      const relations = /\sxmlns:r\s*=/.test(root)
+        ? ''
+        : ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+      return root.slice(0, -1) + drawing + relations + '>'
+    })
   }
   /** an existing part after a strip edit: moved / resized floating pictures are
    *  patched into their drawings, and a picture-only edit keeps the text bytes */
