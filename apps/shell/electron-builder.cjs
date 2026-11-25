@@ -19,16 +19,14 @@ const { join } = require('node:path')
 // folder, the executable name, the userData folder and the Windows ProgIds.
 // None of them may coincide with the upstream GenOffice app, so both can be
 // installed on one machine without touching each other's registration.
-const APP_ID = 'io.github.pblsketch.ieumoffice'
-const PRODUCT_NAME = 'IeumOffice'
+const APP_ID = 'org.todoffice.app'
+const PRODUCT_NAME = 'TodOffice'
 // package.json "name" of the packaged app (the workspace keeps upstream's
 // "@genoffice/shell"): electron-builder and electron-updater name the per-user
 // folder that caches the installer and downloaded updates after it
 // (<local app data>/<name>-updater), so a shared name is a shared folder.
-const PACKAGED_APP_NAME = 'ieumoffice'
-const REPO_OWNER = 'pblsketch'
-const REPO_NAME = 'ieumoffice'
-const MAINTAINER = 'pblsketch <pblsketch@users.noreply.github.com>'
+const PACKAGED_APP_NAME = 'todoffice'
+const MAINTAINER = 'TodOffice contributors'
 
 // GENOFFICE_MAC_X64=1 — package the Intel (x64) dmg/zip alongside arm64.
 // The release build on GitHub's Mac runner sets it (.github/workflows/
@@ -308,6 +306,21 @@ function thirdPartyNoticeProblems() {
   const notice = readFileSync(join(__dirname, '../../NOTICE'), 'utf8').trim()
   if (!text.startsWith(notice)) problems.push('it does not open with the current NOTICE')
   if (!text.includes(NOTICE_HEADER)) problems.push(`the "${NOTICE_HEADER}" header is missing`)
+  // A cached notice predating a new catalog or font must be regenerated even
+  // when the product name and Rust sections are still current.
+  for (const [label, relative] of [
+    ['Mongolian source provenance', '../../packages/i18n/localization-sources/provenance.json'],
+    [
+      'mongol-library MIT license',
+      '../../packages/i18n/localization-sources/LICENSE-mongol-library.txt',
+    ],
+    ['Chimee-iOS MIT license', '../../packages/i18n/localization-sources/LICENSE-Chimee-iOS.txt'],
+    ['Noto Sans Mongolian OFL', '../../packages/ui/template-fonts/NotoSansMongolian-OFL.txt'],
+    ['Apache License 2.0', '../../LICENSE'],
+  ]) {
+    const required = readFileSync(join(__dirname, relative), 'utf8').trim()
+    if (!text.includes(required)) problems.push(`${label} is missing or stale`)
+  }
   const rustSections = text.match(CRATE_COUNT_LINE)?.length ?? 0
   if (rustSections < RUST_COMPONENTS) {
     problems.push(`${rustSections} of ${RUST_COMPONENTS} Rust crate sections are listed`)
@@ -360,7 +373,7 @@ const WIN_OPEN_WITH_ONLY_EXTS = new Set([
 // (HKCU\Software\Classes\<name>). The upstream app registers the bare names
 // below ("Word Document"), so sharing them would let either install overwrite
 // the other's open command and either uninstall delete it: Windows gets
-// product-scoped ProgIds instead ("IeumOffice.WordDocument"). The same ids are
+// product-scoped ProgIds instead ("TodOffice.WordDocument"). The same ids are
 // spelled out in src/main/default-app.ts and build/installer.nsh.
 const winProgId = (name) => `${PRODUCT_NAME}.${name.replace(/[^A-Za-z0-9]/g, '')}`
 const FILE_ASSOCIATIONS = [
@@ -677,12 +690,12 @@ const config = {
       to: 'cli/genoffice.cjs',
     },
     {
-      from: '../../packages/cli/bin/ieumoffice',
-      to: 'cli/ieumoffice',
+      from: '../../packages/cli/bin/todoffice',
+      to: 'cli/todoffice',
     },
     {
-      from: '../../packages/cli/bin/ieumoffice.cmd',
-      to: 'cli/ieumoffice.cmd',
+      from: '../../packages/cli/bin/todoffice.cmd',
+      to: 'cli/todoffice.cmd',
     },
     // the CLI's version (Settings → Integrations shows it) and the agent skill
     // the same pane installs into Claude Code / Codex / …; bytes identical to the repo file
@@ -691,8 +704,8 @@ const config = {
       to: 'cli/package.json',
     },
     {
-      from: '../../skills/ieumoffice/SKILL.md',
-      to: 'cli/skills/ieumoffice/SKILL.md',
+      from: '../../.agents/skills/todoffice/SKILL.md',
+      to: 'cli/skills/todoffice/SKILL.md',
     },
     // runtime deps the genoffice bundle leaves external (jsdom for the Word/Markdown
     // paths); collected by packages/cli/collect-deps.mjs during its build
@@ -735,8 +748,8 @@ const config = {
     // Two separate arch packages (NOT universal): arm64 keeps the exact
     // artifact names and update-feed entries it always had, x64 (via
     // GENOFFICE_MAC_X64=1, see includeMacX64 above) adds the Intel package:
-    // IeumOffice-<v>-x64.dmg (config.dmg.artifactName below) and the
-    // arch-less IeumOffice-<v>-mac.zip. Both zips land in one latest-mac.yml,
+    // TodOffice-<v>-x64.dmg (config.dmg.artifactName below) and the
+    // arch-less TodOffice-<v>-mac.zip. Both zips land in one latest-mac.yml,
     // which a Mac install only reads for the version. Dual-arch packs ship the
     // same lipo fat xlsx-sidecar (see assertUniversalSidecar above).
     target: [
@@ -823,10 +836,7 @@ const config = {
   linux: {
     // AppImage (self-contained, any distro) + deb (apt install, pulls in the
     // GTK/NSS runtime deps) + rpm (dnf/zypper install on Fedora / RHEL /
-    // openSUSE). Default artifact names are kept on purpose —
-    // GenOffice-<v>.AppImage / genoffice_<v>_amd64.deb — because the public
-    // README download links and the already-published linux-v0.5.149 release
-    // use them.
+    // openSUSE).
     target: [
       { target: 'AppImage', arch: ['x64'] },
       { target: 'deb', arch: ['x64'] },
@@ -842,22 +852,22 @@ const config = {
     fileAssociations: FILE_ASSOCIATIONS,
     // Icon SET directory, not the single 1024px png: electron-builder does
     // not resize a lone png, so deb/rpm would install only
-    // hicolor/1024x1024/apps/ieumoffice.png — a size absent from the hicolor
+    // hicolor/1024x1024/apps/todoffice.png — a size absent from the hicolor
     // theme index, leaving GNOME/KDE launchers on the generic fallback icon
     // (upstream issue #90). The set ships every standard raster size.
     icon: 'build/icons',
     // mac and win name the binary from productName; linux instead derives it
     // from package.json "name", and "@genoffice/shell" sanitizes to the
     // invalid "@genofficeshell". Setting it explicitly also makes the
-    // generated ieumoffice.desktop match the WM_CLASS Electron reports (it
+    // generated todoffice.desktop match the WM_CLASS Electron reports (it
     // takes that from the executable basename), so the running window links
     // back to its launcher entry.
     executableName: PACKAGED_APP_NAME,
     // Electron takes its X11 app_id from package.json "desktopName"
-    // (ieumoffice.desktop); syncDesktopName makes electron-builder name the
+    // (todoffice.desktop); syncDesktopName makes electron-builder name the
     // .desktop file and its StartupWMClass from the same value. Without it
-    // StartupWMClass falls back to productName ("IeumOffice"), which does not
-    // match the "ieumoffice" WM_CLASS the window actually reports — and X11
+    // StartupWMClass falls back to productName ("TodOffice"), which does not
+    // match the "todoffice" WM_CLASS the window actually reports — and X11
     // compares case-sensitively, so the taskbar shows an unlinked window.
     syncDesktopName: true,
     extraResources: [
@@ -881,18 +891,20 @@ const config = {
       // entry at it; AppImage starts through its own AppRun and does not use it.
       {
         from: 'build/linux-launch.sh',
-        to: 'ieumoffice-launch',
+        to: 'todoffice-launch',
       },
     ],
   },
   // Same "@genoffice/shell" problem as executableName above: the default deb
   // artifact name derives from package.json "name", and the scope's "/" makes
   // fpm treat "@genoffice" as a directory. Spell the published name out
-  // (ieumoffice_<version>_amd64.deb) and pin the control Package field so apt
+  // (todoffice_<version>_amd64.deb) and pin the control Package field so apt
   // treats successive releases as upgrades of the same package and never
   // collides with an upstream genoffice deb install.
+  appImage: { artifactName: 'todoffice-${version}.${ext}' },
   deb: {
-    artifactName: 'ieumoffice_${version}_${arch}.deb',
+    artifactName: 'todoffice_${version}_${arch}.deb',
+    fpm: ['--edit'],
     packageName: PACKAGED_APP_NAME,
     // Ubuntu 24.04 (and Debian 13) rebuilt part of the X/GTK stack for 64-bit
     // time_t and renamed those packages with a "t64" suffix: where the old
@@ -916,7 +928,7 @@ const config = {
       'libuuid1',
       'libsecret-1-0 | libsecret-1-0t64',
     ],
-    // expose the ieumoffice command line shipped inside the app
+    // expose the todoffice command line shipped inside the app
     afterInstall: 'build/linux-after-install.sh',
     afterRemove: 'build/linux-after-remove.sh',
   },
@@ -931,7 +943,7 @@ const config = {
   // the rpm is a GitHub-Release download only, so latest-linux.yml lists
   // AppImage + deb.
   rpm: {
-    artifactName: 'ieumoffice-${version}.${arch}.rpm',
+    artifactName: 'todoffice-${version}.${arch}.rpm',
     packageName: PACKAGED_APP_NAME,
     publish: null,
     afterInstall: 'build/linux-after-install.sh',
@@ -942,7 +954,7 @@ const config = {
     // with a file conflict against the other app (genoffice#1145). The links exist only
     // to locate detached debuginfo, which this package does not ship, so turn
     // them off. rpm-level `fpm` (not linux-level) keeps it away from the deb.
-    fpm: ['--rpm-rpmbuild-define=_build_id_links none'],
+    fpm: ['--rpm-rpmbuild-define=_build_id_links none', '--edit'],
   },
   nsis: {
     oneClick: false,
@@ -1026,22 +1038,25 @@ config.dmg.sign = false
 // the arm64 name stays the one the site and the README point at.
 config.dmg.artifactName = '${productName}-${version}-${arch}.${ext}'
 
-// Auto-update feed: the releases of the public repository. Always configured,
-// so every installer carries an app-update.yml and can update itself — the
-// repository is public, which is why no token or feed URL has to be injected.
-// This only names the feed. Whether a build also uploads is the --publish
-// flag's business: pass `--publish never` to package without creating a
-// release (electron-builder would otherwise try to on a tagged CI build).
-config.publish = [
-  {
-    provider: 'github',
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-  },
-]
+// TodOffice has no configured public release service. Local packaging must
+// not inherit an upstream feed or publish to another project.
+// A TodOffice release feed must be configured explicitly before enabling updates.
+config.publish = null
 
 // CI's "-c.extraMetadata.version=..." CLI override deep-merges with this block,
 // so the version and the packaged name survive together.
-config.extraMetadata = { name: PACKAGED_APP_NAME }
+// Empty metadata is deliberate: AppInfo accepts a non-null empty string and
+// does not infer a repository URL. FPM's supported edit hook removes the empty
+// DEB Homepage field and its own RPM placeholder before creating the package.
+config.extraMetadata = { name: PACKAGED_APP_NAME, homepage: '' }
+if (process.platform === 'linux') {
+  const quote = (value) => `'${value.replace(/'/g, "'\\''")}'`
+  process.env.FPM_EDITOR = [
+    process.execPath,
+    join(__dirname, 'packaging/omit-unconfigured-homepage.cjs'),
+  ]
+    .map(quote)
+    .join(' ')
+}
 
 module.exports = config

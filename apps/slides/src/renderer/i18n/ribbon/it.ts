@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const it = {
+  ribbonLangMongolianCyrillic: 'mongolo (cirillico)',
+  ribbonLangMongolBichig: 'mongolo (mongolo)',
+
   ribbonAiCreditNote: "Usa l'IA e conta nel tuo limite di utilizzo",
   ribbonAiRewriteConfirm:
     "Questa azione richiama l'IA: conta nel tuo limite di utilizzo e può riscrivere l'intero contenuto. Continuare? (Non verrà più chiesto.)",

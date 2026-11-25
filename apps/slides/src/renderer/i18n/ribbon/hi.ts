@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const hi = {
+  ribbonLangMongolianCyrillic: 'मंगोलियाई (सिरिलिक)',
+  ribbonLangMongolBichig: 'मंगोलियाई (मंगोलियाई)',
+
   ribbonAiCreditNote: 'AI का उपयोग करता है और यह आपकी AI उपयोग सीमा में गिना जाता है',
   ribbonAiRewriteConfirm:
     'यह क्रिया AI को कॉल करती है: यह आपकी AI उपयोग सीमा में गिना जाता है और पूरी सामग्री फिर से लिखी जा सकती है। जारी रखें? (दोबारा नहीं पूछा जाएगा।)',

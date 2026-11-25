@@ -994,7 +994,16 @@ export function wordMetricAliasFace(font: string): string | null {
   return null
 }
 
+/** Include the shipped Mongolian face before a platform's generic fallback.
+ * It supplies missing Mongolian glyphs without changing the declared family in
+ * the document or replacing glyphs already covered by the selected font. */
 export function cssFontFamily(font: string, followAltName = true): string {
+  const chain = cssFontFamilyBase(font, followAltName)
+  if (chain.includes("'TodOffice Mongolian Fallback'")) return chain
+  return chain.replace(/,(serif|sans-serif|monospace)$/, ",'TodOffice Mongolian Fallback',$1")
+}
+
+function cssFontFamilyBase(font: string, followAltName = true): string {
   const f = font.toLowerCase()
   const chain = (...families: string[]) =>
     [...new Set(families)].map((x) => `'${x.replace(/'/g, '')}'`).join(',')
@@ -1391,6 +1400,7 @@ function latinChainHead(ascii: string): string[] {
   const latin = fams.filter(
     (fam) =>
       !/noto (sans|serif) cjk/i.test(fam) &&
+      !/^'TodOffice Mongolian Fallback'$/.test(fam) &&
       !/ JA GO'$/.test(fam) &&
       !/^(serif|sans-serif|monospace)$/.test(fam),
   )
@@ -1533,8 +1543,14 @@ export function cssCsFontFamily(cs: string, ascii?: string, eastAsia?: string): 
   if (!base) return cssFontFamily(cs)
   const head = cssFontFamily(cs)
     .split(',')
-    .filter((f) => !/^(serif|sans-serif|monospace)$/.test(f))
-  const baseFams = base.split(',')
+    .filter(
+      (f) =>
+        !/^(serif|sans-serif|monospace)$/.test(f) &&
+        (cs === 'Noto Sans Mongolian' || f !== "'TodOffice Mongolian Fallback'"),
+    )
+  const baseFams = base
+    .split(',')
+    .filter((f, i) => i === 0 || f !== "'TodOffice Mongolian Fallback'")
   const generic = /^(serif|sans-serif|monospace)$/
   // Bundled Noto Arabic subsets have no Latin letters; splice the run's
   // Latin chain in right after them, before Geeza Pro whose Latin punctuation
@@ -1559,7 +1575,10 @@ export function cssCsFontFamily(cs: string, ascii?: string, eastAsia?: string): 
           ...baseFams.filter((f) => generic.test(f)),
         ]
       : [...head, ...baseFams]
-  return [...new Set(merged)].join(',')
+  const chain = [...new Set(merged)].join(',')
+  return chain.includes("'TodOffice Mongolian Fallback'")
+    ? chain
+    : chain.replace(/,(serif|sans-serif|monospace)$/, ",'TodOffice Mongolian Fallback',$1")
 }
 
 /** Text contains CJK characters (decides the line-height factor: CJK lines measure ~1.3em per Chinese font metrics) */

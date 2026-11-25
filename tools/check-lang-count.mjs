@@ -8,7 +8,7 @@
  * and contributors work from AGENTS.md and the docs, and a line that still says
  * "fill all 21 languages" after a 22nd was added is read as an instruction: the
  * new language gets skipped, and the gap only shows up when a later check
- * fails. This reads the count out of `LANGS` and fails on any other count
+ * fails. This distinguishes established dictionaries from incomplete preview choices and fails on any other count
  * stated as a number of languages.
  *
  * Records are left alone: decisions, tracking notes and implemented plans say
@@ -18,25 +18,15 @@
  * Tests may not pin the list's length either: `expect(LANGS).toHaveLength(n)`
  * belongs in packages/i18n/tests only, so adding a language changes one list.
  */
-import { execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { languageCountPolicy, validLanguageCount } from './lib/lang-count-policy.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const I18N = join(ROOT, 'packages/i18n/src/index.ts')
-
-/** Read out of the source text, the same way check-help-langs does. */
-function langCount() {
-  const source = readFileSync(I18N, 'utf8')
-  const start = source.indexOf('export const LANGS')
-  if (start < 0) throw new Error('export const LANGS not found in packages/i18n/src/index.ts')
-  const open = source.indexOf('= [', start)
-  const body = source.slice(open, source.indexOf(']', open))
-  const codes = [...body.matchAll(/'([a-zA-Z-]+)'/g)].map((m) => m[1])
-  if (codes.length === 0) throw new Error('no language codes parsed out of LANGS')
-  return codes.length
-}
 
 const SKIP = [
   /^docs\/tracking\//,
@@ -70,18 +60,24 @@ const MENTIONS = /언어|language|LANGS/i
 /** Bundles and fixtures, not prose. */
 const MAX_BYTES = 512 * 1024
 
-const expected = langCount()
+const policy = languageCountPolicy(readFileSync(I18N, 'utf8'))
+const expected = policy.established
 // git grep reads the files through the index in one process; reading every
 // tracked file from node is minutes on a slow disk. Exit 1 means no match.
 let listed = ''
 try {
-  listed = execFileSync('git', ['grep', '-l', '-I', '-i', '-E', '언어|language|langs'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })
+  const result = await promisify(execFile)(
+    'git',
+    ['grep', '-l', '-I', '-i', '-E', '언어|language|langs'],
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  )
+  listed = result.stdout
 } catch (err) {
-  if (err.status !== 1) throw err
+  if (err.code !== 1) throw err
 }
 const files = listed.split('\n').filter((f) => f && TEXT.test(f) && !SKIP.some((re) => re.test(f)))
 
@@ -101,7 +97,7 @@ for (const file of files) {
     for (const re of PATTERNS) {
       for (const m of line.matchAll(re)) {
         const n = Number(m[1])
-        if (n !== expected && Math.abs(n - expected) <= NEAR) {
+        if (!validLanguageCount(n, line, policy) && Math.abs(n - expected) <= NEAR) {
           problems.push(`${file}:${i + 1}: says ${m[1]} languages ("${m[0].trim()}")`)
         }
       }
@@ -115,9 +111,13 @@ for (const file of files) {
 }
 
 if (problems.length > 0) {
-  console.error(`LANGS has ${expected} UI languages, but:\n`)
+  console.error(
+    `There are ${policy.established} established UI languages and ${policy.previews} preview locales (${policy.total} choices), but:\n`,
+  )
   for (const p of problems) console.error(`  ${p}`)
   console.error(`\n${problems.length} problem(s)`)
   process.exit(1)
 }
-console.log(`Language count check passed (${expected} UI languages, ${files.length} files read).`)
+console.log(
+  `Language count check passed (${policy.established} established UI languages + ${policy.previews} preview locales, ${files.length} files read).`,
+)

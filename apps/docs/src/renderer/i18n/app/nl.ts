@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const nl = {
+  appLangMongolianCyrillic: 'Mongools (Cyrillisch)',
+  appLangMongolBichig: 'Mongools (Mongools)',
+
   appLegacyDocImported:
     'Het .{ext}-bestand is geopend als geconverteerde .docx-kopie. Het origineel blijft ongewijzigd; opslaan schrijft een nieuw .docx-bestand.',
   appScTitle: 'Sneltoetsen',

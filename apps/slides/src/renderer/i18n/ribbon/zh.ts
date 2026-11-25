@@ -1,5 +1,8 @@
 /** ribbon strings, zh: defines the key set every other locale shard must match. */
 export const zh = {
+  ribbonLangMongolianCyrillic: '蒙古语（西里尔文）',
+  ribbonLangMongolBichig: '蒙古语（蒙古文）',
+
   ribbonAiCreditNote: '将调用 AI 并消耗额度',
   ribbonAiRewriteConfirm:
     '此操作将调用 AI：会消耗额度，并可能改写整篇内容。是否继续？（确认后不再提示）',

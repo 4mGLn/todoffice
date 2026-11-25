@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const ko = {
+  appLangMongolianCyrillic: '몽골어 (키릴 문자)',
+  appLangMongolBichig: '몽곫문자',
+
   appLegacyDocImported:
     '.{ext} 파일을 .docx 사본으로 바꿔 열었습니다. 원본은 그대로 두고, 저장하면 새 .docx 파일로 저장됩니다.',
   appScTitle: '키보드 바로 가기',

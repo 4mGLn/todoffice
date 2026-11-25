@@ -41,6 +41,10 @@ const AI_LANG_DIRECTIVES: Record<Lang, string> = {
   'zh-TW': '\n\n用與使用者訊息相同的語言回覆；無法判斷使用者訊息的語言時，用繁體中文回覆。',
   vi: '\n\nTrả lời bằng ngôn ngữ của tin nhắn người dùng; nếu không xác định được, hãy trả lời bằng tiếng Việt.',
   tr: '\n\nYanıtı kullanıcının iletisinin dilinde ver; dil belirlenemiyorsa Türkçe yanıtla.',
+  'mn-Cyrl':
+    "\n\nReply in the same language and script as the user's message; if unclear, reply in Mongolian using the Cyrillic script (mn-Cyrl). Do not substitute Russian.",
+  'mn-Mong':
+    "\n\nReply in the same language and script as the user's message; if unclear, reply in Mongol bichig, Mongolian Traditional Script (mn-Mong), using Mongolian Unicode characters. Do not substitute Cyrillic or transliterate mechanically.",
 }
 
 /** appended to the agent system prompt: replies follow the user's message language, falling back to the UI language */
@@ -72,6 +76,8 @@ export const DATE_LOCALES: Record<Lang, string> = {
   'zh-TW': 'zh-TW',
   vi: 'vi-VN',
   tr: 'tr-TR',
+  'mn-Cyrl': 'mn-Cyrl-MN',
+  'mn-Mong': 'mn-Mong',
 }
 
 const LocaleContext = createContext<Lang>('zh')

@@ -1,10 +1,10 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * @vitest-environment jsdom
  */
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import type { UserSkillView } from '@genoffice/electron-utils/user-skills-channels'
 import type { HomeApi } from '../src/shared/home-api'
 import type {
@@ -981,7 +981,7 @@ describe('MCP server card helpers and strings', () => {
 
   it('has every text in every language, with its placeholders', () => {
     const keys = Object.keys(mcpServersUiStrings.zh) as McpServersStringKey[]
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const table = mcpServersUiStrings[lang] as Record<string, string>
       expect(Object.keys(table).sort(), lang).toEqual([...keys].sort())
       for (const key of keys) {

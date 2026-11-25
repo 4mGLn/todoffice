@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const nl = {
+  ribbonLangMongolianCyrillic: 'Mongools (Cyrillisch)',
+  ribbonLangMongolBichig: 'Mongools (Mongools)',
+
   ribbonAiCreditNote: 'Gebruikt AI en telt mee voor uw AI-limiet',
   ribbonAiRewriteConfirm:
     'Deze actie roept AI aan: het telt mee voor uw AI-limiet en kan de volledige inhoud herschrijven. Doorgaan? (U wordt niet opnieuw gevraagd.)',

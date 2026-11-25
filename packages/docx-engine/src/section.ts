@@ -581,6 +581,32 @@ export function applySectionSettings(sectPrXml: string, settings: SectionSetting
     xml = colsAnchor(`<w:cols${numAttr} w:space="${settings.colSpace ?? 425}"/>`)
   }
 
+  // Explicit writing direction is independent of UI language. Undefined preserves
+  // unrecognized upstream values; selecting horizontal removes the optional tag.
+  if (settings.textDirection !== undefined) {
+    const direction = settings.textDirection
+    if (!/^(?:lrTb|tbRl|btLr|lrTbV|tbRlV|tbLrV|lr|rl|tb|lrV|rlV|tbV)$/.test(direction)) {
+      // Preserve unknown document values when round-tripping, but do not emit
+      // arbitrary strings as XML attributes when a caller changes the direction.
+      const current = /<w:textDirection\b[^>]*w:val=["']([^"']*)["']/.exec(xml)?.[1]
+      if (current !== direction) throw new Error('Unsupported section text direction')
+    } else {
+      const tag = `<w:textDirection w:val="${direction}"/>`
+      const element = /<w:textDirection(?=[\s/>])[^>]*(?:\/>|>[\s\S]*?<\/w:textDirection>)/
+      const current = element.exec(xml)?.[0]
+      if (direction === 'lrTb') xml = xml.replace(element, '')
+      else if (current) {
+        if (!new RegExp(`w:val=["']${direction}["']`).test(current)) xml = xml.replace(element, tag)
+      } else {
+        xml = insertBefore(
+          xml,
+          tag,
+          /<w:(?:bidi|rtlGutter|docGrid|printerSettings|sectPrChange)[\s/>]/,
+        )
+      }
+    }
+  }
+
   // section direction (w:bidi, after cols in CT_SectPr): undefined = keep the
   // document's tag untouched; true/false = ensure present/absent
   // w:bidi as Word may write it: self-closing, paired, or carrying an explicit w:val.

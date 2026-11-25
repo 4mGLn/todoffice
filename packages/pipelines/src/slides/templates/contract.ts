@@ -29,6 +29,7 @@ export const SLIDE_TEMPLATE_FONTS = [
   'Space Grotesk',
   'Playfair Display',
   'Archivo Black',
+  'Noto Sans Mongolian',
 ] as const
 
 /** The MIT-licensed project the templates are re-authored from, and the commit they were read at. */

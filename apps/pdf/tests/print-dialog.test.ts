@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * The PDF print dialog with the shared page layout panel: the "picked pages"
  * range is there only for two or more picked thumbnails, the layout options
@@ -7,7 +8,6 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import { createDefaultOptions } from '@genoffice/print-layout/plan'
 import { PrintDialog, type PrintDialogProps } from '../src/renderer/PrintDialog'
 import { strings } from '../src/renderer/i18n/strings'
@@ -164,8 +164,8 @@ describe('restricted save wording', () => {
     expect(strings.en.printSaveRestricted).toBe(
       'This PDF has permission restrictions, so the arranged result cannot be saved as a PDF. You can still print it.',
     )
-    expect(LANGS).toContain('tr')
-    for (const lang of LANGS) {
+    expect(ESTABLISHED_TEST_LANGS).toContain('tr')
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const text = strings[lang].printSaveRestricted
       expect(typeof text).toBe('string')
       expect(text.trim()).not.toBe('')
@@ -178,7 +178,7 @@ describe('"picked pages" range wording', () => {
   it('exists in every UI language, translated rather than copied from English', () => {
     expect(strings.ko.printRangePicked).toBe('고른 페이지')
     expect(strings.en.printRangePicked).toBe('Selected pages')
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const text = strings[lang].printRangePicked
       expect(typeof text).toBe('string')
       expect(text.trim()).not.toBe('')

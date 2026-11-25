@@ -223,6 +223,9 @@ const TRANSLATE_TARGETS: StringKey[] = [
   'ribbonLangHindi',
   'ribbonLangTraditionalChinese',
   'ribbonLangVietnamese',
+  'ribbonLangTurkish',
+  'ribbonLangMongolianCyrillic',
+  'ribbonLangMongolBichig',
 ]
 
 /** One-time "AI rewrites the whole document" acknowledgement */

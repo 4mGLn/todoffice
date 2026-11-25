@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const en = {
+  appLangMongolianCyrillic: 'Mongolian (Cyrillic)',
+  appLangMongolBichig: 'Mongolian Traditional Script',
+
   appLegacyDocImported:
     'Opened the .{ext} file as a converted .docx copy. The original stays as it was; saving writes a new .docx file.',
   appScTitle: 'Keyboard Shortcuts',

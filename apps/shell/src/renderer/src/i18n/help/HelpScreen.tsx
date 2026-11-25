@@ -5,6 +5,7 @@ import {
   HELP_GROUPS,
   HELP_TOPICS,
   helpBody,
+  helpHasBody,
   helpImage,
   initialHelpTopic,
   searchTopics,
@@ -42,22 +43,31 @@ export function HelpScreen(): React.ReactElement {
   // state that arrives rather than values computed during render. Each load
   // carries a generation so a slower one cannot land over a newer answer.
   const [hits, setHits] = useState<Set<string>>(() => new Set(HELP_TOPICS.map((t) => t.id)))
-  const [raw, setRaw] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState<{
+    topicId: string
+    requestedLang: string
+    text: string | null
+  } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const mainRef = useRef<HTMLElement>(null)
 
   const active = HELP_TOPICS.find((t) => t.id === activeId) ?? null
+  const englishFallback = active !== null && lang !== 'en' && !helpHasBody(active.id, lang)
+  const articleLang = englishFallback ? 'en' : lang
+  // Metadata changes synchronously, but a new body chunk arrives later. Never
+  // display a previous locale or topic under the current article's metadata.
+  const raw = loaded?.topicId === activeId && loaded.requestedLang === lang ? loaded.text : null
   // the article header already renders the title; drop the body's own `# ` line
   const body = raw === null ? null : raw.replace(/^#\s+[^\n]*\n+/, '')
 
   useEffect(() => {
     if (!active) {
-      setRaw(null)
+      setLoaded(null)
       return
     }
     let live = true
     void helpBody(active.id, lang).then((text) => {
-      if (live) setRaw(text)
+      if (live) setLoaded({ topicId: active.id, requestedLang: lang, text })
     })
     return () => {
       live = false
@@ -183,9 +193,30 @@ export function HelpScreen(): React.ReactElement {
         </nav>
       </aside>
       <main className="help-main" ref={mainRef}>
+        {englishFallback && (
+          <p
+            className="help-language-fallback"
+            role="status"
+            lang="en"
+            dir="ltr"
+            style={{ writingMode: 'horizontal-tb', textOrientation: 'mixed' }}
+          >
+            This help topic is not yet available in {lang}. Showing the English manual.
+          </p>
+        )}
         {active ? (
-          <article className="help-article" key={active.id}>
-            <h1>{topicTitle(active.id, lang)}</h1>
+          <article
+            className="help-article"
+            key={active.id}
+            lang={articleLang}
+            dir={articleLang === 'ar' || articleLang === 'he' ? 'rtl' : 'ltr'}
+            style={
+              englishFallback
+                ? { writingMode: 'horizontal-tb', textOrientation: 'mixed' }
+                : undefined
+            }
+          >
+            <h1>{topicTitle(active.id, articleLang)}</h1>
             {toc.length > 1 && (
               <nav className="help-toc" aria-label={t('helpOnThisPage')}>
                 <div className="help-toc-title">{t('helpOnThisPage')}</div>
@@ -204,7 +235,7 @@ export function HelpScreen(): React.ReactElement {
             {body !== null ? (
               <Markdown
                 text={body}
-                images={{ resolve: (href) => helpImage(href, lang) }}
+                images={{ resolve: (href) => helpImage(href, articleLang) }}
                 nav={{
                   scheme: 'help://',
                   onNavigate: (href) => {

@@ -77,14 +77,14 @@ describe('project folders', () => {
       projectFolderProblem(
         project,
         home,
-        agentProtectedPaths(home, join(home, 'AppData', 'IeumOffice')),
+        agentProtectedPaths(home, join(home, 'AppData', 'TodOffice')),
       ),
     ).toBeUndefined()
   })
 
   it('refuses a drive root, the home folder, a parent of a protected folder, and a protected folder', () => {
     const home = temp()
-    const userData = join(home, 'AppData', 'IeumOffice')
+    const userData = join(home, 'AppData', 'TodOffice')
     mkdirSync(join(home, '.codex'), { recursive: true })
     mkdirSync(userData, { recursive: true })
     const guards = agentProtectedPaths(home, userData)
@@ -96,11 +96,33 @@ describe('project folders', () => {
 
   it('refuses a folder in a protected folder whose name starts with ".."', () => {
     const home = temp()
-    const userData = join(home, 'AppData', 'IeumOffice')
+    const userData = join(home, 'AppData', 'TodOffice')
     const guards = agentProtectedPaths(home, userData)
     for (const inside of [join(home, '.claude', '..x'), join(userData, '..config')]) {
       mkdirSync(inside, { recursive: true })
       expect(projectFolderProblem(inside, home, guards), inside).toBe('protected')
+    }
+  })
+
+  it('keeps both upstream applications and TodOffice protected after rebranding', () => {
+    const home = temp()
+    const userData = join(home, 'AppData', 'TodOffice')
+    const guards = agentProtectedPaths(home, userData)
+    for (const appDir of ['.genoffice', '.ieumoffice', '.todoffice']) {
+      const folder = join(home, appDir, 'private')
+      mkdirSync(folder, { recursive: true })
+      expect(projectFolderProblem(folder, home, guards), appDir).toBe('protected')
+    }
+    for (const parent of [
+      join(home, '.config'),
+      join(home, 'AppData', 'Roaming'),
+      join(home, 'Library', 'Application Support'),
+    ]) {
+      for (const appDir of ['GenOffice', 'IeumOffice', 'IeumOffice-Dev', 'TodOffice']) {
+        const folder = join(parent, appDir, 'private')
+        mkdirSync(folder, { recursive: true })
+        expect(projectFolderProblem(folder, home, guards), folder).toBe('protected')
+      }
     }
   })
 
@@ -138,12 +160,12 @@ describe('instructions', () => {
     const claude = await agentInstructions('claude-code', project, 'ko', true)
     expect(claude).toContain('Use formal Korean.')
     expect(claude).toContain('Agents file.')
-    expect(claude).toContain('ieumoffice-editor')
+    expect(claude).toContain('todoffice-editor')
     expect(claude).toContain('"ko"')
     const codex = await agentInstructions('codex', project, 'ko', false)
     expect(codex).toContain('Use formal Korean.')
     expect(codex).not.toContain('Agents file.')
-    expect(codex).not.toContain('ieumoffice-editor')
+    expect(codex).not.toContain('todoffice-editor')
   })
 
   it('keeps the limit on a long project note, says where the rest is, and reports the cut', async () => {
@@ -325,7 +347,7 @@ function manager(
       overrides.statuses ?? { 'claude-code': ready('claude-code'), codex: ready('codex') },
     aiSettings: () => ({ ...normalizeAiSettings({ providers: {} }), ...overrides.settings }),
     openDocuments: overrides.openDocuments ?? (() => [join(project, 'open.docx')]),
-    userData: join(home, 'AppData', 'IeumOffice'),
+    userData: join(home, 'AppData', 'TodOffice'),
     homeDir: home,
     language: () => 'ko',
     startAppMcp,
@@ -369,7 +391,7 @@ describe('starting a session', () => {
       openDocuments: [join(project, 'open.docx')],
     })
     expect(options.protectedPaths).toContain(join(home, '.codex'))
-    expect(options.protectedPaths).toContain(join(home, 'AppData', 'IeumOffice'))
+    expect(options.protectedPaths).toContain(join(home, 'AppData', 'TodOffice'))
   })
 
   it('tells the window which project notes the instructions carry only the start of', async () => {
@@ -739,7 +761,7 @@ describe('a window that closes, or an app that quits, while the session is being
       statuses: () => ({ 'claude-code': ready('claude-code') }),
       aiSettings: () => normalizeAiSettings({ providers: {} }),
       openDocuments: () => [],
-      userData: join(home, 'AppData', 'IeumOffice'),
+      userData: join(home, 'AppData', 'TodOffice'),
       homeDir: home,
       language: () => 'ko',
       startAppMcp,

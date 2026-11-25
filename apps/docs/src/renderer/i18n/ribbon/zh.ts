@@ -1,5 +1,12 @@
 /** ribbon strings, zh: defines the key set every other locale shard must match. */
 export const zh = {
+  ribbonLangMongolianCyrillic: '蒙古语（西里尔文）',
+  ribbonLangMongolBichig: '蒙古语（蒙古文）',
+  layoutTextDirection: '文字方向',
+  layoutTextHorizontal: '水平',
+  layoutTextMongolBichig: 'Mongol bichig · 从上到下，从左到右',
+  layoutTextVerticalCjk: '垂直 · 从右到左',
+
   ribbonAiRewriteConfirm: '此操作将调用 AI，并可能改写整篇内容。是否继续？（确认后不再提示）',
   // Tabs
   ribbonTabFile: '文件',

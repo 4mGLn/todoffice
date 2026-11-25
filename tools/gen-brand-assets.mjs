@@ -1,5 +1,5 @@
 /**
- * Regenerates every file derived from the IeumOffice brand sources in
+ * Regenerates every file derived from the TodOffice brand sources in
  * apps/shell/build/brand/:
  *
  *   app-icon.svg        -> app / installer icons (png, ico, icns, Linux size
@@ -56,6 +56,7 @@ const ICNS_TARGETS = ['apps/shell/build/icon.icns', 'apps/docs/build/icon.icns']
 // freedesktop hicolor size set (electron-builder linux.icon points at this dir).
 const LINUX_ICON_DIR = 'apps/shell/build/icons'
 const LINUX_SIZES = [16, 32, 48, 64, 128, 256, 512, 1024]
+const DARK_LOCKUP_TARGET = 'apps/shell/src/renderer/src/assets/todoffice-logo-dark.svg'
 const LOCKUP_TARGET = 'apps/shell/src/renderer/src/assets/genoffice-logo.svg'
 
 const WIN_SIZES = [16, 24, 32, 48, 64, 128, 256]
@@ -212,12 +213,13 @@ async function writePreview(page, outFile) {
     `data:image/png;base64,${readFileSync(join(root, LINUX_ICON_DIR, `${size}x${size}.png`)).toString('base64')}`
   const lockup = svgDataUrl(LOCKUP_SVG)
   const aiMark = readFileSync(AI_MARK_SVG, 'utf8').replace(/^[\s\S]*?(?=<svg)/, '')
-  const row = (background, color, invert) =>
+  const darkLockup = svgDataUrl(join(root, DARK_LOCKUP_TARGET))
+  const row = (background, color, dark) =>
     `<div style="background:${background};color:${color};padding:28px;display:flex;align-items:flex-end;gap:28px">` +
     [256, 48, 32, 16]
       .map((size) => `<img src="${icon(size)}" width="${size}" height="${size}">`)
       .join('') +
-    `<img src="${lockup}" height="56" style="margin-left:24px;filter:invert(${invert})">` +
+    `<img src="${dark ? darkLockup : lockup}" height="56" style="margin-left:24px">` +
     [30, 26, 22, 18, 14]
       .map((size) => aiMark.replace('width="24" height="24"', `width="${size}" height="${size}"`))
       .join('') +
@@ -268,6 +270,7 @@ try {
   for (const target of ICNS_TARGETS) write(target, icns)
 
   copyFileSync(LOCKUP_SVG, join(root, LOCKUP_TARGET))
+  writeFileSync(join(root, DARK_LOCKUP_TARGET), readFileSync(LOCKUP_SVG, 'utf8').replaceAll('#111111', '#F3F1EC'))
   console.log(`wrote ${LOCKUP_TARGET}`)
 
   if (previewFile) await writePreview(page, resolve(previewFile))

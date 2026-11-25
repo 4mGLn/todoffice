@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * The diagram's AI panel against a scripted main process and a fake draw.io:
  * the model's answers are written out here as stream chunks, so no provider
@@ -368,7 +369,7 @@ describe('the panel strings', () => {
   it('has the same keys in every UI language, filled and translated', () => {
     const keys = Object.keys(aiStrings.zh).sort()
     expect(Object.keys(aiStrings)).toHaveLength(LANGS.length)
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       expect(Object.keys(aiStrings[lang]).sort(), lang).toEqual(keys)
       for (const key of keys) {
         expect(aiStrings[lang][key as keyof typeof aiStrings.zh], `${lang}.${key}`).not.toBe('')

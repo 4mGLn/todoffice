@@ -1,37 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  IeumOffice app icon (source of truth).
-
-  "Ieum" is Korean for joining/connecting. The mark is a ring linked through a
-  rounded square, the two closed shapes of the Hangul consonants in the name,
-  woven over and under each other like two links of a chain.
-
-  Geometry adapted from the Lucide icons `circle`, `square` and `link`
-  (ISC License, https://lucide.dev); see NOTICE.
-
-  Every raster/container icon in the repo is derived from this file:
-    node tools/gen-brand-assets.mjs
-  Keep the 1024x1024 canvas and the full-bleed rounded tile; the generator
-  insets the whole drawing for the macOS variants.
--->
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <clipPath id="ieum-upper"><rect width="1024" height="512"/></clipPath>
-    <clipPath id="ieum-lower"><rect y="512" width="1024" height="512"/></clipPath>
-    <!-- Upper crossing: the ring passes over the square, so a gap is cut into the square. -->
-    <mask id="ieum-under-ring" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <circle cx="399" cy="512" r="192" fill="none" stroke="#000" stroke-width="160" clip-path="url(#ieum-upper)"/>
-    </mask>
-    <!-- Lower crossing: the square passes over the ring, so a gap is cut into the ring. -->
-    <mask id="ieum-under-square" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <rect x="453" y="330" width="364" height="364" rx="96" fill="none" stroke="#000" stroke-width="160" clip-path="url(#ieum-lower)"/>
-    </mask>
-  </defs>
-  <rect width="1024" height="1024" rx="230" fill="#4338CA"/>
-  <g fill="none" stroke-width="112">
-    <rect x="453" y="330" width="364" height="364" rx="96" stroke="#FFB020" mask="url(#ieum-under-ring)"/>
-    <circle cx="399" cy="512" r="192" stroke="#FFFFFF" mask="url(#ieum-under-square)"/>
-  </g>
+  <rect width="1024" height="1024" rx="226" fill="#F3F1EC"/>
+  <path fill="#E6482E" fill-rule="evenodd" transform="translate(197.35 135.00) scale(2.9)" d="M74 260 L72 221 C66 227 59 230 50 230 C22 230 0 208 0 179 C0 151 24 124 52 124 C62 124 65 121 65 111 L64 56 C63 23 93 0 126 0 H148 C188 0 217 29 217 68 C217 106 187 135 151 135 H121 C109 135 104 141 104 152 L105 238 C105 248 92 251 74 260 Z M102 109 C109 102 114 100 125 100 H148 C169 100 181 86 181 68 C181 50 168 35 148 35 H127 C111 35 100 46 101 61 Z M69 154 C64 157 58 159 53 159 C40 159 34 168 34 179 C34 191 42 197 52 197 C63 197 69 192 69 184 Z"/>
 </svg>

@@ -24,35 +24,35 @@ export const OFFICE_TYPES: readonly OfficeType[] = [
     ext: 'docx',
     uti: 'org.openxmlformats.wordprocessingml.document',
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    progId: 'IeumOffice.WordDocument',
+    progId: 'TodOffice.WordDocument',
     item: 'docs',
   },
   {
     ext: 'xlsx',
     uti: 'org.openxmlformats.spreadsheetml.sheet',
     mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    progId: 'IeumOffice.ExcelWorkbook',
+    progId: 'TodOffice.ExcelWorkbook',
     item: 'sheets',
   },
   {
     ext: 'xlsm',
     uti: 'org.openxmlformats.spreadsheetml.sheet.macroenabled',
     mime: 'application/vnd.ms-excel.sheet.macroEnabled.12',
-    progId: 'IeumOffice.ExcelMacroEnabledWorkbook',
+    progId: 'TodOffice.ExcelMacroEnabledWorkbook',
     item: 'sheets',
   },
   {
     ext: 'xls',
     uti: 'com.microsoft.excel.xls',
     mime: 'application/vnd.ms-excel',
-    progId: 'IeumOffice.Excel972003Workbook',
+    progId: 'TodOffice.Excel972003Workbook',
     item: 'sheets',
   },
   {
     ext: 'pptx',
     uti: 'org.openxmlformats.presentationml.presentation',
     mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    progId: 'IeumOffice.PowerPointPresentation',
+    progId: 'TodOffice.PowerPointPresentation',
     item: 'slides',
   },
   // draw.io diagrams. macOS knows the type by the identifier draw.io exports;
@@ -62,19 +62,19 @@ export const OFFICE_TYPES: readonly OfficeType[] = [
     ext: 'drawio',
     uti: 'com.jgraph.drawio',
     mime: 'application/vnd.jgraph.mxfile',
-    progId: 'IeumOffice.Diagram',
+    progId: 'TodOffice.Diagram',
     item: 'diagram',
   },
   {
     ext: 'dio',
     uti: 'com.jgraph.drawio',
     mime: 'application/vnd.jgraph.mxfile',
-    progId: 'IeumOffice.Diagram',
+    progId: 'TodOffice.Diagram',
     item: 'diagram',
   },
 ]
 
-const LINUX_DESKTOP_ID = 'ieumoffice.desktop'
+const LINUX_DESKTOP_ID = 'todoffice.desktop'
 const WINDOWS_DEFAULT_APPS_URL = 'ms-settings:defaultapps'
 
 export type RunCommand = (cmd: string, args: string[]) => Promise<string>

@@ -50,6 +50,7 @@ const byFeature = (report: Array<{ kind: string; feature: string; count: number 
 describe('docxToOdt: the package', () => {
   it('is standard: mimetype first and stored, ODF 1.3, every entry in the manifest', async () => {
     const { pkg, odtBytes } = await convert(kitchenSink())
+    expect(textOf(pkg, 'meta.xml')).toContain('<meta:generator>TodOffice</meta:generator>')
     expect(pkg.mimetypeFirst).toBe(true)
     expect(pkg.mimetypeStored).toBe(true)
     for (const part of ['content.xml', 'styles.xml', 'meta.xml'])

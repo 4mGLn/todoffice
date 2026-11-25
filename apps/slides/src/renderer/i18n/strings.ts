@@ -1,9 +1,10 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import { aiStrings } from './strings-ai'
 import { appStrings } from './strings-app'
 import { paneStrings } from './strings-panes'
 import { ribbonStrings } from './strings-ribbon'
 
-export const strings = {
+export const strings = withMongolianLocales({
   zh: { ...appStrings.zh, ...ribbonStrings.zh, ...paneStrings.zh, ...aiStrings.zh },
   en: { ...appStrings.en, ...ribbonStrings.en, ...paneStrings.en, ...aiStrings.en },
   ja: { ...appStrings.ja, ...ribbonStrings.ja, ...paneStrings.ja, ...aiStrings.ja },
@@ -42,4 +43,4 @@ export const strings = {
     ...paneStrings['zh-TW'],
     ...aiStrings['zh-TW'],
   },
-}
+})

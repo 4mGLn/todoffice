@@ -10,7 +10,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { docxToOdt } from '@genoffice/odt-engine'
-import { buildBlankDocx } from '@genoffice/docx-engine'
+import { buildBlankDocx, readSectionSettings } from '@genoffice/docx-engine'
+import { getLang, setModuleLang } from '../src/renderer/i18n/locale'
 import { editorExtensions } from '../src/renderer/editor/extensions'
 import type { DocState } from '../src/renderer/doc-state'
 import type { OpenDocxResult } from '../src/shared/ipc'
@@ -276,4 +277,22 @@ describe("a skill template's copy once its run ended well", () => {
     expect(await saveIntoProject(ctx, 'Kept.docx')).toBe(false)
     expect(desktop.saveDocxIntoProject).not.toHaveBeenCalled()
   })
+})
+
+describe('new-document script direction', () => {
+  it.each(['mn-Mong', 'mn-Cyrl', 'en'] as const)(
+    'uses the authoring default for %s',
+    async (lang) => {
+      const previous = getLang()
+      try {
+        setModuleLang(lang)
+        const ctx = await blankUntitled()
+        const direction = readSectionSettings(docOf(ctx).parsed).textDirection
+        if (lang === 'mn-Mong') expect(direction).toBe('tbLrV')
+        else expect(direction ?? 'lrTb').toBe('lrTb')
+      } finally {
+        setModuleLang(previous)
+      }
+    },
+  )
 })

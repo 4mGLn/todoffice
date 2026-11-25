@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const th = {
+  ribbonLangMongolianCyrillic: 'มองโกเลีย (ซีริลลิก)',
+  ribbonLangMongolBichig: 'มองโกเลีย (มองโกเลีย)',
+
   ribbonAiCreditNote: 'เรียกใช้ AI และนับรวมในโควตาการใช้งาน AI ของคุณ',
   ribbonAiRewriteConfirm:
     'การดำเนินการนี้จะเรียกใช้ AI: นับรวมในโควตาการใช้งาน AI ของคุณและอาจเขียนเนื้อหาทั้งหมดใหม่ ดำเนินการต่อหรือไม่ (จะไม่ถามอีก)',

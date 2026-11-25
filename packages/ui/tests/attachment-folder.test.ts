@@ -38,21 +38,21 @@ describe('attachmentFolderLabel', () => {
   it('hides the id folder under an app-made Drive attachment folder', () => {
     expect(
       attachmentFolderLabel(
-        'C:\\Users\\a\\AppData\\Local\\Temp\\ieumoffice-drive-attach\\3fa9c1\\계획서.docx',
+        'C:\\Users\\a\\AppData\\Local\\Temp\\todoffice-drive-attach\\3fa9c1\\계획서.docx',
       ),
     ).toBe('')
-    expect(attachmentFolderLabel('/tmp/ieumoffice-drive-attach/3fa9c1/계획서.docx')).toBe('')
+    expect(attachmentFolderLabel('/tmp/todoffice-drive-attach/3fa9c1/계획서.docx')).toBe('')
   })
 
   it('hides the file id folder under the Drive cache', () => {
     expect(
       attachmentFolderLabel(
-        'C:\\Users\\a\\AppData\\Roaming\\IeumOffice\\drive-cache\\abc_123\\계획서.docx',
+        'C:\\Users\\a\\AppData\\Roaming\\TodOffice\\drive-cache\\abc_123\\계획서.docx',
       ),
     ).toBe('')
-    expect(
-      attachmentFolderLabel('/home/a/.config/IeumOffice/drive-cache/abc_123/계획서.docx'),
-    ).toBe('')
+    expect(attachmentFolderLabel('/home/a/.config/TodOffice/drive-cache/abc_123/계획서.docx')).toBe(
+      '',
+    )
   })
 
   it('names a folder literally called drive-cache when it holds the file itself', () => {

@@ -47,3 +47,16 @@
 - 바꾸면 반드시 테스트하는 것: `brandText`의 경계(식별자 안, 파일 이름 안, `{{GenOffice}}`, 한 문장에 여러 번 나올 때, 한국어와 그 밖의 언어), 매개변수 값이 치환되지 않는지, 대체 경로로 나온 글에도 제품 이름이 들어가는지, `normalizeLang`의 경계(`zh-Hant`, `in-ID`, 빈 값).
 - `platformShortcuts`는 모듈을 불러올 때의 플랫폼으로 고정된다. 변환 규칙은 순수 함수 `macShortcutsToWin`으로 테스트한다.
 - 설치 설정, `package.json`, HTML 제목, 파일 연결 ProgId가 이 모듈의 상수와 어긋나지 않는지는 `apps/shell/tests/product-identity.test.ts`가 본다. `PRODUCT_NAME`이나 저장소 좌표를 바꾸면 그 테스트도 함께 돌린다.
+
+## Mongolian interface previews
+
+The approved Mongolian work adds `mn-Cyrl` and `mn-Mong` as explicitly incomplete
+preview choices beside the 22 established locales. `LegacyLangDicts` preserves
+mandatory key completeness for those established dictionaries. The centralized
+preview wrapper uses independent source-backed catalogs and reports every
+English fallback as missing; do not present these editions as fully translated.
+`npm run check:mongolian-coverage` is the strict completeness gate and currently
+fails until the missing translations and dynamic messages are completed. Source
+revisions and license provenance live in `localization-sources/`. New translations
+need contextual review; script conversion is not proof of translation quality.
+App chrome writing mode and document writing direction are separate settings.

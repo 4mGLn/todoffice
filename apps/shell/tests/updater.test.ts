@@ -14,6 +14,22 @@ import {
 } from '@genoffice/electron-utils'
 import type { UpdateUiState } from '../src/shared/update-api'
 
+// A configured feed is a fixture here; the shipped TodOffice build has none.
+const feed = vi.hoisted(() => ({ enabled: true }))
+vi.mock('@genoffice/electron-utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@genoffice/electron-utils')>()
+  const base = 'https://github.com/pblsketch/todoffice/releases'
+  return {
+    ...actual,
+    GITHUB_REPO_OWNER: 'pblsketch',
+    GITHUB_REPO_NAME: 'todoffice',
+    get GITHUB_LATEST_RELEASE_URL() {
+      return feed.enabled ? `${base}/latest` : ''
+    },
+    githubReleaseTagUrl: (version: string) => `${base}/tag/v${version.replace(/^v/, '')}`,
+  }
+})
+
 /**
  * Main-process auto-updater flow (src/main/updater.ts): manual-download policy
  * driven by the strong-guidance update window — the renderer's Download /
@@ -172,7 +188,7 @@ vi.mock('../src/main/update-attempt', async (importOriginal) => ({
 // the Mac install: where its bundle is, whether it may replace itself, and the
 // macOS programs behind staging and the swap
 const macInstall = vi.hoisted(() => ({
-  bundle: '/Applications/IeumOffice.app' as string | null,
+  bundle: '/Applications/TodOffice.app' as string | null,
   block: null as string | null,
   stage: vi.fn<(options: { zip: string; bundle: string; version: string }) => Promise<string>>(),
   swap: vi.fn<(options: unknown) => boolean>(() => true),
@@ -240,10 +256,10 @@ const RELEASES_PATH = `/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`
  */
 const EMPTY_RELEASES_ATOM = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
-  <id>tag:github.com,2008:https://github.com/pblsketch/ieumoffice/releases</id>
-  <link type="text/html" rel="alternate" href="https://github.com/pblsketch/ieumoffice/releases"/>
-  <link type="application/atom+xml" rel="self" href="https://github.com/pblsketch/ieumoffice/releases.atom"/>
-  <title>Release notes from ieumoffice</title>
+  <id>tag:github.com,2008:https://github.com/pblsketch/todoffice/releases</id>
+  <link type="text/html" rel="alternate" href="https://github.com/pblsketch/todoffice/releases"/>
+  <link type="application/atom+xml" rel="self" href="https://github.com/pblsketch/todoffice/releases.atom"/>
+  <title>Release notes from todoffice</title>
   <updated>2026-10-13T06:34:27Z</updated>
 </feed>
 `
@@ -284,7 +300,7 @@ function releasesAtom(tags: string[], notes: Record<string, string> = {}): strin
 }
 
 function feedFile(version: string): string {
-  const installer = `IeumOffice-Setup-${version}.exe`
+  const installer = `TodOffice-Setup-${version}.exe`
   return [
     `version: ${version}`,
     'files:',
@@ -371,6 +387,7 @@ function checkOffline(): void {
 }
 
 beforeEach(() => {
+  feed.enabled = true
   vi.resetModules()
   vi.useFakeTimers()
   appState.isPackaged = true
@@ -391,11 +408,11 @@ beforeEach(() => {
   updaterState.allowPrerelease = null
   updaterState.updateDownloaded = squirrelServe
   squirrelServe.mockClear()
-  macInstall.bundle = '/Applications/IeumOffice.app'
+  macInstall.bundle = '/Applications/TodOffice.app'
   macInstall.block = null
   macInstall.stage.mockReset()
   macInstall.stage.mockImplementation((options) =>
-    Promise.resolve(`/Applications/.IeumOffice.app.update/IeumOffice-${options.version}.app`),
+    Promise.resolve(`/Applications/.TodOffice.app.update/TodOffice-${options.version}.app`),
   )
   macInstall.swap.mockReset()
   macInstall.swap.mockImplementation(() => true)
@@ -572,7 +589,7 @@ describe('initAutoUpdater', () => {
 
   it('keeps the installer silent where no installer window exists (Linux AppImage)', async () => {
     setPlatform('linux')
-    process.env.APPIMAGE = '/tmp/IeumOffice.AppImage'
+    process.env.APPIMAGE = '/tmp/TodOffice.AppImage'
     try {
       const { initAutoUpdater } = await loadUpdater()
       initAutoUpdater(() => null)
@@ -1016,17 +1033,15 @@ describe('manual download fallback', () => {
     actions.onOpenDownload()
     expect(openExternal).toHaveBeenCalledTimes(1)
     expect(openExternal).toHaveBeenCalledWith(GITHUB_LATEST_RELEASE_URL)
-    expect(GITHUB_LATEST_RELEASE_URL).toBe(
-      'https://github.com/pblsketch/ieumoffice/releases/latest',
-    )
+    expect(GITHUB_LATEST_RELEASE_URL).toBe('https://github.com/pblsketch/todoffice/releases/latest')
   })
 
   it('never follows a download URL supplied by the update metadata', async () => {
     const actions = await failTwiceIntoManual({
       version: '0.2.0',
       files: [
-        { url: 'https://attacker.example/IeumOffice-Setup-0.2.0.exe' },
-        { url: 'IeumOffice-Setup-0.2.0.exe' },
+        { url: 'https://attacker.example/TodOffice-Setup-0.2.0.exe' },
+        { url: 'TodOffice-Setup-0.2.0.exe' },
       ],
     })
     actions.onOpenDownload()
@@ -1038,13 +1053,13 @@ describe('manual download fallback', () => {
     actions.onOpenDownload()
     expect(openExternal).toHaveBeenCalledWith(githubReleaseTagUrl('0.3.0-beta.1'))
     expect(githubReleaseTagUrl('0.3.0-beta.1')).toBe(
-      'https://github.com/pblsketch/ieumoffice/releases/tag/v0.3.0-beta.1',
+      'https://github.com/pblsketch/todoffice/releases/tag/v0.3.0-beta.1',
     )
   })
 })
 
 describe('macOS: the app installs its own update (decision 0097)', () => {
-  const zip = '/Users/me/Library/Caches/ieumoffice-updater/pending/IeumOffice-0.2.0-arm64-mac.zip'
+  const zip = '/Users/me/Library/Caches/todoffice-updater/pending/TodOffice-0.2.0-arm64-mac.zip'
 
   beforeEach(() => {
     platformSpy?.restore()
@@ -1100,7 +1115,7 @@ describe('macOS: the app installs its own update (decision 0097)', () => {
   it('clears what an interrupted update left beside the app', async () => {
     const { initAutoUpdater } = await loadUpdater()
     initAutoUpdater(() => null)
-    expect(macInstall.leftovers).toHaveBeenCalledWith('/Applications/IeumOffice.app')
+    expect(macInstall.leftovers).toHaveBeenCalledWith('/Applications/TodOffice.app')
   })
 
   it('unpacks the download beside the app, never through Squirrel.Mac', async () => {
@@ -1108,7 +1123,7 @@ describe('macOS: the app installs its own update (decision 0097)', () => {
     expect(downloadUpdate).toHaveBeenCalledTimes(1)
     expect(macInstall.stage).toHaveBeenCalledWith({
       zip,
-      bundle: '/Applications/IeumOffice.app',
+      bundle: '/Applications/TodOffice.app',
       version: '0.2.0',
     })
     expect(squirrelServe).not.toHaveBeenCalled()
@@ -1128,8 +1143,8 @@ describe('macOS: the app installs its own update (decision 0097)', () => {
     quitCompletes()
     expect(macInstall.swap).toHaveBeenCalledWith({
       pid: process.pid,
-      bundle: '/Applications/IeumOffice.app',
-      staged: '/Applications/.IeumOffice.app.update/IeumOffice-0.2.0.app',
+      bundle: '/Applications/TodOffice.app',
+      staged: '/Applications/.TodOffice.app.update/TodOffice-0.2.0.app',
       logFile: join(appState.dataDir, 'update-log.txt'),
     })
     expect(install).not.toHaveBeenCalled()
@@ -1740,6 +1755,19 @@ describe('checkForUpdatesNow (r148 manual check)', () => {
 
     expect(showUpdateWindow).toHaveBeenCalledTimes(1)
     expect(lastShownState().version).toBe('9.9.9')
+    expect(showMessageBox).not.toHaveBeenCalled()
+  })
+})
+
+describe('TodOffice without a configured release feed', () => {
+  it('starts no updater and sends no manual or background request', async () => {
+    feed.enabled = false
+    const { initAutoUpdater, checkForUpdatesNow } = await import('../src/main/updater')
+    initAutoUpdater(() => null)
+    await checkForUpdatesNow()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(checkForUpdates).not.toHaveBeenCalled()
+    expect(openExternal).not.toHaveBeenCalled()
     expect(showMessageBox).not.toHaveBeenCalled()
   })
 })

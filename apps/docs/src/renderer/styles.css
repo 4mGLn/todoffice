@@ -1,3 +1,14 @@
+/* The missing-glyph fallback is restricted to Mongolian and its join controls.
+   The unmodified full Noto font remains separately available under its real
+   family name. This alias cannot take Latin/Cyrillic glyphs from a user's font. */
+@font-face {
+  font-family: 'TodOffice Mongolian Fallback';
+  src: url('genoffice-docx-media://template-fonts/NotoSansMongolian-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+1800-18AF, U+200C-200D, U+202F, U+11660-1167F;
+}
+
 /* Per-app accent (word-blue family) + docs-only tokens.
  * Chrome tokens (surface/text/border/…, AI panel --color-*) come from
  * @genoffice/ui/tokens.css; nothing here may shadow those names. */
@@ -2830,6 +2841,9 @@ th.cell-rev-del {
 }
 .doc-page:not(.measuring-columns) .doc-vert-tbRlV {
   text-orientation: sideways;
+}
+.doc-page:not(.measuring-columns) .doc-vert-tbLrV {
+  writing-mode: vertical-lr;
 }
 .doc-page:not(.measuring-columns) .doc-vert-btLr {
   writing-mode: sideways-lr;
@@ -13885,4 +13899,17 @@ tr > .page-gap-cut {
 
 .rb-field-item:hover {
   background: var(--color-bg-subtle);
+}
+
+/* Section writing direction changes only when explicitly selected in Layout. */
+.layout-writing-direction {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  max-width: 170px;
+  font-size: 11px;
+}
+.layout-writing-direction select {
+  max-width: 170px;
 }

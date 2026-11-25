@@ -1,0 +1,128 @@
+{
+  "status": "draft-native-review-required",
+  "date": "2026-11-24",
+  "scope": "Home navigation, document cards, primary ribbon tabs and settings names; not the full application",
+  "authorship": "TodOffice authored contextual drafts; existing source-backed translations win on collisions",
+  "spellingSource": {
+    "url": "https://github.com/suragch/mongolian-datasets/tree/bccea69accbcba06e503cb55d8176f55c56a3d68/eck",
+    "license": "CC0-1.0",
+    "lookupSnapshot": "https://github.com/AltangerelG/react-mongol/blob/371fc5de16d0498d540db19c68b7d2ee0f5265a9/src/generated/eck.ts",
+    "selectedWords": {
+      "Projects": {
+        "cyrillic": "төсөл",
+        "traditional": "ᠲᠥᠰᠦᠯ"
+      },
+      "Project": {
+        "cyrillic": "төсөл",
+        "traditional": "ᠲᠥᠰᠦᠯ"
+      },
+      "General": {
+        "cyrillic": "ерөнхий",
+        "traditional": "ᠶᠡᠷᠦᠩᠬᠡᠢ"
+      },
+      "Language": {
+        "cyrillic": "хэл",
+        "traditional": "ᠬᠡᠯᠡ"
+      },
+      "Picture": {
+        "cyrillic": "зураг",
+        "traditional": "ᠵᠢᠷᠤᠭ"
+      },
+      "Pictures": {
+        "cyrillic": "зураг",
+        "traditional": "ᠵᠢᠷᠤᠭ"
+      },
+      "Table": {
+        "cyrillic": "хүснэгт",
+        "traditional": "ᠬᠦᠰᠦᠨᠦᠭᠲᠦ"
+      },
+      "Tables": {
+        "cyrillic": "хүснэгт",
+        "traditional": "ᠬᠦᠰᠦᠨᠦᠭᠲᠦ"
+      },
+      "Home": {
+        "cyrillic": "эхлэл",
+        "traditional": "ᠡᠬᠢᠯᠡᠯ"
+      },
+      "New": {
+        "cyrillic": "шинэ",
+        "traditional": "ᠰᠢᠨ᠎ᠡ"
+      },
+      "Name": {
+        "cyrillic": "нэр",
+        "traditional": "ᠨᠡᠷ᠎ᠡ"
+      },
+      "Location": {
+        "cyrillic": "байр",
+        "traditional": "ᠪᠠᠢᠷᠢ"
+      },
+      "Size": {
+        "cyrillic": "хэмжээ",
+        "traditional": "ᠬᠡᠮᠵᠢᠶ᠎ᠡ"
+      },
+      "Tools": {
+        "cyrillic": "багаж",
+        "traditional": "ᠪᠠᠭᠠᠵᠢ"
+      },
+      "Window": {
+        "cyrillic": "цонх",
+        "traditional": "ᠴᠣᠩᠬᠤ"
+      }
+    }
+  },
+  "catalogEntries": 229,
+  "notes": "Dictionary spellings are not proof of context-specific UI translation quality. No automatic whole-document transliteration is performed.",
+  "namingPolicy": "Familiar Mongolian for basic actions; explicit English-sound Mongol bichig loan spellings for specialist names. Drafts, not standardized transliteration. File extensions, protocol identifiers and font values stay exact.",
+  "loanwordDisplayDrafts": {
+    "Markdown": "ᠮᠠᠷᠺᠳᠠᠤᠨ",
+    "HTML": "ᠡᠢᠴ ᠲᠢ ᠡᠮ ᠡᠯ",
+    "HWP": "ᠡᠢᠴ ᠳᠠᠪᠯᠢᠦ ᠫᠢ",
+    "PDF": "ᠫᠢ ᠳᠢ ᠡᠹ",
+    "AI": "ᠡᠢ ᠠᠢ",
+    "MCP": "ᠡᠮ ᠰᠢ ᠫᠢ",
+    "Font": "ᠹᠣᠨᠲ",
+    "Font Size": "ᠹᠣᠨᠲ ᠤᠨ ᠬᠡᠮᠵᠢᠶ᠎ᠡ",
+    "Font Color": "ᠹᠣᠨᠲ ᠤᠨ ᠥᠩᠭᠡ",
+    "Style": "ᠰᠲᠠᠶᠢᠯ",
+    "Styles": "ᠰᠲᠠᠶᠢᠯ",
+    "Styles Pane": "ᠰᠲᠠᠶᠢᠯ ᠫᠠᠨᠧᠯ",
+    "Format": "ᠹᠣᠷᠮᠠᠲ",
+    "Format Painter": "ᠹᠣᠷᠮᠠᠲ ᠫᠡᠶᠢᠨᠲ᠋ᠧᠷ",
+    "Clipboard": "ᠺᠯᠢᠫᠪᠣᠷᠳ",
+    "Design": "ᠳᠢᠽᠠᠶᠢᠨ",
+    "Layout": "ᠯᠡᠶᠢᠠᠤᠲ",
+    "Page Layout": "ᠬᠠᠭᠤᠳᠠᠰᠤ ᠶᠢᠨ ᠯᠡᠶᠢᠠᠤᠲ",
+    "Animations": "ᠠᠨᠢᠮᠡᠶᠢᠱᠣᠨ",
+    "Transitions": "ᠲᠷᠠᠨᠰᠢᠱᠣᠨ",
+    "Slide": "ᠰᠯᠠᠶᠢᠳ",
+    "New Slide": "ᠰᠢᠨ᠎ᠡ ᠰᠯᠠᠶᠢᠳ",
+    "Slide Show": "ᠰᠯᠠᠶᠢᠳ ᠱᠣᠤ",
+    "Slide show": "ᠰᠯᠠᠶᠢᠳ ᠱᠣᠤ",
+    "Slide Master": "ᠰᠯᠠᠶᠢᠳ ᠮᠠᠰᠲ᠋ᠧᠷ",
+    "Slide Size": "ᠰᠯᠠᠶᠢᠳ ᠤᠨ ᠬᠡᠮᠵᠢᠶ᠎ᠡ",
+    "Reset Layout": "ᠯᠡᠶᠢᠠᠤᠲ ᠢ ᠰᠡᠷᠭᠦᠭᠡᠬᠦ",
+    "Conditional Formatting": "ᠺᠣᠨᠳᠢᠱᠣᠨᠠᠯ ᠹᠣᠷᠮᠠᠲ",
+    "Format as Table": "ᠲᠡᠶᠢᠪᠯ ᠹᠣᠷᠮᠠᠲ",
+    "Cell Styles": "ᠰᠡᠯ ᠰᠲᠠᠶᠢᠯ",
+    "Format Cells": "ᠰᠡᠯ ᠹᠣᠷᠮᠠᠲ",
+    "Format cells": "ᠰᠡᠯ ᠹᠣᠷᠮᠠᠲ",
+    "Format Cells…": "ᠰᠡᠯ ᠹᠣᠷᠮᠠᠲ…",
+    "Table Design": "ᠲᠡᠶᠢᠪᠯ ᠳᠢᠽᠠᠶᠢᠨ",
+    "Table Layout": "ᠲᠡᠶᠢᠪᠯ ᠯᠡᠶᠢᠠᠤᠲ",
+    "Shape Format": "ᠱᠡᠶᠢᠫ ᠹᠣᠷᠮᠠᠲ",
+    "Picture Format": "ᠫᠢᠺᠴᠧᠷ ᠹᠣᠷᠮᠠᠲ",
+    "Chart Design": "ᠴᠠᠷᠲ ᠳᠢᠽᠠᠶᠢᠨ",
+    "WordArt": "ᠸᠥᠷᠳ ᠠᠷᠲ",
+    "Text Box": "ᠲᠧᠺᠰᠲ ᠪᠣᠺᠰ",
+    "Text box": "ᠲᠧᠺᠰᠲ ᠪᠣᠺᠰ",
+    "Watermark": "ᠸᠠᠲ᠋ᠧᠷᠮᠠᠷᠺ",
+    "Editors and AI": "ᠡᠳᠢᠲ᠋ᠧᠷ ᠪᠠ ᠡᠢ ᠠᠢ",
+    "Diagram": "ᠳᠠᠶᠢᠠᠭᠷᠠᠮ",
+    "AI Markdown": "ᠮᠠᠷᠺᠳᠠᠤᠨ",
+    "AI HTML": "ᠡᠢᠴ ᠲᠢ ᠡᠮ ᠡᠯ",
+    "AI HWP": "ᠡᠢᠴ ᠳᠠᠪᠯᠢᠦ ᠫᠢ",
+    "AI PDF": "ᠫᠢ ᠳᠢ ᠡᠹ",
+    "PDF tools": "ᠫᠢ ᠳᠢ ᠡᠹ ᠪᠠᠭᠠᠵᠢ",
+    "Save format for new HWP documents": "ᠡᠢᠴ ᠳᠠᠪᠯᠢᠦ ᠫᠢ ᠹᠣᠷᠮᠠᠲ"
+  }
+}

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage } from '@genoffice/i18n'
 import type { BrowserWindow } from 'electron'
 import {
   promptRecoveryForFile,
@@ -156,10 +156,10 @@ describe('recovery strings', () => {
     }
   })
 
-  it('never fills a language with the English text', () => {
+  it('never fills an established locale with the English text', () => {
     const en = RECOVERY_PROMPT_STRINGS.en
     for (const lang of LANGS) {
-      if (lang === 'en') continue
+      if (lang === 'en' || isPreviewUiLanguage(lang)) continue
       for (const key of keys) {
         expect(RECOVERY_PROMPT_STRINGS[lang][key], `${lang}.${key}`).not.toBe(en[key])
       }

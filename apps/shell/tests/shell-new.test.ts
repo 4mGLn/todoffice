@@ -14,7 +14,7 @@ const configModule = { exports: {} as ReturnType<typeof require> }
 runInNewContext(readFileSync(resolve(import.meta.dirname, '../electron-builder.cjs'), 'utf8'), {
   module: configModule,
   __dirname: resolve(import.meta.dirname, '..'),
-  process: { platform: 'linux', arch: 'x64', env: {} },
+  process: { platform: 'linux', arch: 'x64', execPath: process.execPath, env: {} },
   require: (id: string) =>
     id === 'node:fs' ? { ...require(id), existsSync: () => true } : require(id),
 })

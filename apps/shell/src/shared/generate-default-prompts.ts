@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 import type { AiTargetKind } from './generate-api'
 
@@ -11,7 +12,10 @@ import type { AiTargetKind } from './generate-api'
  * same text as the box's placeholder, so what is sent is what was shown.
  * None of them names the product, so no brand substitution applies.
  */
-export const DEFAULT_GENERATE_PROMPTS: Record<Lang, Record<AiTargetKind, string>> = {
+export const DEFAULT_GENERATE_PROMPTS: Record<
+  Lang,
+  Record<AiTargetKind, string>
+> = withMongolianLocales({
   zh: {
     slides: '请根据附件资料制作一份演示文稿。整理出要点，做成标题清晰的幻灯片。',
     html: '请根据附件资料制作一个网页（HTML）。把要点排得清楚易读。',
@@ -159,7 +163,7 @@ export const DEFAULT_GENERATE_PROMPTS: Record<Lang, Record<AiTargetKind, string>
     mindmap:
       'Ekli dosyalardan bir zihin haritası hazırla. Ana konuyu merkeze koy ve kilit noktaları dallar hâlinde düzenle.',
   },
-}
+})
 
 export function defaultGeneratePrompt(lang: Lang, kind: AiTargetKind): string {
   return (DEFAULT_GENERATE_PROMPTS[lang] ?? DEFAULT_GENERATE_PROMPTS.en)[kind]

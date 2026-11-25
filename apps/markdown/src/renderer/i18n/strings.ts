@@ -1,4 +1,5 @@
-export const strings = {
+import { withMongolianLocales } from '@genoffice/i18n'
+export const strings = withMongolianLocales({
   zh: {
     appPrintPreviewPaper: '纸张',
     appPrintPreviewOrientation: '方向',
@@ -6728,4 +6729,4 @@ export const strings = {
     zoomIn: '放大',
     zoomOut: '縮小',
   },
-} as const
+} as const)

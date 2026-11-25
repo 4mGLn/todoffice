@@ -9,4 +9,8 @@
  * loads this source as it is at run time, and the package root cannot be
  * loaded that way.
  */
-export const RESERVED_USER_SKILL_NAMES: ReadonlySet<string> = new Set(['genoffice', 'ieumoffice'])
+export const RESERVED_USER_SKILL_NAMES: ReadonlySet<string> = new Set([
+  'genoffice',
+  'ieumoffice',
+  'todoffice',
+])

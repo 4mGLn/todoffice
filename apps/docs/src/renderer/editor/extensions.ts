@@ -3249,6 +3249,7 @@ export function cellClipStyle(vAlign: string | null, clipTwips: number): string 
 
 /** tbRl = vertical right-to-left (vertical-rl), btLr = rotated 90° counterclockwise (sideways-lr) */
 export function cellWritingMode(textDirection: string | null): string | null {
+  if (textDirection === 'tbLrV') return 'writing-mode:vertical-lr'
   if (textDirection === 'tbRl') return 'writing-mode:vertical-rl'
   if (textDirection === 'btLr') return 'writing-mode:sideways-lr'
   return null

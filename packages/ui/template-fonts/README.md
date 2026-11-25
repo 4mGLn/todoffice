@@ -18,7 +18,7 @@ This folder holds only the font files, their license texts and this readme. The 
 reads is `packages/ui/src/template-fonts.ts`; it ships once in the installer as
 `resources/template-fonts`.
 
-All files were downloaded on 2026-10-14. "License evidence" is the distributor's license file
+The original files were downloaded on 2026-10-14; Noto Sans Mongolian was downloaded on 2026-11-18. "License evidence" is the distributor's license file
 that was read; each one states "This Font Software is licensed under the SIL Open Font License,
 Version 1.1" and carries the full license text.
 
@@ -163,4 +163,30 @@ Version 1.1" and carries the full license text.
 
 ## Total
 
-13 font files, 53,594,232 bytes (51.1 MiB).
+14 font files, 53,982,400 bytes (51.5 MiB).
+
+## Noto Sans Mongolian 3.103
+
+Noto Sans Mongolian is bundled for Mongol bichig (Mongolian Traditional Script).
+The unmodified `NotoSansMongolian-Regular.ttf` is the release's `full/ttf` face.
+Distributor: https://github.com/notofonts/mongolian
+Source: https://github.com/notofonts/mongolian/releases/tag/NotoSansMongolian-v3.103
+Source commit: `774b86ca416bb3e474d79d27f4d56505df870e6c`.
+Version: 3.103. Downloaded: 2026-11-18.
+License: OFL-1.1, shipped unchanged as `NotoSansMongolian-OFL.txt`.
+License source: https://github.com/notofonts/mongolian/blob/774b86ca416bb3e474d79d27f4d56505df870e6c/OFL.txt
+Release archive: https://github.com/notofonts/mongolian/releases/download/NotoSansMongolian-v3.103/NotoSansMongolian-v3.103.zip
+Archive SHA-256: `ab4ef0e294a7784e4a418523b0b214cda27dc876c03f7501f49ca8a8ba36756c`.
+Font SHA-256: `fe6ff6095785a9099832d850497b6c9874fc8a77973b67cb201366306f14b754` (388168 bytes).
+The font family and version were verified from the font's name table; hhea line-height factor is 1.75.
+
+Import manifest (hashes measured from the fetched release archive before copying):
+
+| Local file                      | Release archive path                                       | SHA-256                                                            |
+| ------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `NotoSansMongolian-Regular.ttf` | `NotoSansMongolian/full/ttf/NotoSansMongolian-Regular.ttf` | `fe6ff6095785a9099832d850497b6c9874fc8a77973b67cb201366306f14b754` |
+| `NotoSansMongolian-OFL.txt`     | `OFL.txt`                                                  | `b0158b3c0b16c20e22ea662850503a7980111c5c704501e942cc1a7ed12dc011` |
+
+Measured license class: weak copyleft limited to the font software (OFL-1.1);
+the full copyright and license accompany the unmodified font. The OFL does not
+apply to documents created using it. No local changes to either imported file.

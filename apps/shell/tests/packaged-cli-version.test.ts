@@ -70,6 +70,13 @@ function loadConfig(opts: {
                 `${PRODUCT_NAME} — Third-Party Software Notices`,
                 '@embedpdf/pdfium\nCopyright 2014 PDFium Authors\nApache License',
                 '1 crates, all under permissive terms:\n1 crates, all under permissive terms:\n',
+                ...[
+                  '../../packages/i18n/localization-sources/provenance.json',
+                  '../../packages/i18n/localization-sources/LICENSE-mongol-library.txt',
+                  '../../packages/i18n/localization-sources/LICENSE-Chimee-iOS.txt',
+                  '../../packages/ui/template-fonts/NotoSansMongolian-OFL.txt',
+                  '../../LICENSE',
+                ].map((file) => readFileSync(resolve(shellRoot, file), 'utf8').trim()),
               ].join('\n')
             }
             return require('node:fs').readFileSync(path, encoding as BufferEncoding)

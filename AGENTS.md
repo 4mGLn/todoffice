@@ -1,4 +1,4 @@
-# 이음오피스 (IeumOffice)
+# TodOffice
 
 워드·엑셀·파워포인트·PDF·마크다운·HTML·한글(HWP) 문서와 마인드맵(XMind 파일 `.xmind`), 다이어그램(draw.io 파일 `.drawio`)을 한 창에서 열고 고치는 데스크톱 오피스 프로그램이다. AI가 문서를 직접 고친다. 누구나 무료로 쓰도록 배포하며, 특정 직업군용이 아니다.
 
@@ -6,94 +6,18 @@ AI는 쓰는 사람이 이미 내고 있는 **Claude 또는 ChatGPT 구독**으�
 
 한 사람이 자기 PC에서 쓰는 로컬 프로그램이다. 서버, 회원 계정, 사용 통계가 없다. 오픈소스 GenOffice(Apache-2.0)의 포크이고, 원본의 문서 엔진 개선을 계속 골라 받아온다. 그래서 코드 내부 이름은 원본 그대로이고, 고치는 범위는 필요한 만큼으로 좁게 잡는다. 배포하는 운영체제는 Windows이고, Mac용(Apple Silicon·Intel)과 Linux(x64)용은 베타로 낸다(결정 0031, 0065). Mac과 Linux는 저장소 주인이 직접 확인하지 못하고 사용자들의 보고로 확인한다. 화면 언어는 22개다.
 
-## 프로젝트 구조
+## TodOffice 저장소 배치 (2026-11-25)
 
-```
-openoffice/
-├── AGENTS.md                      ← Codex 등이 읽는 진입점
-├── CLAUDE.md                      ← Claude Code가 읽는 진입점. 내용은 AGENTS.md와 같다
-├── README.md / README.en.md       ← 사용자용 소개(한국어 / 영어)
-├── PRIVACY.md                     ← 무엇이 어디로 전송되는지 전체 목록
-├── CONTRIBUTING.md / SECURITY.md  ← 기여 방법, 보안 문제 신고
-├── docs/
-│   ├── architecture.md            ← 조각들이 어떻게 맞물리는지, AI 요청 한 번의 흐름
-│   ├── business-rules.md          ← 구독 연결 상태, 제공자 선택, 막혔을 때, 자동 호출 등 동작 규칙
-│   ├── security.md                ← 로그인·요금 경로·프로그램 실행·문서 내용에 대한 정책
-│   ├── standards.md               ← 어기면 깨지는 규칙 전체, 합치기 전 검사
-│   ├── engineering-notes.md       ← 모르면 걸리는 것(증상 → 원인 → 대응)
-│   ├── operations.md              ← 설치, 실행, 검사, 실제 구독 확인, 설치 파일, 원본 받아오기
-│   ├── contracts.md               ← 터미널 명령어·MCP·설정 파일·문서 호환의 약속
-│   ├── releasing.ko.md            ← 새 버전 내는 절차(저장소 주인용)
-│   ├── headless-pdf-export.md     ← 창 없이 PDF로 내보내는 진입점
-│   ├── slides-op-journal.md       ← 슬라이드 편집 기록 형식
-│   ├── plans/
-│   │   ├── ai-friendly-docs.md    ← 행정문서 점검(행안부 가이드라인) 계획(설계)
-│   │   ├── ai-web-reading.md      ← AI 웹 읽기 계획(초안)
-│   │   ├── chatgpt-one-account.md ← ChatGPT 두 길을 하나로 보이기 계획(확정)
-│   │   ├── connect-guide.md       ← AI 연결 도우미 계획(진행 중)
-│   │   ├── diagram-editor.md      ← 다이어그램(.drawio) 편집기 계획(구현됨, 사람 확인 남음)
-│   │   ├── editor-choice.md       ← 편집기 고르기와 AI 끄기 계획(1단계 구현됨, 2단계·관리자 정책 자리)
-│   │   ├── epub-editor.md         ← EPUB 편집기 계획(구현됨, 사람 확인 남음)
-│   │   ├── hwp-format-copy.md     ← 한글 모양 복사(서식 복사) 분석·설계(1단계 구현됨, 사람 확인 남음)
-│   │   ├── md-to-hwp.md           ← 마크다운을 한글 문서로 옮기기 계획(1~4단계 구현됨, 사람 확인 남음)
-│   │   ├── ods-open-export.md     ← ODS 불러오기·내보내기 계획(1·2단계 구현됨, 사람 확인 남음)
-│   │   ├── pdf-reading-assist.md  ← PDF 읽기 도우미 계획
-│   │   ├── pdf-tools.md           ← PDF 도구 모음 계획(초안)
-│   │   ├── project-folder.md      ← 프로젝트 폴더(AI 맥락을 폴더 단위로) 계획(확정)
-│   │   ├── skills-v2.md           ← 스킬 고도화(만들기·고치기·나누기·스킬 모음) 계획(방향 확정)
-│   │   └── update-details.md      ← 업데이트 상세 내역 표시 계획(확정)
-│   └── tracking/
-│       ├── status.md              ← 된 것과 남은 것
-│       ├── findings.md            ← 풀리지 않은 문제
-│       └── decisions/
-│           ├── index.md           ← 결정 기록 목록
-│           └── NNNN-*.md          ← 결정 하나씩(맥락, 결정, 버린 대안, 결과)
-├── apps/
-│   ├── shell/AGENTS.md            ← 껍데기 앱: 창·탭·홈·설정·첫 실행 안내·업데이트, 만들기 창과 출처 기록
-│   ├── docs/AGENTS.md             ← 워드 편집기, 공용 AI 창구를 등록하는 뒷단
-│   ├── sheets/AGENTS.md           ← 엑셀 편집기
-│   ├── sheets/native/xlsx-engine/AGENTS.md ← 엑셀 처리 프로그램(Rust)
-│   ├── slides/AGENTS.md           ← 파워포인트 편집기, 슬라이드 생성
-│   ├── pdf/AGENTS.md              ← PDF 편집기
-│   ├── markdown/AGENTS.md         ← 마크다운·텍스트 편집기
-│   ├── html/AGENTS.md             ← HTML 편집기
-│   ├── mindmap/AGENTS.md          ← 마인드맵 편집기(`.xmind`)
-│   ├── hwp/AGENTS.md              ← 한글(HWP·HWPX) 편집기, 편집 화면은 rhwp
-│   ├── epub/AGENTS.md             ← 전자책(EPUB) 편집기: 읽기, 책 화면에서 고치기, 책 번역
-│   └── diagram/AGENTS.md          ← 다이어그램 편집기(draw.io 본체를 PC 안에서만 띄움)
-├── packages/
-│   ├── ai-provider/AGENTS.md      ← 제공자 목록·선택 규칙, 구독 프로그램 실행부
-│   ├── ai-search/AGENTS.md        ← 검색·이미지 생성·미디어 분석 도구, 자동 호출 제한
-│   ├── agent-core/AGENTS.md       ← AI 실행 반복, 화면↔뒷단 전송, 가리기
-│   ├── ui/AGENTS.md               ← 편집기 공용 AI 화면 부품과 문구
-│   ├── i18n/AGENTS.md             ← 화면 언어 목록, 제품 이름 정의
-│   ├── cli/AGENTS.md              ← 터미널 명령어 `ieumoffice`, MCP 도구
-│   ├── electron-utils/AGENTS.md   ← 뒷단 공용 도구
-│   ├── docx-engine/AGENTS.md      ← 워드 문서 엔진
-│   ├── odt-engine/AGENTS.md       ← ODT 열기·되돌려 쓰기·docx → ODT
-│   ├── docx2hwp/AGENTS.md         ← 워드 → 한글(.hwp, .hwpx) 변환, 마크다운에서 온 표의 한글 문서 모양
-│   ├── pptx-engine/AGENTS.md      ← 파워포인트 문서 모델
-│   ├── pptx-ops/AGENTS.md         ← 슬라이드 편집 연산
-│   ├── pptx-render/AGENTS.md      ← 슬라이드 그리기
-│   ├── xlsx-gateway/AGENTS.md     ← 엑셀 저장 경로
-│   ├── pdf2docx/AGENTS.md         ← PDF → 워드 변환
-│   ├── pdf-structure/AGENTS.md    ← PDF 문서 나무, Markdown·EPUB 변환, AI 페이지 읽기·번역, 결과 보관소
-│   ├── html2docx/AGENTS.md        ← HTML → 워드 변환
-│   ├── xmind-engine/AGENTS.md     ← 마인드맵 파일 엔진(열기, 원본 보존, 맞추기, 개요 글, 테마 표)
-│   ├── epub-engine/AGENTS.md      ← EPUB 엔진(열기, 블록 지도, 범위 바꾸기 저장, 책 번역과 결과 책)
-│   ├── drawio-model/AGENTS.md     ← 다이어그램 파일 모델(읽기 표, 연산)
-│   ├── doc-rules/AGENTS.md        ← 행정문서 형식 규칙(자료)과 순수 판정 함수
-│   ├── file-parse/AGENTS.md       ← 첨부·검색용 파일 읽기, 다른 파일로 읽을 때의 가리기
-│   ├── zip-gate/AGENTS.md         ← 압축 파일 안전 검사
-│   ├── print-layout/AGENTS.md     ← 고급 인쇄 배치(모아찍기·소책자·포스터·라벨·홀짝·회색조), 쪽 그림 만들기
-│   ├── google-drive/AGENTS.md     ← Google 드라이브 로그인과 파일 주고받기
-│   ├── font-metrics/AGENTS.md     ← 글꼴 치수
-│   ├── pipelines/AGENTS.md        ← 슬라이드 생성 단계
-│   └── project-store/AGENTS.md    ← 프로젝트와 대화 기록 저장
-├── skills/ieumoffice/SKILL.md     ← 코딩 에이전트에 설치되는 스킬
-├── .claude/skills/release-ieumoffice/SKILL.md ← 릴리스 작업 스킬(에이전트용)
-└── tools/                         ← 검사 도구(`check-*.mjs`), 브랜드 그림·도움말 그림 생성기
-```
+현재 디렉터리가 Git·npm workspace 루트다. 별도의 `app/` 폴더 없이 이곳에서 npm·Git 명령을 실행한다. 제품 문서는 `docs/`, 편집기는 `apps/`, 공유 코드는 `packages/`에 있다. 이전 작업 공간의 분석 자료와 작업 보고서는 `.agents/.analysis/`와 `.agents/docs/`에 보관하며 `.agents/skills/`만 버전 관리한다. 폴더 이동 전 로그의 절대 경로는 당시 기록이므로 새 검증 결과로 취급하지 않는다.
+
+## 개발 하네스
+
+- 작업 폴더에서 가장 가까운 `AGENTS.md`와 아래의 작업별 문서를 읽는다. 구조와 실행 명령은 `docs/repository-layout.md`에 있다.
+- 여러 요구사항·파일·수정 요청이 얽힌 작업은 `.agents/skills/qera4mgln/SKILL.md`를 열어 요구사항, 근거, 검증 결과를 연결한다. 선택형 API 실행기는 별도의 사용자 요청이 있을 때만 사용한다.
+- 완료 보고 전 `.agents/skills/verify-work/SKILL.md`로 변경된 진입점을 확인한다. 저장소 스킬은 `.agents/skills/`, 배포 CLI 스킬 원본은 `.agents/skills/todoffice/`, 앱 내장 스킬은 `apps/shell/resources/builtin-skills/`에 둔다.
+- 스킬을 변경하면 공식 검증기로 `npm run check:agent-skills`를 실행한다. 설치 방법은 `docs/repository-layout.md`에 있다.
+- A2A 피어를 찾거나 작업을 위임하고 결과를 받을 때는 `.agents/skills/a2a-delegation/SKILL.md`를 따른다.
+- 외부 코드나 스킬을 가져올 때는 `.agents/skills/upstream-maintenance/SKILL.md`에서 출처·라이선스·호환성 확인 절차를 읽는다.
 
 ## 절대 어기지 않는 것
 
@@ -128,10 +52,7 @@ openoffice/
 | 문서 엔진 패키지를 고쳐야 할 것 같다                   | 멈추고 사람에게 묻는다. 그 패키지의 `AGENTS.md`를 읽는다                                                 |
 | 에이전트 모드(도구를 켠 구독 프로그램)를 고친다        | `docs/tracking/decisions/0032-agent-mode-in-project-folder.md`, `docs/security.md`의 "에이전트 모드"     |
 | AI를 실제 구독으로 돌려 확인한다                       | `docs/operations.md`의 "실제 구독으로 확인하기". 사용자의 한도를 쓴다                                    |
-| 새 버전을 낸다                                         | `docs/releasing.ko.md`. 첫 항목은 저장소 주인의 약관 동의다                                              |
-
-- **릴리스 본문은 사용자가 앱 안에서 그대로 읽는다.** 첫 문단 요약 → 새로 들어간 것 → 고친 것 → 설치 안내(맨 아래) 순서와 humanize-korean 윤문은 `docs/releasing.ko.md` 6번이 정한다. 에이전트는 `.claude/skills/release-ieumoffice/SKILL.md`도 함께 읽는다.
-- **새 버전을 공개하면 소개 사이트에 업데이트 소식을 올린다.** https://ieumoffice.com 의 내려받기 버튼은 저절로 바뀌지만, 업데이트 페이지(`/updates`)의 새 항목과 메인의 한 줄 안내는 손으로 더한다. 사이트의 질문 도우미는 최신 릴리스 태그의 한국어 도움말·README·PRIVACY.md로 답하고, 그 지식베이스는 사이트 저장소의 Actions가 다시 만드니 실행이 초록인지 본다. 절차는 `docs/releasing.ko.md` 13번과 사이트 저장소(`E:\github\ieumoffice-site`) `README.md`의 "새 버전을 낸 뒤"에 있다.
+| 새 버전을 낸다 | `.agents/skills/release-todoffice/SKILL.md`와 `docs/todoffice-branding.md`에서 공개 대상·빌드·검증 절차를 확인한다. |
 
 ## 문제가 생기면
 

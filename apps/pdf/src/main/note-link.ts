@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 /**
  * The note of each PDF (reading-assist spec 4.9, 5.4): one Markdown file per
  * PDF, linked in the result store's `note-links.json`.
@@ -337,7 +338,7 @@ export function createNoteLinkService(deps: NoteLinkDeps): NoteLinkService {
 
 type NoteDialogKey = 'noteWord' | 'dialogTitle' | 'filterMarkdown'
 
-export const NOTE_DIALOG_TEXT: Record<Lang, Record<NoteDialogKey, string>> = {
+export const NOTE_DIALOG_TEXT: Record<Lang, Record<NoteDialogKey, string>> = withMongolianLocales({
   zh: { noteWord: '笔记', dialogTitle: '选择此 PDF 的笔记文件', filterMarkdown: 'Markdown 文档' },
   en: {
     noteWord: 'Note',
@@ -444,7 +445,7 @@ export const NOTE_DIALOG_TEXT: Record<Lang, Record<NoteDialogKey, string>> = {
     dialogTitle: 'Bu PDF için not dosyasını seç',
     filterMarkdown: 'Markdown belgesi',
   },
-}
+})
 
 export function noteDialogText(lang: Lang, key: NoteDialogKey): string {
   return (NOTE_DIALOG_TEXT[lang] ?? NOTE_DIALOG_TEXT.en)[key]

@@ -1,3 +1,4 @@
+import { isPreviewUiLanguage } from '@genoffice/i18n'
 import { describe, expect, it } from 'vitest'
 import { strings } from '../src/renderer/i18n/strings'
 
@@ -15,7 +16,7 @@ describe('translations', () => {
     const all: Record<string, Record<string, string>> = strings
     const en = all.en!
     const english = Object.keys(all)
-      .filter((lang) => lang !== 'en')
+      .filter((lang) => lang !== 'en' && !isPreviewUiLanguage(lang))
       .flatMap((lang) =>
         Object.keys(en)
           .filter(CHECKED)

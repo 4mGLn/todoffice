@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const cs = {
+  appLangMongolianCyrillic: 'mongolština (cyrilice)',
+  appLangMongolBichig: 'mongolština (mongolské)',
+
   appLegacyDocImported:
     'Soubor .{ext} byl otevřen jako převedená kopie .docx. Původní soubor zůstává beze změny; uložením vznikne nový soubor .docx.',
   appScTitle: 'Klávesové zkratky',

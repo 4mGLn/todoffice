@@ -464,6 +464,9 @@ export function fontAttrsFromFamilyChain(chain: string | undefined): Record<stri
     .filter(
       (x) =>
         x &&
+        // The alias is display-only; the real Noto Sans Mongolian family
+        // remains a normal user pick.
+        x !== 'TodOffice Mongolian Fallback' &&
         // var(--doc-latin-chain, ...) fragments from eastAsia-only chains
         !/^var\(|\)$/.test(x) &&
         !/^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/i.test(x) &&

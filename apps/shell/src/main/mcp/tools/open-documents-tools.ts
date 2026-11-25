@@ -199,7 +199,7 @@ export function createOpenDocumentTools(deps: OpenDocumentsDeps): McpToolDefinit
     {
       name: 'open_documents',
       description:
-        'Work with the documents the user currently has open in GenOffice tabs — not just the ' +
+        'Work with the documents the user currently has open in TodOffice tabs — not just the ' +
         'one a session opened. Actions: "list" (no target) returns every open document with its ' +
         'id, type, path, title, whether it has ever been saved, and whether it has unsaved ' +
         'changes; "read" returns one document\'s live content including unsaved edits; "save" ' +

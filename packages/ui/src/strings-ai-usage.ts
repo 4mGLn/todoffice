@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 
 /** Tooltips for the token-usage chips under assistant replies and on the composer
@@ -9,7 +10,7 @@ export interface AiUsageLabels {
   sessionTitle: string
 }
 
-export const AI_USAGE_LABELS: Record<Lang, AiUsageLabels> = {
+export const AI_USAGE_LABELS: Record<Lang, AiUsageLabels> = withMongolianLocales({
   zh: {
     runTitle: '本回复 token 用量',
     sessionTitle: '本次会话累计用量',
@@ -98,4 +99,4 @@ export const AI_USAGE_LABELS: Record<Lang, AiUsageLabels> = {
     runTitle: '本回覆 token 用量',
     sessionTitle: '本次工作階段累計用量',
   },
-}
+})

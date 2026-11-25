@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 // @vitest-environment node
 /**
  * The dictionaries: 22 languages, one key set, real translations. A missing
@@ -155,7 +156,7 @@ describe('the editor dictionaries', () => {
   })
 
   it('give the map its own menu in every language, all twelve entries', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const menu = mapStrings(lang).menu
       expect(Object.keys(menu).sort(), lang).toEqual(
         [

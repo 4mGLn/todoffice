@@ -11,7 +11,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { normalizeAiSettings } from '@genoffice/ai-provider/browser'
-import { LANGS } from '@genoffice/i18n'
+import { LANGS, isMongolianLang } from '@genoffice/i18n'
 import { AI_CHANGES_LABELS } from '@genoffice/ui'
 
 import {
@@ -168,8 +168,11 @@ describe('the old chip is gone', () => {
       expect(css).not.toContain(name)
     }
     for (const lang of LANGS) {
-      const strings = readFileSync(resolve(dir, `i18n/ai/${lang}.ts`), 'utf8')
-      expect(strings, lang).not.toMatch(/^\s+(aiAutoApplied|aiUndo|aiUndoTitle):/m)
+      // Established locales retain source shards; previews derive from English.
+      if (!isMongolianLang(lang)) {
+        const strings = readFileSync(resolve(dir, `i18n/ai/${lang}.ts`), 'utf8')
+        expect(strings, lang).not.toMatch(/^\s+(aiAutoApplied|aiUndo|aiUndoTitle):/m)
+      }
       expect(AI_CHANGES_LABELS[lang].revert.length, lang).toBeGreaterThan(0)
     }
   })

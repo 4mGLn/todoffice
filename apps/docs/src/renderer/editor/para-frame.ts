@@ -2,6 +2,7 @@ import type { ParaFrame, TextFlowDirection } from '@genoffice/docx-engine'
 
 /** CSS writing mode for a w:textDirection value (frames and section blocks share it) */
 export function textFlowCss(dir: TextFlowDirection | null | undefined): string[] {
+  if (dir === 'tbLrV') return ['writing-mode:vertical-lr']
   if (dir === 'tbRl') return ['writing-mode:vertical-rl']
   if (dir === 'tbRlV') return ['writing-mode:vertical-rl', 'text-orientation:sideways']
   if (dir === 'btLr') return ['writing-mode:sideways-lr']

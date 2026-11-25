@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const ja = {
+  ribbonLangMongolianCyrillic: 'モンゴル語 (キリル文字)',
+  ribbonLangMongolBichig: 'モンゴル語 (モンゴル文字)',
+
   ribbonAiCreditNote: 'AI を呼び出し、利用枠を消費します',
   ribbonAiRewriteConfirm:
     'この操作は AI を呼び出します。利用枠を消費し、内容全体が書き換えられる可能性があります。続行しますか？（確認後は再表示されません）',

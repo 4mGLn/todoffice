@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const es = {
+  appLangMongolianCyrillic: 'mongol (cirílico)',
+  appLangMongolBichig: 'mongol (mongol)',
+
   appLegacyDocImported:
     'El archivo .{ext} se abrió como una copia .docx convertida. El original no cambia; al guardar se escribe un nuevo archivo .docx.',
   appScTitle: 'Atajos de teclado',

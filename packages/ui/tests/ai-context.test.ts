@@ -2,7 +2,7 @@
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LANGS, type Lang } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage, type Lang } from '@genoffice/i18n'
 import { aiRunErrorText } from '../src/ai-subscription'
 import { AiToolsUnsupportedNotice } from '../src/AiToolsUnsupportedNotice'
 import {
@@ -34,9 +34,9 @@ describe('AI_CONTEXT_STRINGS', () => {
     }
   })
 
-  it('is translated, not copied from English, in every language', () => {
+  it('is translated, not copied from English, in established locales', () => {
     for (const lang of LANGS) {
-      if (lang === 'en') continue
+      if (lang === 'en' || isPreviewUiLanguage(lang)) continue
       for (const key of KEYS) {
         expect(AI_CONTEXT_STRINGS[lang][key], `${lang}.${key}`).not.toBe(AI_CONTEXT_STRINGS.en[key])
       }

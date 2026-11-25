@@ -20,6 +20,7 @@ import { noteTemplateFontFamilies } from './line-metrics'
  * tests/template-fonts.test.ts recomputes every value from the shipped files.
  */
 export const TEMPLATE_LINE_FACTORS: Readonly<Record<string, number>> = {
+  'Noto Sans Mongolian': 1.75,
   Pretendard: 1.5514,
   'Noto Serif KR': 1.8681,
   'Black Han Sans': 1.625,

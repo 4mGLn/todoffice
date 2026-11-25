@@ -1,3 +1,4 @@
+import { LANGS, isMongolianLang, mongolianMessage } from '@genoffice/i18n'
 import { describe, expect, it, vi } from 'vitest'
 import type { MenuItemConstructorOptions } from 'electron'
 import type { TabSummary } from '../src/shared/tabs-api'
@@ -248,33 +249,9 @@ describe('the tab context menu', () => {
     expect(given.reopenClosed).toHaveBeenCalled()
   })
 
-  it('uses the main table for every supported locale without English fallback', () => {
-    const locales = [
-      'zh',
-      'en',
-      'vi',
-      'ja',
-      'ko',
-      'fr',
-      'de',
-      'es',
-      'th',
-      'id',
-      'ru',
-      'ar',
-      'pt',
-      'it',
-      'pl',
-      'cs',
-      'nl',
-      'ms',
-      'he',
-      'hi',
-      'tr',
-      'zh-TW',
-    ] as const
-    expect(Object.keys(mainMenuStrings).sort()).toEqual([...locales].sort())
-    for (const locale of locales) {
+  it('uses the main table for established locales and explicit Mongolian preview fallbacks', () => {
+    expect(Object.keys(mainMenuStrings).sort()).toEqual([...LANGS].sort())
+    for (const locale of LANGS) {
       const localized = menu(a, all, { tm: (key) => translateMainMenu(locale, key) }).raw
       for (const item of localized) {
         if (!item.id) continue
@@ -287,6 +264,14 @@ describe('the tab context menu', () => {
         expect(mainMenuStrings[locale]).toHaveProperty(key)
         expect(item.label).toBe(mainMenuStrings[locale][key as keyof typeof mainMenuStrings.en])
         expect(item.label?.trim().length).toBeGreaterThan(0)
+        if (isMongolianLang(locale)) {
+          const english = mainMenuStrings.en[key as keyof typeof mainMenuStrings.en]
+          const message = mongolianMessage(locale, english)
+          expect(item.label, `${locale}.${key}: sourced text or declared fallback`).toBe(
+            message.text,
+          )
+          if (!message.translated) expect(item.label).toBe(english)
+        }
       }
     }
     expect(translateMainMenu('vi', 'menuTabCloseOthers')).toBe('Đóng các thẻ khác')

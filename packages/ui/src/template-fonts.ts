@@ -17,7 +17,7 @@
  * @genoffice/electron-utils/template-font-response).
  */
 
-export type TemplateFontScript = 'korean' | 'latin'
+export type TemplateFontScript = 'korean' | 'latin' | 'mongolian'
 
 /**
  * One shipped file. Every face's family (name ID 1) is its family's name, so Office
@@ -221,6 +221,19 @@ export const TEMPLATE_FONTS: readonly TemplateFontFamily[] = [
     ...googleFonts('archivoblack'),
     version: '1.006',
     downloaded: DOWNLOADED,
+  },
+  {
+    family: 'Noto Sans Mongolian',
+    script: 'mongolian',
+    faces: [{ file: 'NotoSansMongolian-Regular.ttf', weight: 400 }],
+    license: 'OFL-1.1',
+    licenseFile: 'NotoSansMongolian-OFL.txt',
+    licenseUrl:
+      'https://github.com/notofonts/mongolian/blob/774b86ca416bb3e474d79d27f4d56505df870e6c/OFL.txt',
+    distributorUrl: 'https://github.com/notofonts/mongolian',
+    sourceUrl: 'https://github.com/notofonts/mongolian/releases/tag/NotoSansMongolian-v3.103',
+    version: '3.103',
+    downloaded: '2026-11-18',
   },
 ]
 

@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * @vitest-environment jsdom
  */
@@ -934,13 +935,13 @@ describe('Skills strings in every UI language', () => {
   })
 
   it('does not copy the English text into other languages', () => {
-    const same = (lang: (typeof LANGS)[number]) =>
+    const same = (lang: (typeof ESTABLISHED_TEST_LANGS)[number]) =>
       keys.filter(
         (key) =>
           (skillsUiStrings[lang] as Record<string, string>)[key] === skillsUiStrings.en[key] &&
           !/^(https?:|\{|Claude|Codex|zip|AI)/.test(skillsUiStrings.en[key]),
       )
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       if (lang === 'en') continue
       expect(same(lang).length, `${lang}: ${same(lang).join(', ')}`).toBeLessThan(4)
     }
@@ -1236,7 +1237,7 @@ describe('what the second user test found in Settings → Skills', () => {
 
   it('has the new lines in every language, as translations', () => {
     const keys = ['nameHint', 'shadowedNote', 'builtinBodyNote', 'pasteUnclosed'] as const
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       for (const key of keys) {
         const words = skillsUiStrings[lang][key]
         expect(words.trim(), `${lang} ${key}`).not.toBe('')

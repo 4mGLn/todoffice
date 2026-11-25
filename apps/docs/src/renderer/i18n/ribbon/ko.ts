@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const ko = {
+  ribbonLangMongolianCyrillic: '몽골어 (키릴 문자)',
+  ribbonLangMongolBichig: '몽곫문자',
+  layoutTextDirection: '텍스트 방향',
+  layoutTextHorizontal: '가로쓰기',
+  layoutTextMongolBichig: 'Mongol bichig · 위에서 아래, 왼쪽에서 오른쪽',
+  layoutTextVerticalCjk: '세로쓰기 · 오른쪽에서 왼쪽',
+
   ribbonAiRewriteConfirm:
     '이 작업은 AI를 호출합니다. 전체 내용이 다시 작성될 수 있습니다. 계속하시겠습니까? (확인 후 다시 묻지 않습니다)',
   // Tabs

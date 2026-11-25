@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const zhTW = {
+  ribbonLangMongolianCyrillic: '蒙古文（西里爾文字）',
+  ribbonLangMongolBichig: '蒙古文（蒙古文）',
+  layoutTextDirection: '文字方向',
+  layoutTextHorizontal: '水平',
+  layoutTextMongolBichig: 'Mongol bichig · 從上到下，從左到右',
+  layoutTextVerticalCjk: '垂直 · 從右到左',
+
   ribbonAiRewriteConfirm: '此操作將呼叫 AI，並可能改寫整篇內容。是否繼續？（確認後不再提示）',
   ribbonTabFile: '檔案',
   ribbonTabHome: '常用',

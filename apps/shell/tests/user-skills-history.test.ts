@@ -28,8 +28,8 @@ let home: string
 let service: UserSkillsService
 let trash: ReturnType<typeof vi.fn<(path: string) => Promise<void>>>
 
-const appDir = () => join(home, '.ieumoffice', 'skills')
-const historyDir = () => join(home, '.ieumoffice', 'skill-history')
+const appDir = () => join(home, '.todoffice', 'skills')
+const historyDir = () => join(home, '.todoffice', 'skill-history')
 const settingsFile = () => join(root, 'app-settings.json')
 
 function skillMd(name: string, extra = '', body = 'Do it.\n') {

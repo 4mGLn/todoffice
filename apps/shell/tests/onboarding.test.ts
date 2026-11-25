@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * @vitest-environment jsdom
  */
@@ -568,7 +569,7 @@ describe('Onboarding', () => {
 
 describe('welcome copy', () => {
   it('exists in every UI language, as a translation', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const { onbWelcomeSubtitle, onbWelcomeBody } = strings[lang]
       expect(onbWelcomeSubtitle.trim(), lang).not.toBe('')
       expect(onbWelcomeBody.trim(), lang).not.toBe('')
@@ -576,7 +577,9 @@ describe('welcome copy', () => {
       expect(onbWelcomeSubtitle, lang).not.toBe(strings.en.onbWelcomeSubtitle)
       expect(onbWelcomeBody, lang).not.toBe(strings.en.onbWelcomeBody)
     }
-    expect(new Set(LANGS.map((lang) => strings[lang].onbWelcomeBody)).size).toBe(LANGS.length)
+    expect(new Set(ESTABLISHED_TEST_LANGS.map((lang) => strings[lang].onbWelcomeBody)).size).toBe(
+      ESTABLISHED_TEST_LANGS.length,
+    )
   })
 
   it.each(LANGS)('names every document kind and both subscriptions in %s', (lang) => {

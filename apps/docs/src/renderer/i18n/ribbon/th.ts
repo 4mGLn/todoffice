@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const th = {
+  ribbonLangMongolianCyrillic: 'มองโกเลีย (ซีริลลิก)',
+  ribbonLangMongolBichig: 'มองโกเลีย (มองโกเลีย)',
+  layoutTextDirection: 'ทิศทางข้อความ',
+  layoutTextHorizontal: 'แนวนอน',
+  layoutTextMongolBichig: 'Mongol bichig · บนลงล่าง ซ้ายไปขวา',
+  layoutTextVerticalCjk: 'แนวตั้ง · ขวาไปซ้าย',
+
   ribbonAiRewriteConfirm:
     'การดำเนินการนี้จะเรียกใช้ AI และอาจเขียนเนื้อหาทั้งหมดใหม่ ดำเนินการต่อหรือไม่ (จะไม่ถามอีก)',
   ribbonTabFile: 'ไฟล์',

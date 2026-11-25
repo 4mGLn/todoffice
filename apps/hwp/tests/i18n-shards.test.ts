@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { describe, expect, it } from 'vitest'
 import { LANGS } from '@genoffice/i18n'
 import { strings } from '../src/renderer/i18n/strings'
@@ -21,7 +22,7 @@ describe('hwp renderer strings', () => {
   })
 
   it('translates rather than copies English outside English', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       if (lang === 'en') continue
       expect(strings[lang].saveFailed, lang).not.toBe(strings.en.saveFailed)
       expect(strings[lang].aiEmptyBody, lang).not.toBe(strings.en.aiEmptyBody)

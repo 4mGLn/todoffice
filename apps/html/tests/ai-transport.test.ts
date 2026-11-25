@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { IpcStreamError, IpcSubscriptionUsage } from '@genoffice/agent-core'
 import { defaultAiSettings, type AiStreamChunk, type AiStreamRequest } from '@genoffice/ai-provider'
@@ -192,7 +193,7 @@ describe('the out-of-credits text', () => {
 
   it('is translated, not an English copy', () => {
     const english = aiStrings.en.aiCreditsExhausted
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       if (lang !== 'en') expect(aiStrings[lang].aiCreditsExhausted, lang).not.toBe(english)
     }
   })

@@ -1,3 +1,4 @@
+import { LANGS } from '@genoffice/i18n'
 import { describe, expect, it } from 'vitest'
 import {
   TRANSLATE_LANGS,
@@ -36,8 +37,8 @@ describe('translate language keys', () => {
   })
 
   it('covers every language the UI itself ships', () => {
-    // 22 locales; the translate menu must be able to offer every one of them
-    expect(TRANSLATE_LANGS).toHaveLength(22)
+    // Existing locales and the two distinct Mongolian script targets.
+    expect(TRANSLATE_LANGS.map((entry) => entry.code).sort()).toEqual([...LANGS].sort())
   })
 
   it('names zh-TW explicitly, which no join-then-capitalise rule could express', () => {

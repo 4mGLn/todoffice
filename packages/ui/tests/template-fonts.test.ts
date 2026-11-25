@@ -1,5 +1,6 @@
 // The one font set the design templates share: what the data list promises must be
 // what the shipped folder holds, nothing more, and within the size budget.
+import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -20,6 +21,21 @@ const FOLDER = resolve(import.meta.dirname, '../template-fonts')
 const fontFiles = TEMPLATE_FONTS.flatMap((f) => f.faces.map((face) => face.file))
 
 describe('template font folder', () => {
+  it('matches the original Mongolian release hashes in the adjacent import manifest', () => {
+    const manifest = readFileSync(join(FOLDER, TEMPLATE_FONTS_README), 'utf8')
+    for (const file of ['NotoSansMongolian-Regular.ttf', 'NotoSansMongolian-OFL.txt']) {
+      const row = manifest.split('\n').find((line) => line.split('|')[1]?.trim() === `\`${file}\``)
+      const hash = /`([a-f0-9]{64})`/.exec(row ?? '')?.[1]
+      expect(hash, file).toBeDefined()
+      expect(
+        createHash('sha256')
+          .update(readFileSync(join(FOLDER, file)))
+          .digest('hex'),
+        file,
+      ).toBe(hash)
+    }
+  })
+
   it('holds every listed font file', () => {
     for (const file of fontFiles) expect(statSync(join(FOLDER, file)).isFile(), file).toBe(true)
   })

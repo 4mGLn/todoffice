@@ -1,9 +1,10 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 import type { CropEdge } from './image-dialogs'
 
 // Shared accessible names for the crop edge handles, so every edge is reachable
 // by keyboard and still announced in the editor's own language.
-export const CROP_EDGE_LABELS: Record<Lang, Record<CropEdge, string>> = {
+export const CROP_EDGE_LABELS: Record<Lang, Record<CropEdge, string>> = withMongolianLocales({
   zh: {
     nw: '左上边缘',
     n: '上边缘',
@@ -224,4 +225,4 @@ export const CROP_EDGE_LABELS: Record<Lang, Record<CropEdge, string>> = {
     sw: 'Güneybatı kenarı',
     w: 'Batı kenarı',
   },
-}
+})

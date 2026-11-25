@@ -1,5 +1,5 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import {
   AI_ONLY_SECTIONS,
   SETTINGS_SECTION_IDS,
@@ -217,7 +217,7 @@ describe('the home-kinds rows in Settings → General', () => {
 describe('editor settings strings', () => {
   it('has every key in all languages, translated beyond English', () => {
     const keys = Object.keys(editorSettingsStrings.zh).sort()
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const dict = (editorSettingsStrings as Record<string, Record<string, string>>)[lang]
       expect(dict, lang).toBeTruthy()
       expect(Object.keys(dict).sort(), lang).toEqual(keys)

@@ -115,6 +115,7 @@ const PATCH_CLASSES = [
   'doc-vert-tbRl',
   'doc-vert-tbRlV',
   'doc-vert-btLr',
+  'doc-vert-tbLrV',
 ]
 
 /** pitch/charSpace-only specs get an inert marker class: .doc-col-block's

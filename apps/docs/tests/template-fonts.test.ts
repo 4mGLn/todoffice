@@ -72,6 +72,60 @@ const fileOfSource = (source: string) => templateFontFileOf(/^url\("(.+)"\)$/.ex
 
 afterAll(() => noteTemplateFontFamilies([]))
 
+describe('Mongolian missing-glyph fallback', () => {
+  it('includes all shipped Supplement birga glyphs in the CSS range without Latin or Cyrillic', () => {
+    const font = readFileSync(join(FOLDER, 'NotoSansMongolian-Regular.ttf'))
+    let cmap = -1
+    for (let i = 0; i < font.readUInt16BE(4); i++) {
+      const record = 12 + i * 16
+      if (font.toString('latin1', record, record + 4) === 'cmap')
+        cmap = font.readUInt32BE(record + 8)
+    }
+    expect(cmap).toBeGreaterThan(0)
+    let format12 = -1
+    for (let i = 0; i < font.readUInt16BE(cmap + 2); i++) {
+      const record = cmap + 4 + i * 8
+      const platform = font.readUInt16BE(record)
+      const encoding = font.readUInt16BE(record + 2)
+      const offset = cmap + font.readUInt32BE(record + 4)
+      if (
+        (platform === 0 || (platform === 3 && encoding === 10)) &&
+        font.readUInt16BE(offset) === 12
+      ) {
+        format12 = offset
+        break
+      }
+    }
+    expect(format12).toBeGreaterThan(0)
+    const groups = Array.from({ length: font.readUInt32BE(format12 + 12) }, (_, i) => {
+      const at = format12 + 16 + i * 12
+      return {
+        start: font.readUInt32BE(at),
+        end: font.readUInt32BE(at + 4),
+        glyph: font.readUInt32BE(at + 8),
+      }
+    })
+    const css = readFileSync(join(DOCS, 'src/renderer/styles.css'), 'utf8')
+    const face = /@font-face\s*\{[^}]*font-family:\s*'TodOffice Mongolian Fallback'[^}]*\}/.exec(
+      css,
+    )?.[0]
+    expect(face).toBeDefined()
+    const ranges = [...face!.matchAll(/U\+([0-9A-F]+)(?:-([0-9A-F]+))?/gi)].map((match) => [
+      parseInt(match[1], 16),
+      parseInt(match[2] ?? match[1], 16),
+    ])
+    const allowed = (cp: number) => ranges.some(([start, end]) => start <= cp && cp <= end)
+    for (let cp = 0x11660; cp <= 0x1166c; cp++) {
+      const group = groups.find(({ start, end }) => start <= cp && cp <= end)
+      expect(group, `U+${cp.toString(16)} in shipped cmap`).toBeDefined()
+      expect(group!.glyph + cp - group!.start).toBeGreaterThan(0)
+      expect(allowed(cp), `U+${cp.toString(16)} in fallback range`).toBe(true)
+    }
+    expect(allowed(0x41)).toBe(false)
+    expect(allowed(0x4e8)).toBe(false)
+  })
+})
+
 describe('template fonts in the font list', () => {
   it('lists every bundled family in every UI language, whatever the OS reports', () => {
     for (const lang of LANGS) {

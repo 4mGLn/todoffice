@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LANGS, type Lang } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage, type Lang } from '@genoffice/i18n'
 import {
   AI_SUBSCRIPTION_STRINGS,
   aiSubscriptionText,
@@ -51,7 +51,7 @@ describe('AI_SUBSCRIPTION_STRINGS', () => {
 
   it('is translated in the Latin-script languages too', () => {
     for (const lang of LANGS) {
-      if (lang === 'en' || NON_LATIN.includes(lang)) continue
+      if (lang === 'en' || isPreviewUiLanguage(lang) || NON_LATIN.includes(lang)) continue
       const same = KEYS.filter(
         (key) => AI_SUBSCRIPTION_STRINGS[lang][key] === AI_SUBSCRIPTION_STRINGS.en[key],
       )

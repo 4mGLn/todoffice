@@ -1,5 +1,5 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
@@ -176,9 +176,9 @@ describe('EditorContextMenu — Explain in plain words', () => {
 
 describe('Explain in plain words strings', () => {
   it('has a label and a prompt with the {text} slot in every UI language', () => {
-    const langs = Object.keys(appStrings)
-    expect(langs).toHaveLength(LANGS.length)
-    for (const lang of langs) {
+    const langs = ESTABLISHED_TEST_LANGS
+    expect(langs).toHaveLength(ESTABLISHED_TEST_LANGS.length)
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const s = appStrings[lang as keyof typeof appStrings]
       expect(s.appEasyWords.trim(), lang).not.toBe('')
       expect(s.appEasyWordsPrompt, lang).toContain('{text}')

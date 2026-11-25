@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const ar = {
+  ribbonLangMongolianCyrillic: 'المنغولية (السيريلية)',
+  ribbonLangMongolBichig: 'المنغولية (المغولية)',
+
   ribbonAiCreditNote: 'يستدعي الذكاء الاصطناعي ويُحتسب من حد استخدامك للذكاء الاصطناعي',
   ribbonAiRewriteConfirm:
     'هذا الإجراء يستدعي الذكاء الاصطناعي: يُحتسب من حد استخدامك للذكاء الاصطناعي وقد يعيد كتابة المحتوى بالكامل. هل تريد المتابعة؟ (لن يتم السؤال مرة أخرى.)',

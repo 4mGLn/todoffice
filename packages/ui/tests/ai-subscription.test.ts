@@ -9,7 +9,7 @@ import {
   type AiSubscriptionStatus,
   type AiSubscriptionUsage,
 } from '@genoffice/ai-provider'
-import { LANGS } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage } from '@genoffice/i18n'
 import {
   AI_BLOCKED_RUN_KINDS,
   AI_SUBSCRIPTION_INSTALL_HELP_URLS,
@@ -834,7 +834,7 @@ describe('aiRunErrorText', () => {
       const worded = aiRunErrorText(lang, { kind: 'rate-limit', provider: 'chatgpt' })
       expect(worded, lang).toContain('ChatGPT')
       expect(worded, lang).not.toMatch(/[{}]/)
-      if (lang !== 'en')
+      if (lang !== 'en' && !isPreviewUiLanguage(lang))
         expect(worded, lang).not.toBe(
           aiRunErrorText('en', { kind: 'rate-limit', provider: 'chatgpt' }),
         )

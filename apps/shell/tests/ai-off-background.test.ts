@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * Editor choice spec 8.3 / 8.5 / 9: while AI features are off the main
  * process starts no subscription program and asks no key provider, and turned
@@ -9,7 +10,6 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import type { AppChoice } from '@genoffice/electron-utils/app-choice'
 import {
   createSubscriptionIpcDeps,
@@ -458,7 +458,7 @@ describe('the refusal text', () => {
   it('is written for every screen language', () => {
     const en = aiOffRefusalText('en')
     expect(aiOffRefusalText('ko')).not.toBe(en)
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const text = aiOffRefusalText(lang)
       expect(text.length, lang).toBeGreaterThan(0)
       if (lang !== 'en') expect(text, `${lang} copies English`).not.toBe(en)

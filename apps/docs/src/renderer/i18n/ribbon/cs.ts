@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const cs = {
+  ribbonLangMongolianCyrillic: 'mongolština (cyrilice)',
+  ribbonLangMongolBichig: 'mongolština (mongolské)',
+  layoutTextDirection: 'Směr textu',
+  layoutTextHorizontal: 'Vodorovně',
+  layoutTextMongolBichig: 'Mongol bichig · shora dolů, zleva doprava',
+  layoutTextVerticalCjk: 'Svisle · zprava doleva',
+
   ribbonAiRewriteConfirm:
     'Tato akce volá asistenta AI a může přepsat celý obsah. Pokračovat? (Znovu se už nezeptáme.)',
   ribbonTabFile: 'Soubor',

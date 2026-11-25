@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
-import { createI18n, type Lang } from '@genoffice/i18n'
+import { createI18n, withMongolianLocales, type LegacyLang } from '@genoffice/i18n'
 import type { TabMenuStringKey } from '../../src/main/tab-menu'
 
 // Read the production table without importing index.ts and starting Electron.
@@ -25,9 +25,11 @@ function findTable(node: ts.Node): void {
 findTable(source)
 if (!table || !ts.isObjectLiteralExpression(table))
   throw new Error('Shell main string table missing')
-export const mainMenuStrings = runInNewContext(`(${table.getText(source)})`) as Record<
-  Lang,
-  Record<TabMenuStringKey, string>
->
+export const mainMenuStrings = withMongolianLocales(
+  runInNewContext(`(${table.getText(source)})`) as Record<
+    LegacyLang,
+    Record<TabMenuStringKey, string>
+  >,
+)
 export const translateMainMenu = createI18n(mainMenuStrings)
 export const tm = (key: TabMenuStringKey): string => translateMainMenu('en', key)

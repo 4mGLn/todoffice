@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 
 /** "Attach from Drive" in every editor's AI panel (decisions 0033, 0085) */
@@ -18,7 +19,7 @@ export interface DriveAttachStrings {
   pickFailed: string
 }
 
-export const DRIVE_ATTACH_STRINGS: Record<Lang, DriveAttachStrings> = {
+export const DRIVE_ATTACH_STRINGS: Record<Lang, DriveAttachStrings> = withMongolianLocales({
   zh: {
     label: '从 Google 云端硬盘附加',
     skipped: '{n} 个文件未附加（无法读取的格式，或超过 20 个）',
@@ -266,4 +267,4 @@ export const DRIVE_ATTACH_STRINGS: Record<Lang, DriveAttachStrings> = {
     pickFailed: 'Google penceresi açılamadı. Yeniden deneyin',
     busy: 'Drive penceresi zaten açık',
   },
-}
+})

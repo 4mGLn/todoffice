@@ -3,7 +3,7 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentRunStop } from '@genoffice/agent-core'
-import { LANGS } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage } from '@genoffice/i18n'
 import { AiRunStopNotice } from '../src/AiRunStopNotice'
 import { runContinueNote, runStopCode, runStopNotice, runStopText } from '../src/run-stop'
 import { AI_RUN_STOP_LABELS } from '../src/strings-run-stop'
@@ -73,7 +73,7 @@ describe('what a stopped run says', () => {
       expect(Object.keys(labels).sort()).toEqual(keys)
       for (const text of Object.values(labels)) expect(text.trim().length).toBeGreaterThan(0)
       expect(labels.keptChanges).toContain(labels.continueAction)
-      if (lang === 'en') continue
+      if (lang === 'en' || isPreviewUiLanguage(lang)) continue
       // a translation, not the English line
       for (const key of ['toolInput', 'truncated', 'malformed', 'unchanged'] as const) {
         expect(labels[key]).not.toBe(AI_RUN_STOP_LABELS.en[key])

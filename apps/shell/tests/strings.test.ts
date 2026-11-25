@@ -1,3 +1,4 @@
+import { isPreviewUiLanguage } from '@genoffice/i18n'
 import { describe, expect, it } from 'vitest'
 import { strings } from '../src/renderer/src/strings'
 
@@ -63,10 +64,11 @@ describe('home-screen locale tables', () => {
    * in this branch and then dropped: the naming is the maintainers' call, not
    * this PR's, and README and the docs still say Markdown. Pinned so a stray
    * locale cannot quietly reintroduce a second name — the quick-create card,
-   * the File > New menu and a new tab's title all have to agree.
+   * the File > New menu and a new tab's title all have to agree. Mongol bichig
+   * deliberately uses an English-sound display spelling at the user's request.
    */
   it.each(locales)('locale %s calls the app AI Markdown on the quick-create card', (locale) => {
-    expect(strings[locale].newMarkdown).toBe('AI Markdown')
+    expect(strings[locale].newMarkdown).toBe(locale === 'mn-Mong' ? 'ᠮᠠᠷᠺᠳᠠᠤᠨ' : 'AI Markdown')
   })
 })
 
@@ -77,7 +79,7 @@ describe('home-screen locale tables', () => {
  * Codex program with the same account. Every language names both, and OpenAI.
  */
 describe('image generation through the ChatGPT plan', () => {
-  const others = locales.filter((locale) => locale !== 'en')
+  const others = locales.filter((locale) => locale !== 'en' && !isPreviewUiLanguage(locale))
 
   it.each(locales)('locale %s names the ChatGPT plan and the Codex program', (locale) => {
     const table = strings[locale]
@@ -102,6 +104,8 @@ describe('image generation through the ChatGPT plan', () => {
 
   /** the words each language uses for image generation in the automatic-requests warning */
   const imageGenerationIn: Record<(typeof locales)[number], string> = {
+    'mn-Cyrl': 'image generation',
+    'mn-Mong': 'image generation',
     zh: '生图',
     en: 'image generation',
     vi: 'tạo hình ảnh',

@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const id = {
+  appLangMongolianCyrillic: 'Mongolia (Sirilik)',
+  appLangMongolBichig: 'Mongolia (Mongolia)',
+
   appLegacyDocImported:
     'File .{ext} dibuka sebagai salinan .docx hasil konversi. File asli tetap seperti semula; menyimpan akan menulis file .docx baru.',
   appScTitle: 'Pintasan Papan Ketik',

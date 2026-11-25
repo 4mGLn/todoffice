@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 /**
  * The AI panel's attachments and the untitled diagram's provisional name, on the
  * main-process side. The same contract as the other editors' attachment
@@ -42,7 +43,7 @@ import type {
   AttachmentReadResult,
 } from '../shared/ipc'
 
-const ATTACH_STRINGS = {
+const ATTACH_STRINGS = withMongolianLocales({
   zh: {
     dlgAddAttachment: '添加附件',
     filterSupported: '支持的文件',
@@ -370,7 +371,7 @@ const ATTACH_STRINGS = {
       'Görüntü eklerinde metin yoktur; görüntü kullanıcı iletisiyle birlikte gönderilir',
     errNotImage: 'desteklenen bir görüntü türü değil',
   },
-}
+})
 
 const tAttach = createI18n(ATTACH_STRINGS)
 type AttachKey = keyof (typeof ATTACH_STRINGS)['zh']

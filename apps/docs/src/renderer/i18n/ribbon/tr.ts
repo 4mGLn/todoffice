@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const tr = {
+  ribbonLangMongolianCyrillic: 'Moğolca (Kiril)',
+  ribbonLangMongolBichig: 'Moğolca (Moğol)',
+  layoutTextDirection: 'Metin yönü',
+  layoutTextHorizontal: 'Yatay',
+  layoutTextMongolBichig: 'Mongol bichig · yukarıdan aşağıya, soldan sağa',
+  layoutTextVerticalCjk: 'Dikey · sağdan sola',
+
   ribbonAiRewriteConfirm:
     'Bu işlem AI asistanını çağırır ve tüm içeriği yeniden yazabilir. Devam edilsin mi? (Bir daha sorulmayacak.)',
   ribbonTabFile: 'Dosya',

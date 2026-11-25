@@ -24,11 +24,11 @@ export const UPSTREAM_NAME_LITERAL = `{{${UPSTREAM_PRODUCT_NAME}}}`
  * productName, the userData folder, the default save folder), which must stay
  * the same whatever the UI language is.
  */
-export const PRODUCT_NAME = 'IeumOffice'
+export const PRODUCT_NAME = 'TodOffice'
 
 /** Languages that show a localized product name instead of PRODUCT_NAME. */
 const LOCALIZED_PRODUCT_NAMES: Readonly<Record<string, string>> = {
-  ko: '이음오피스',
+  ko: 'TodOffice',
 }
 
 /** The product name as shown in a UI language (a Lang or a raw locale tag). */
@@ -45,19 +45,23 @@ export const USER_DATA_DIR_NAME = PRODUCT_NAME
 /** userData folder name of an unpacked (development) run, kept apart from the installed app's. */
 export const DEV_USER_DATA_DIR_NAME = `${PRODUCT_NAME}-Dev`
 
-/** The product's public GitHub repository: issues, releases and update checks all point here. */
-export const PRODUCT_REPO_OWNER = 'pblsketch'
-export const PRODUCT_REPO_NAME = 'ieumoffice'
+/** TodOffice endpoints remain disabled until its own public services are configured. */
+export const PRODUCT_REPO_OWNER = ''
+export const PRODUCT_REPO_NAME = ''
 /** `owner/repo`; the URLs built from it live in @genoffice/electron-utils (github-menu.ts) */
-export const PRODUCT_REPO_SLUG = `${PRODUCT_REPO_OWNER}/${PRODUCT_REPO_NAME}`
+export const PRODUCT_REPO_SLUG =
+  PRODUCT_REPO_OWNER && PRODUCT_REPO_NAME ? `${PRODUCT_REPO_OWNER}/${PRODUCT_REPO_NAME}` : ''
 
 /** The product's website: downloads, release notes and the step-by-step help pages. */
-export const PRODUCT_WEBSITE = 'https://ieumoffice.com'
+export const PRODUCT_WEBSITE = ''
 
 /** Where rights holders and users reach the maintainer about trademarks, copyright and licensing. */
-export const PRODUCT_CONTACT_EMAIL = 'pblsketch@gmail.com'
+export const PRODUCT_CONTACT_EMAIL = ''
 
-const NAME_TOKEN = new RegExp(`\\{\\{${UPSTREAM_PRODUCT_NAME}\\}\\}|${UPSTREAM_PRODUCT_NAME}`, 'g')
+const NAME_TOKEN = new RegExp(
+  `\\{\\{(?:GenOffice|IeumOffice)\\}\\}|GenOffice|IeumOffice|이음오피스|ieumoffice`,
+  'g',
+)
 
 /** the name sits inside a longer identifier (GenOfficeFormField): not the product name */
 function insideIdentifier(before: string, after: string): boolean {
@@ -76,13 +80,18 @@ function insideFileName(before: string, after: string): boolean {
  * name. Text that does not mention the name is returned as is.
  */
 export function brandText(text: string, lang: string | null | undefined): string {
-  if (!text.includes(UPSTREAM_PRODUCT_NAME)) return text
+  if (!/(?:GenOffice|IeumOffice|이음오피스|ieumoffice)/.test(text)) return text
   const localized = productName(lang)
   return text.replace(NAME_TOKEN, (match: string, offset: number) => {
-    if (match !== UPSTREAM_PRODUCT_NAME) return UPSTREAM_PRODUCT_NAME
+    if (match.startsWith('{{')) return match.slice(2, -2)
     const before = text.charAt(offset - 1)
     const after = text.slice(offset + match.length, offset + match.length + 2)
     if (insideIdentifier(before, after)) return match
+    if (after.startsWith('-') && /^-[^\s/`]*\.AppImage\b/.test(text.slice(offset + match.length))) {
+      return 'todoffice'
+    }
+    // CLI names stay lowercase; URLs keep their real source provenance.
+    if (match === 'ieumoffice') return before === '/' || after.startsWith('.') ? match : 'todoffice'
     return insideFileName(before, after) ? PRODUCT_NAME : localized
   })
 }

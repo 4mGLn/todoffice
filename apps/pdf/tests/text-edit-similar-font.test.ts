@@ -85,7 +85,7 @@ function psNameOf(font: Buffer): string | null {
 }
 
 /** The embedded face's BaseFont (PDFium writes it without a subset tag) */
-const baseFont = (ps: string) => new RegExp(`/BaseFont/(?:[A-Z]{6}\\+)?${ps}[/\\s>]`)
+const baseFont = (ps: string) => new RegExp(`/BaseFont\\s*/(?:[A-Z]{6}\\+)?${ps}[/\\s>]`)
 
 const edit = (newText: string) => ({
   pageIndex: 0,
@@ -194,7 +194,7 @@ const baseFonts = (bytes: Uint8Array): string[] => [
     [
       ...Buffer.from(bytes)
         .toString('latin1')
-        .matchAll(/\/BaseFont\/([^\s/<>[\]]+)/g),
+        .matchAll(/\/BaseFont\s*\/([^\s/<>[\]]+)/g),
     ].map((m) => m[1]!),
   ),
 ]

@@ -6,8 +6,10 @@
 import type { Lang } from '@genoffice/i18n'
 import { DRAWIO_ORIGIN } from './bridge-protocol'
 
-/** draw.io's language code for each app language (draw.io ships all 21). */
+/** draw.io's language code for each app language (Mongolian previews use an explicit English fallback). */
 export function drawioLang(lang: Lang): string {
+  // The bundled vendor editor has no Mongolian resource pack yet.
+  if (lang === 'mn-Cyrl' || lang === 'mn-Mong') return 'en'
   if (lang === 'zh-TW') return 'zh-tw'
   return lang
 }

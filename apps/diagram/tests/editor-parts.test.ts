@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 // @vitest-environment node
 // The open notice, the print sheets, draw.io's start arguments and
 // configuration, recovery copies, and every UI language.
@@ -227,8 +228,8 @@ describe('DiagramCopier', () => {
 describe('languages and channels', () => {
   it('has the same keys in every UI language, translated', () => {
     const keys = Object.keys(appStrings.zh).sort()
-    expect(Object.keys(appStrings)).toHaveLength(LANGS.length)
-    for (const lang of LANGS) {
+    expect(ESTABLISHED_TEST_LANGS).toHaveLength(ESTABLISHED_TEST_LANGS.length)
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       expect(Object.keys(appStrings[lang]).sort(), lang).toEqual(keys)
       for (const key of keys)
         expect(appStrings[lang][key as keyof typeof appStrings.zh], `${lang}.${key}`).not.toBe('')

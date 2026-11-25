@@ -1,3 +1,4 @@
+import { sameLanguageAndScript } from '../../../i18n/src/index'
 /**
  * The default target language of a book translation (spec §8): the UI
  * language, or English when the book is already in the UI language. The
@@ -29,8 +30,8 @@ export function epubBookLanguage(
 }
 
 /**
- * The default target: the UI language (normalized to one of the 22), or
- * English when the book's language has the same primary subtag. `mode`
+ * The default target: the normalized UI language, or English when the
+ * book has the same language and Mongolian script identity. `mode`
  * 'easy': the UI language, whatever the book's language.
  */
 export function defaultEpubTargetLanguage(
@@ -43,7 +44,7 @@ export function defaultEpubTargetLanguage(
   const ui = defaultTargetLanguage(uiLanguage, '')
   if (mode === 'easy') return ui
   const book = epubBookLanguage(bookLanguages, sampleText)
-  return book !== undefined && primary(book) === primary(ui) ? 'en' : ui
+  return book !== undefined && sameLanguageAndScript(book, ui) ? 'en' : ui
 }
 
 /** the chapter text of the units, in order, up to the guess's sample size */

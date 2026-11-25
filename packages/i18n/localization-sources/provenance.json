@@ -1,0 +1,76 @@
+{
+  "scope": "Selected context-reviewed UI terms only; not full translation or native linguistic certification",
+  "review_status": "source-backed-not-independently-native-reviewed",
+  "android": {
+    "commit": "1cdfff555f4a21f71ccc978290e2e212e2f8b168",
+    "license": "Apache-2.0; root LICENSE",
+    "url": "https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/res/res/values-mn/strings.xml",
+    "english_sha256": "342827b06e2268bb9b0a1848c4eae031d63b156295d42edb71d41d2e1ee26c23",
+    "mongolian_sha256": "5ac333863467ca12975bf964acc4bc3ac2e7cccf91f54ef958def1c2e3f81037",
+    "resource_mapping": {
+      "Settings": "global_action_settings",
+      "Open": "whichViewApplicationLabel",
+      "Edit": "whichEditApplicationLabel",
+      "Send": "whichSendToApplicationLabel",
+      "Close": "close_button_text",
+      "Cancel": "cancel",
+      "OK": "ok",
+      "Search": "search_go",
+      "Select all": "selectAll",
+      "Cut": "cut",
+      "Copy": "copy",
+      "Paste": "paste",
+      "Delete": "delete",
+      "Undo": "undo",
+      "Redo": "redo",
+      "Back": "back_button_label",
+      "Next": "next_button_label",
+      "Done": "done_label",
+      "Continue": "autofill_continue_yes",
+      "Find": "find",
+      "Yes": "gpsVerifYes",
+      "No": "gpsVerifNo",
+      "Error": "error_message_title",
+      "More": "more_item_label",
+      "Save": "autofill_save_yes",
+      "Image": "mime_type_image",
+      "Folder": "mime_type_folder",
+      "File": "mime_type_generic",
+      "On": "zen_mode_implicit_activated",
+      "Off": "zen_mode_implicit_deactivated",
+      "Home": "accessibility_system_action_home_label"
+    },
+    "aliases": {
+      "Select All": "Select all"
+    }
+  },
+  "mongol_library": {
+    "commit": "e9325acde892e1e4e28c4f217760359ad8f4ac9d",
+    "url": "https://raw.githubusercontent.com/suragch/mongol-library/e9325acde892e1e4e28c4f217760359ad8f4ac9d/mongol-library/src/main/res/values/strings.xml",
+    "license": "MIT",
+    "license_file": "LICENSE-mongol-library.txt",
+    "sha256": "52841f7176c733962fc49eccebd81c7f3d02c3ad502e2afc5374c948ab1e8e41",
+    "resource_mapping": {
+      "Copy": "copy",
+      "Cut": "cut",
+      "Paste": "paste",
+      "Select all": "select_all",
+      "Select All": "select_all"
+    }
+  },
+  "chimee_ios": {
+    "commit": "af0a50531cbbe851d3a1e516b74eefd0b58a0009",
+    "url": "https://raw.githubusercontent.com/suragch/Chimee-iOS/af0a50531cbbe851d3a1e516b74eefd0b58a0009/",
+    "license": "MIT",
+    "license_file": "LICENSE-Chimee-iOS.txt",
+    "file_sha256": {
+      "CopyMenuViewController.swift": "d7943b472f49ef6812d91bf0d0276b3229f777590edbcc80a9bd8999308c32fe",
+      "HistoryViewController.swift": "dfb08a06eade89bdd4011bacceefdd95a4db99d2f01e972de7f9f8557f4e3106"
+    },
+    "mapping": {
+      "Clear": "Chimee/CopyMenuViewController.swift clearText",
+      "Delete": "Chimee/HistoryViewController.swift deleteAll",
+      "Cancel": "Chimee/HistoryViewController.swift dismiss"
+    }
+  }
+}

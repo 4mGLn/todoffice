@@ -176,6 +176,8 @@ const AUTONYMS: Record<Lang, string> = {
   'zh-TW': '繁體中文',
   vi: 'Tiếng Việt',
   tr: 'Türkçe',
+  'mn-Cyrl': 'Монгол (кирилл)',
+  'mn-Mong': 'Монгол бичиг',
 }
 
 /** a target language as the user reads it, in the UI language */

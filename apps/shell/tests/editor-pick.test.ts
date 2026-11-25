@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * @vitest-environment jsdom
  */
@@ -5,7 +6,6 @@ import { act, createElement, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import { EditorChoiceList } from '../src/renderer/src/editor-choice/EditorChoiceList'
 import { OneTimeEditorPick } from '../src/renderer/src/editor-choice/OneTimeEditorPick'
 import type { OneTimeEditorPickDeps } from '../src/renderer/src/editor-choice/OneTimeEditorPick'
@@ -131,7 +131,7 @@ describe('one-time picker rules', () => {
 describe('editor pick strings', () => {
   it('have every key in every language, translated', () => {
     const keys = Object.keys(editorPickStrings.zh).sort()
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       expect(Object.keys(editorPickStrings[lang]).sort(), lang).toEqual(keys)
       for (const key of keys) {
         expect(
@@ -141,7 +141,10 @@ describe('editor pick strings', () => {
       }
     }
     for (const key of ['pickTitle', 'pickBody', 'pickLastEditor', 'pickOpenDocs'] as const) {
-      expect(new Set(LANGS.map((lang) => editorPickText(lang, key))).size, key).toBe(LANGS.length)
+      expect(
+        new Set(ESTABLISHED_TEST_LANGS.map((lang) => editorPickText(lang, key))).size,
+        key,
+      ).toBe(ESTABLISHED_TEST_LANGS.length)
     }
   })
 

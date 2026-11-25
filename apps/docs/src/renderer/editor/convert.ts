@@ -3588,7 +3588,8 @@ function nodeFormat(node: PmNode): ParaFormat | undefined {
   }
   if (node.attrs?.textDirection) {
     const dir = String(node.attrs.textDirection)
-    if (dir === 'tbRl' || dir === 'tbRlV' || dir === 'btLr') format.textDirection = dir
+    if (dir === 'tbRl' || dir === 'tbRlV' || dir === 'btLr' || dir === 'tbLrV')
+      format.textDirection = dir
   }
   if (node.attrs?.emptyRunSize) format.emptyRunSizeHalfPoints = Number(node.attrs.emptyRunSize)
   if (node.attrs?.emptyRunFont) format.emptyRunFontFamily = String(node.attrs.emptyRunFont)

@@ -50,7 +50,7 @@ describe('unsigned Windows builds can update', () => {
         configOnDisk: { value: Promise.resolve(appUpdateYml) },
         _verifyUpdateCodeSignature: verify,
       },
-      'C:\\cache\\pending\\IeumOffice-Setup-0.2.0.exe',
+      'C:\\cache\\pending\\TodOffice-Setup-0.2.0.exe',
     )
     return { outcome, verify }
   }
@@ -60,7 +60,7 @@ describe('unsigned Windows builds can update', () => {
       provider: 'github',
       owner: PRODUCT_REPO_OWNER,
       repo: PRODUCT_REPO_NAME,
-      updaterCacheDirName: 'ieumoffice-updater',
+      updaterCacheDirName: 'todoffice-updater',
     })
     // null is "nothing wrong": NsisUpdater goes on to install the download
     await expect(outcome).resolves.toBeNull()
@@ -83,9 +83,7 @@ describe('unsigned Windows builds can update', () => {
     // publisherName only from a signing certificate it was configured with
     // (app-builder-lib PublishManager.getAppUpdatePublishConfiguration)
     const config = loadBuilderConfig()
-    expect(config.publish).toEqual([
-      { provider: 'github', owner: PRODUCT_REPO_OWNER, repo: PRODUCT_REPO_NAME },
-    ])
+    expect(config.publish).toBeNull()
     expect(config.win.signtoolOptions).toBeUndefined()
     expect(config.win.azureSignOptions).toBeUndefined()
     expect(config.win.verifyUpdateCodeSignature).not.toBe(true)

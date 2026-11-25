@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const nl = {
+  ribbonLangMongolianCyrillic: 'Mongools (Cyrillisch)',
+  ribbonLangMongolBichig: 'Mongools (Mongools)',
+  layoutTextDirection: 'Tekstrichting',
+  layoutTextHorizontal: 'Horizontaal',
+  layoutTextMongolBichig: 'Mongol bichig · van boven naar beneden, van links naar rechts',
+  layoutTextVerticalCjk: 'Verticaal · van rechts naar links',
+
   ribbonAiRewriteConfirm:
     'Deze actie roept AI aan en kan de volledige inhoud herschrijven. Doorgaan? (U wordt niet opnieuw gevraagd.)',
   ribbonTabFile: 'Bestand',

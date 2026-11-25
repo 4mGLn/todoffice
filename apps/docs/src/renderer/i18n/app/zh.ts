@@ -1,5 +1,8 @@
 /** app strings, zh: defines the key set every other locale shard must match. */
 export const zh = {
+  appLangMongolianCyrillic: '蒙古语（西里尔文）',
+  appLangMongolBichig: '蒙古语（蒙古文）',
+
   appLegacyDocImported:
     '已将 .{ext} 文件转换为 .docx 副本打开。原文件保持不变，保存时将写入新的 .docx 文件。',
   appScTitle: '键盘快捷键',

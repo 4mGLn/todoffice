@@ -30,6 +30,8 @@ const NUMFMT_LOCALES: Record<string, string> = {
   'zh-TW': 'zh-TW',
   vi: 'vi-VN',
   tr: 'tr-TR',
+  'mn-Cyrl': 'en',
+  'mn-Mong': 'en',
 }
 
 export function numfmtLocaleFor(lang: string): string {

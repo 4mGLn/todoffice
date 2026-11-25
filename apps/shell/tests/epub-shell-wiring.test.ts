@@ -1,7 +1,7 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import { strings } from '../src/renderer/src/strings'
 
 /**
@@ -153,7 +153,7 @@ describe('the book menu', () => {
     expect(valueIn(english, 'menuTranslateBook')).toBe('Translate Book…')
     expect(valueIn(localeBlock('ko'), 'filterEpub')).toBe('전자책 (EPUB)')
     expect(valueIn(localeBlock('ko'), 'menuTranslateBook')).toBe('책 번역…')
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const block = localeBlock(lang)
       for (const key of keys) {
         const value = valueIn(block, key)

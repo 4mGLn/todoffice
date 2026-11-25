@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const ru = {
+  appLangMongolianCyrillic: 'монгольский (кириллица)',
+  appLangMongolBichig: 'монгольский (монгольская)',
+
   appLegacyDocImported:
     'Файл .{ext} открыт как преобразованная копия .docx. Исходный файл не изменяется; при сохранении создаётся новый файл .docx.',
   appScTitle: 'Сочетания клавиш',

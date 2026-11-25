@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { editorExtensions } from '../src/renderer/editor/extensions'
+import { cellWritingMode, editorExtensions } from '../src/renderer/editor/extensions'
 import { paraFrameCss, textFlowCss } from '../src/renderer/editor/para-frame'
 
 function paraEl(attrs: Record<string, unknown>): HTMLParagraphElement {
@@ -87,10 +87,17 @@ describe('w:framePr paragraph frames', () => {
   })
 
   it('maps the three sideways flows to writing modes', () => {
+    expect(textFlowCss('tbLrV')).toEqual(['writing-mode:vertical-lr'])
     expect(textFlowCss('tbRl')).toEqual(['writing-mode:vertical-rl'])
     expect(textFlowCss('tbRlV')).toEqual(['writing-mode:vertical-rl', 'text-orientation:sideways'])
     expect(textFlowCss('btLr')).toEqual(['writing-mode:sideways-lr'])
     expect(textFlowCss(null)).toEqual([])
+  })
+
+  it('Mongol bichig cells use vertical-lr without rotating the glyphs', () => {
+    expect(cellWritingMode('tbLrV')).toBe('writing-mode:vertical-lr')
+    expect(cellWritingMode('tbRl')).toBe('writing-mode:vertical-rl')
+    expect(cellWritingMode('unknown')).toBeNull()
   })
 
   it('a paragraph without a frame carries no frame styling even with a text direction', () => {

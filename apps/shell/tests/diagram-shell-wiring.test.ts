@@ -1,7 +1,7 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import { RECOVERY_EDITOR_KINDS } from '@genoffice/electron-utils'
 import { strings } from '../src/renderer/src/strings'
 import { OFFICE_TYPES } from '../src/main/default-app'
@@ -249,7 +249,7 @@ describe('the diagram menu', () => {
     expect(valueIn(english, 'untitledDiagram')).toBe('Untitled Diagram')
     expect(valueIn(localeBlock('ko'), 'menuNewDiagram')).toBe('다이어그램')
     expect(valueIn(localeBlock('ko'), 'untitledDiagram')).toBe('제목 없는 다이어그램')
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const block = localeBlock(lang)
       for (const key of keys) expect(valueIn(block, key), `${lang} ${key}`).toBeTruthy()
       expect(valueIn(block, 'filterDiagram'), lang).toMatch(/\(draw\.io, VSDX\)$/)
@@ -309,7 +309,7 @@ describe('the default-app list', () => {
       ).toMatchObject({
         uti: 'com.jgraph.drawio',
         mime: 'application/vnd.jgraph.mxfile',
-        progId: 'IeumOffice.Diagram',
+        progId: 'TodOffice.Diagram',
       })
     }
     expect(OFFICE_TYPES.map((type) => type.ext)).not.toContain('vsdx')

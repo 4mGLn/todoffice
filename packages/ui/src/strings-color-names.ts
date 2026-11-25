@@ -1,10 +1,14 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 import type { ColorSwatch } from './color-picker'
 
 // Tooltip names of the shared picker's named swatches, keyed by hex, in every UI language.
 // Hex keys because one English name (Light Green) covers two different swatches.
 // Same wording as the Word editor's ribbonColor* strings.
-export const COLOR_SWATCH_NAMES: Record<Lang, Readonly<Record<string, string>>> = {
+export const COLOR_SWATCH_NAMES: Record<
+  Lang,
+  Readonly<Record<string, string>>
+> = withMongolianLocales({
   zh: {
     FFFFFF: '白色',
     '000000': '黑色',
@@ -489,7 +493,7 @@ export const COLOR_SWATCH_NAMES: Record<Lang, Readonly<Record<string, string>>> 
     '002060': 'Koyu Mavi',
     '7030A0': 'Mor',
   },
-}
+})
 
 /** The swatch's name in `lang`; the English name when the table has no entry for its hex. */
 export function colorSwatchName(lang: Lang, swatch: ColorSwatch): string {

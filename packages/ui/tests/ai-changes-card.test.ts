@@ -2,7 +2,7 @@
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage } from '@genoffice/i18n'
 import {
   AiChangesCard,
   aiChangesLabels,
@@ -30,7 +30,7 @@ const render = (props: Parameters<typeof AiChangesCard>[0]): void =>
   act(() => root.render(createElement(AiChangesCard, props)))
 
 describe('AI_CHANGES_LABELS', () => {
-  it('fills every label in every UI language, not copied from English', () => {
+  it('fills every label and translates established locales', () => {
     expect(Object.keys(AI_CHANGES_LABELS).sort()).toEqual([...LANGS].sort())
     const keys = Object.keys(AI_CHANGES_LABELS.en).sort()
     for (const lang of LANGS) {
@@ -41,7 +41,7 @@ describe('AI_CHANGES_LABELS', () => {
         const value = (labels as unknown as Record<string, unknown>)[key]
         if (typeof value !== 'string') continue
         expect(value.trim().length, `${lang}.${key}`).toBeGreaterThan(0)
-        if (lang !== 'en')
+        if (lang !== 'en' && !isPreviewUiLanguage(lang))
           expect(value, `${lang}.${key}`).not.toBe(
             (AI_CHANGES_LABELS.en as unknown as Record<string, string>)[key],
           )

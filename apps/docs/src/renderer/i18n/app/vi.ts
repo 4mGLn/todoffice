@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const vi = {
+  appLangMongolianCyrillic: 'Tiếng Mông Cổ (Chữ Kirin)',
+  appLangMongolBichig: 'Tiếng Mông Cổ (Chữ Mông Cổ)',
+
   appLegacyDocImported:
     'Đã mở tệp .{ext} dưới dạng bản sao .docx đã chuyển đổi. Tệp gốc giữ nguyên; khi lưu sẽ ghi ra một tệp .docx mới.',
   appScTitle: 'Phím tắt bàn phím',

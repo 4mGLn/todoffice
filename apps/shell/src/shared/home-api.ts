@@ -48,6 +48,8 @@ export type UiLanguage =
   | 'zh-TW'
   | 'vi'
   | 'tr'
+  | 'mn-Cyrl'
+  | 'mn-Mong'
 
 /** UI theme preference */
 export type UiTheme = 'light' | 'dark' | 'system'

@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const hi = {
+  ribbonLangMongolianCyrillic: 'मंगोलियाई (सिरिलिक)',
+  ribbonLangMongolBichig: 'मंगोलियाई (मंगोलियाई)',
+  layoutTextDirection: 'पाठ दिशा',
+  layoutTextHorizontal: 'क्षैतिज',
+  layoutTextMongolBichig: 'Mongol bichig · ऊपर से नीचे, बाएँ से दाएँ',
+  layoutTextVerticalCjk: 'लंबवत · दाएँ से बाएँ',
+
   ribbonAiRewriteConfirm:
     'यह क्रिया AI को कॉल करती है और पूरी सामग्री फिर से लिखी जा सकती है। जारी रखें? (दोबारा नहीं पूछा जाएगा।)',
   ribbonTabFile: 'फ़ाइल',

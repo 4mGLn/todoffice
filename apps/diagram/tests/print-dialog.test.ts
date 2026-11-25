@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * The diagram's print dialog against a fake draw.io and a fake preload. At
  * the defaults Print is the print as it always was (the same request to
@@ -8,7 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
-import { LANGS, type Lang } from '@genoffice/i18n'
+import type { Lang } from '@genoffice/i18n'
 import { createDefaultOptions } from '@genoffice/print-layout/plan'
 import type { PrintLayoutBridge } from '@genoffice/electron-utils/print-layout-bridge'
 import type { BridgeOp, BridgeOps } from '../src/shared/bridge-protocol'
@@ -264,7 +265,7 @@ describe('the layout diagram sheets', () => {
 describe('strings', () => {
   it('says the arranged PDF was saved in every UI language', () => {
     const en = appStrings.en.printLayoutSaved
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const text = appStrings[lang].printLayoutSaved
       expect(text, lang).toMatch(/PDF|pdf/)
       if (lang !== 'en') expect(text, lang).not.toBe(en)

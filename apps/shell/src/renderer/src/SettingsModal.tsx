@@ -13,7 +13,7 @@ import {
   clampAiCustomFontSize,
 } from '@genoffice/ui'
 import type { AiFontSize, AiPanelPrefs, AiPanelSide, AiPanelStart } from '@genoffice/ui'
-import { PRODUCT_CONTACT_EMAIL, PRODUCT_REPO_SLUG } from '@genoffice/i18n'
+import { PRODUCT_CONTACT_EMAIL, PRODUCT_REPO_SLUG, mongolianMessage } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 import type {
   AuthorNameSetting,
@@ -113,6 +113,8 @@ const LANG_OPTIONS = [
   { value: 'it', label: 'Italiano' },
   { value: 'ja', label: '日本語' },
   { value: 'ko', label: '한국어' },
+  { value: 'mn-Cyrl', label: 'Монгол (кирилл) · preview' },
+  { value: 'mn-Mong', label: 'Монгол бичиг · Mongol bichig · preview' },
   { value: 'ms', label: 'Bahasa Melayu' },
   { value: 'nl', label: 'Nederlands' },
   { value: 'pl', label: 'Polski' },
@@ -2019,10 +2021,29 @@ export function SettingsModal({
                     className="set-dd"
                     value={lang}
                     ariaLabel={t('language')}
-                    options={LANG_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+                    options={LANG_OPTIONS.map((opt) => ({
+                      value: opt.value,
+                      label:
+                        lang === 'mn-Mong' && opt.value === 'mn-Mong'
+                          ? 'ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ · ᠲᠤᠷᠰᠢᠯᠲᠠ'
+                          : opt.label,
+                    }))}
                     onPick={(v) => setLang(v as typeof lang)}
                   />
                 </div>
+                {(lang === 'mn-Cyrl' || lang === 'mn-Mong') && (
+                  <p
+                    role="status"
+                    data-mongolian-preview=""
+                    lang={lang === 'mn-Mong' ? 'mn-Mong' : 'en'}
+                    className="set-field-hint"
+                    title="Mongolian interface preview. Translations require native review; missing text uses English fallback."
+                  >
+                    {lang === 'mn-Mong'
+                      ? mongolianMessage(lang, 'Mongolian interface preview').text
+                      : 'Mongolian interface preview. Most labels and the embedded HWP/diagram editors currently use English fallback. Translations require native review.'}
+                  </p>
+                )}
                 <div className="set-field">
                   <div className="set-field-text">
                     <label className="set-field-label">{t('theme')}</label>
@@ -2325,10 +2346,11 @@ export function SettingsModal({
                 </div>
                 <Field
                   label={t('setGithub')}
-                  value={`github.com/${PRODUCT_REPO_SLUG}`}
+                  value={PRODUCT_REPO_SLUG ? `github.com/${PRODUCT_REPO_SLUG}` : '—'}
                   action={
                     <button
                       className="set-btn"
+                      disabled={!PRODUCT_REPO_SLUG}
                       onClick={() => void window.aiOffice.openGitHubRepo?.()}
                     >
                       {t('viewOnGitHub')}
@@ -2342,6 +2364,7 @@ export function SettingsModal({
                   </div>
                   <button
                     className="set-btn"
+                    disabled
                     onClick={() => void window.aiOffice.openFeedbackSurvey?.()}
                   >
                     {t('feedbackOpen')}
@@ -2367,6 +2390,7 @@ export function SettingsModal({
                   </div>
                   <button
                     className="set-btn"
+                    disabled={!PRODUCT_CONTACT_EMAIL}
                     onClick={() => void window.aiOffice.openRightsContact?.()}
                   >
                     {t('setRightsContactSend')}

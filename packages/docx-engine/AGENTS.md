@@ -37,7 +37,7 @@ docx 한 파일의 읽기와 쓰기 전부를 맡는다.
 - 깨진 XML이 문서 전체를 실패시키면 안 된다. 파싱하지 못한 문단은 원본 바이트를 지닌 `passthrough` 블록이 되고, 읽히지 않는 `styles.xml`은 빈 스타일 표로 내려간다.
 - Electron과 UI에 의존하지 않는다. 기본 진입점은 Docs 렌더러 번들에 들어가므로 `node:*`를 import하지 않는다. Node 전용 코드는 `./zip-splice` 하위 경로에만 두고, `zip-load.ts`가 `zip-splice`를 import하게 만들지 않는다(테스트가 막고 있다).
 - `src/vendor/`는 가져온 원본과 바이트가 같아야 한다. 포매터 대상에서도 빠져 있다.
-- 엔진 동작은 원본(GenOffice)의 수정을 받아올 때 바뀐다. 이 저장소에서 고칠 때는 사람이 정하고, 고친 것과 그것을 지키는 시험을 "원본과 다른 점" 절에 적는다(결정 0092). 지금은 그런 수정이 없다. 파일 이동, 재포맷, 이름 변경을 하지 않고 `@genoffice/*` 이름을 그대로 둔다.
+- 엔진 동작은 원본(GenOffice)의 수정을 받아올 때 바뀐다. 이 저장소에서 고칠 때는 사람이 정하고, 고친 것과 그것을 지키는 시험을 "원본과 다른 점" 절에 적는다(결정 0092). Mongol bichig 변경은 아래 절에 기록한다. 파일 이동, 재포맷, 이름 변경을 하지 않고 `@genoffice/*` 이름을 그대로 둔다.
 
 ## 이 모듈의 방식
 
@@ -53,7 +53,7 @@ docx 한 파일의 읽기와 쓰기 전부를 맡는다.
 
 ## 원본과 다른 점 (결정 0092)
 
-지금은 없다. 결정 0092의 네 수정(머리글·꼬리말의 `SECTIONPAGES`, 직접 만든 스타일의 목차 줄, 쪽 기준 도형의 감싸기, 대체 글꼴)은 원본 #2364로 원본에 들어갔고, 2026-11-03 받아오기 뒤 엔진 파일이 원본과 같다. 그 시험(`tests/hf-section-pages.test.ts`, `tests/field-display.test.ts`, `tests/page-anchored-wrap.test.ts`, `tests/wrap-topbottom-band.test.ts`)은 원본의 것으로 남는다.
+TodOffice는 사용자 요청에 따라 `tbLrV` 쓰기 방향을 문단·셀 모델에 추가하고, 구역의 명시적 쓰기 방향 변경을 저장한다. 기존 방향과 알 수 없는 원본 값은 유지한다. Unicode 제어 문자와 무편집 바이트 보존은 `tests/mongolian-text.test.ts`로 검사한다. 결정 0092의 네 수정(머리글·꼬리말의 `SECTIONPAGES`, 직접 만든 스타일의 목차 줄, 쪽 기준 도형의 감싸기, 대체 글꼴)은 원본 #2364로 원본에 들어갔고, 2026-11-03 받아오기 때 엔진 파일은 원본과 같았다. 그 시험(`tests/hf-section-pages.test.ts`, `tests/field-display.test.ts`, `tests/page-anchored-wrap.test.ts`, `tests/wrap-topbottom-band.test.ts`)은 원본의 것으로 남는다.
 
 ## 테스트
 

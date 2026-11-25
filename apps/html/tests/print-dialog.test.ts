@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /** @vitest-environment jsdom */
 /**
  * The HTML print dialog (decision 0141). All pages with nothing changed is the
@@ -8,7 +9,6 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDefaultOptions, type PageSize } from '@genoffice/print-layout/plan'
-import { LANGS } from '@genoffice/i18n'
 
 vi.mock('../src/renderer/i18n/locale', async () => {
   const { createI18n } = await import('@genoffice/i18n')
@@ -207,7 +207,7 @@ describe('the print dialog strings', () => {
 
   it('are written in every screen language, not copied from English', () => {
     const table = appStrings as unknown as Record<string, Record<string, string>>
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       for (const key of KEYS) {
         const text = table[lang]?.[key]
         expect(text, `${lang}.${key}`).toBeTruthy()

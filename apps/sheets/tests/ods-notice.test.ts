@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * The footer line an .ods import keeps for the life of the document: the copy
  * is .xlsx, plus how many formulas were kept as values. It is a separate value
@@ -63,7 +64,7 @@ describe('the .ods notice strings', () => {
   })
 
   it('translates the line instead of copying the English one', () => {
-    for (const lang of languages) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       if (lang === 'en') continue
       const values: Record<string, string> = strings[lang]
       expect(values.appOdsImportNotice, `${lang}.appOdsImportNotice`).not.toBe(

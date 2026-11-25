@@ -6,8 +6,8 @@ import { createI18n, defineStrings, type Lang } from '@genoffice/i18n'
  * itself sends nothing. Changing the form's questions does not change this
  * address, so the link stays valid as the survey is edited.
  */
-export const FEEDBACK_SURVEY_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSfD_dlKfi_ZkcjBJFTH3S2nldTIoW0cMI9d_yDaEe6DwKY47A/viewform'
+// No TodOffice feedback endpoint has been configured.
+export const FEEDBACK_SURVEY_URL = ''
 
 const zh = {
   menuLabel: '发送反馈',

@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const de = {
+  ribbonLangMongolianCyrillic: 'Mongolisch (Kyrillisch)',
+  ribbonLangMongolBichig: 'Mongolisch (Mongolisch)',
+  layoutTextDirection: 'Textrichtung',
+  layoutTextHorizontal: 'Horizontal',
+  layoutTextMongolBichig: 'Mongol bichig · von oben nach unten, von links nach rechts',
+  layoutTextVerticalCjk: 'Vertikal · von rechts nach links',
+
   ribbonAiRewriteConfirm:
     'Diese Aktion ruft die KI auf und kann den gesamten Inhalt umschreiben. Fortfahren? (Sie werden nicht erneut gefragt.)',
   ribbonTabFile: 'Datei',

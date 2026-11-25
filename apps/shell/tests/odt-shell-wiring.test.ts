@@ -1,7 +1,7 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import { isSupportedTreeFile } from '../src/main/folder-tree'
 import { EXT_FAMILY } from '../src/main/recent-files'
 
@@ -92,7 +92,7 @@ describe('ODT export menus', () => {
     const englishOdt = english.match(/menuExportOdt: '([^']*)'/)?.[1]
     expect(englishOdt).toBe('Export as ODT…')
     expect(english).toContain("filterOdt: 'OpenDocument Text'")
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const block = localeBlock(lang)
       const label = block.match(/menuExportOdt: '([^']*)'/)?.[1]
       expect(label, `${lang} menuExportOdt`).toMatch(/ODT/)

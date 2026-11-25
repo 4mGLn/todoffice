@@ -1,3 +1,4 @@
+import { LANGS } from '@genoffice/i18n'
 /**
  * The agent window's web rules in the shell (spec 7): Codex choices per
  * project folder reaching the session, answers that last the session, and
@@ -83,7 +84,7 @@ function manager() {
     statuses: () => ({ 'claude-code': ready('claude-code'), codex: ready('codex') }),
     aiSettings: () => normalizeAiSettings({ providers: {} }),
     openDocuments: () => [],
-    userData: join(home, 'AppData', 'IeumOffice'),
+    userData: join(home, 'AppData', 'TodOffice'),
     homeDir: home,
     language: () => 'ko',
     emit: () => undefined,
@@ -202,7 +203,7 @@ describe('the window', () => {
 
   it('has every web string in all 22 languages', () => {
     const langs = Object.keys(agentWebStrings)
-    expect(langs).toHaveLength(22)
+    expect(langs.sort()).toEqual([...LANGS].sort())
     const keys = Object.keys(agentWebStrings.zh)
     for (const lang of langs) {
       const dict = agentWebStrings[lang as keyof typeof agentWebStrings] as Record<string, string>

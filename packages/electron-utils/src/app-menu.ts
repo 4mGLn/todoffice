@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 /// Localized replacements for Electron role menus, whose built-in labels are
 /// English-only and (for role:'windowMenu' on Windows/Linux) follow macOS
 /// conventions (Zoom, Ctrl+M minimize, Bring All to Front).
@@ -56,7 +57,7 @@ const EN: Labels = {
 
 // Shared table, same rationale as context-menu.ts: one copy instead of
 // 15 keys × every UI language in each app dictionary.
-const LABELS: Record<string, Labels> = {
+const LABELS: Record<string, Labels> = withMongolianLocales({
   zh: {
     window: '窗口',
     minimize: '最小化',
@@ -520,7 +521,7 @@ const LABELS: Record<string, Labels> = {
     settings: '設定…',
     version: '版本',
   },
-}
+})
 
 export function appMenuLabels(lang: string): AppMenuLabels {
   const labels = { ...contextMenuLabels(lang), ...(LABELS[lang] ?? LABELS[baseLang(lang)] ?? EN) }

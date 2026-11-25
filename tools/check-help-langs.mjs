@@ -87,6 +87,8 @@ const NO_HAN = new Set([
   'ms',
   'hi',
   'vi',
+  'mn-Cyrl',
+  'mn-Mong',
 ])
 
 /**
@@ -107,6 +109,10 @@ const SCRIPTS = {
   he: /[֐-׿]/,
   th: /[฀-๿]/,
   hi: /[ऀ-ॿ]/,
+  'mn-Cyrl': /[А-Яа-яЁёӨөҮү]/u,
+  // Require a basic Mongolian letter, not punctuation, MVS or an FVS alone.
+  // This checks script presence only; linguistic accuracy needs human review.
+  'mn-Mong': /[\u1820-\u1842]/u,
 }
 
 /**

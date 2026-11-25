@@ -1,30 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  IeumOffice app icon, small optical size (16-32 px slots).
-
-  Same mark as app-icon.svg, redrawn bolder on a 64-unit grid (one pixel at
-  16 px, two at 32 px) so every stroke edge lands on a pixel boundary and the
-  ring and the rounded square stay distinct in a taskbar or title bar. The
-  over/under gaps are dropped because they would be thinner than a pixel.
-
-  Used by tools/gen-brand-assets.mjs for canvases of 32 px and below.
--->
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <clipPath id="ieum-upper"><rect width="1024" height="512"/></clipPath>
-    <clipPath id="ieum-lower"><rect y="512" width="1024" height="512"/></clipPath>
-    <mask id="ieum-under-ring" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <circle cx="384" cy="512" r="192" fill="none" stroke="#000" stroke-width="128" clip-path="url(#ieum-upper)"/>
-    </mask>
-    <mask id="ieum-under-square" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <rect x="448" y="320" width="384" height="384" rx="100" fill="none" stroke="#000" stroke-width="128" clip-path="url(#ieum-lower)"/>
-    </mask>
-  </defs>
-  <rect width="1024" height="1024" rx="230" fill="#4338CA"/>
-  <g fill="none" stroke-width="128">
-    <rect x="448" y="320" width="384" height="384" rx="100" stroke="#FFB020" mask="url(#ieum-under-ring)"/>
-    <circle cx="384" cy="512" r="192" stroke="#FFFFFF" mask="url(#ieum-under-square)"/>
-  </g>
+  <rect width="1024" height="1024" rx="226" fill="#F3F1EC"/>
+  <path fill="#E6482E" fill-rule="evenodd" transform="translate(159.38 89.50) scale(3.25)" d="M74 260 L72 221 C66 227 59 230 50 230 C22 230 0 208 0 179 C0 151 24 124 52 124 C62 124 65 121 65 111 L64 56 C63 23 93 0 126 0 H148 C188 0 217 29 217 68 C217 106 187 135 151 135 H121 C109 135 104 141 104 152 L105 238 C105 248 92 251 74 260 Z M102 109 C109 102 114 100 125 100 H148 C169 100 181 86 181 68 C181 50 168 35 148 35 H127 C111 35 100 46 101 61 Z M69 154 C64 157 58 159 53 159 C40 159 34 168 34 179 C34 191 42 197 52 197 C63 197 69 192 69 184 Z"/>
 </svg>

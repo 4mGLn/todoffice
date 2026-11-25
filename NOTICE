@@ -1,3 +1,19 @@
+TodOffice — Project license
+===========================
+TodOffice is distributed under the Apache License, Version 2.0. The full
+terms are in LICENSE.txt in the application bundle (LICENSE in the source
+repository). Bundled software and fonts carry their own notices below.
+
+TodOffice is based on IeumOffice, a fork of GenOffice.
+
+TodOffice branding modifications
+-------------------------------
+The current TodOffice Vermilion logo uses artwork supplied for this fork.
+The previous wordmark used the bundled Space Grotesk Bold 2.000 font under the
+SIL Open Font License 1.1; the font license and source are listed below and in
+packages/ui/template-fonts. Earlier upstream artwork attributions are retained
+as source provenance.
+
 GenOffice
 Copyright 2026 Mainfunc, Inc.
 
@@ -241,6 +257,13 @@ are original drawings, not those companies' logos.
 The Apache License 2.0 grants no rights to the names or logos "IeumOffice",
 "이음오피스" or "GenOffice" (section 6).
 
-Contact
+Historical upstream IeumOffice contact
 
-Trademark and copyright reports and licensing questions: pblsketch@gmail.com
+Upstream trademark and copyright reports and licensing questions: pblsketch@gmail.com
+This is an upstream attribution contact, not a configured TodOffice support address.
+
+Noto Sans Mongolian 3.103
+Copyright 2022 The Noto Project Authors (https://github.com/notofonts/mongolian)
+Licensed under the SIL Open Font License, Version 1.1.
+Unmodified font and license: packages/ui/template-fonts/NotoSansMongolian-Regular.ttf
+and packages/ui/template-fonts/NotoSansMongolian-OFL.txt.

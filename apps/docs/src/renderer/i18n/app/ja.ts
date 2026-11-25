@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const ja = {
+  appLangMongolianCyrillic: 'モンゴル語 (キリル文字)',
+  appLangMongolBichig: 'モンゴル語 (モンゴル文字)',
+
   appLegacyDocImported:
     '.{ext} ファイルを .docx のコピーに変換して開きました。元のファイルはそのままで、保存すると新しい .docx ファイルになります。',
   appScTitle: 'キーボードショートカット',

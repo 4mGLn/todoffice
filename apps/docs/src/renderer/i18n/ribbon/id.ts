@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const id = {
+  ribbonLangMongolianCyrillic: 'Mongolia (Sirilik)',
+  ribbonLangMongolBichig: 'Mongolia (Mongolia)',
+  layoutTextDirection: 'Arah teks',
+  layoutTextHorizontal: 'Horizontal',
+  layoutTextMongolBichig: 'Mongol bichig · atas ke bawah, kiri ke kanan',
+  layoutTextVerticalCjk: 'Vertikal · kanan ke kiri',
+
   ribbonAiRewriteConfirm:
     'Tindakan ini memanggil AI dan dapat menulis ulang seluruh konten. Lanjutkan? (Tidak akan ditanya lagi.)',
   ribbonTabFile: 'File',

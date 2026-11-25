@@ -7,7 +7,12 @@ import type { Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HomeApi } from '../src/shared/home-api'
 import type { IntegrationsApi, IntegrationsStatus } from '../src/shared/integrations-api'
-import { mcpClaudeCommand, mcpConfigJson, mcpLaunch } from '../src/renderer/src/IntegrationsPane'
+import {
+  mcpClaudeCommand,
+  mcpConfigJson,
+  mcpLaunch,
+  NPX_INSTALL_COMMAND,
+} from '../src/renderer/src/IntegrationsPane'
 import { LocaleProvider } from '../src/renderer/src/locale'
 import { SettingsModal, type SettingsModalProps } from '../src/renderer/src/SettingsModal'
 
@@ -60,10 +65,10 @@ function baseStatus(): IntegrationsStatus {
   return {
     cli: {
       status: 'missing',
-      location: '/usr/local/bin/ieumoffice',
+      location: '/usr/local/bin/todoffice',
       manual:
-        'sudo ln -sf /Applications/IeumOffice.app/Contents/Resources/cli/ieumoffice /usr/local/bin/ieumoffice',
-      launcherDir: '/Applications/IeumOffice.app/Contents/Resources/cli',
+        'sudo ln -sf /Applications/TodOffice.app/Contents/Resources/cli/todoffice /usr/local/bin/todoffice',
+      launcherDir: '/Applications/TodOffice.app/Contents/Resources/cli',
       ephemeral: false,
       version: '0.4.0',
     },
@@ -74,7 +79,7 @@ function baseStatus(): IntegrationsStatus {
         id: 'claude-code',
         label: 'Claude Code',
         skillsDir: '/home/u/.claude/skills',
-        state: { status: 'missing', path: '/home/u/.claude/skills/ieumoffice/SKILL.md' },
+        state: { status: 'missing', path: '/home/u/.claude/skills/todoffice/SKILL.md' },
       },
       {
         id: 'agents',
@@ -82,7 +87,7 @@ function baseStatus(): IntegrationsStatus {
         skillsDir: '/home/u/.agents/skills',
         state: {
           status: 'foreign',
-          path: '/home/u/.agents/skills/ieumoffice/SKILL.md',
+          path: '/home/u/.agents/skills/todoffice/SKILL.md',
           installedVersion: '2.1.0',
         },
       },
@@ -94,7 +99,7 @@ function baseStatus(): IntegrationsStatus {
         legacy: true,
         state: {
           status: 'outdated',
-          path: '/home/u/.codex/skills/ieumoffice/SKILL.md',
+          path: '/home/u/.codex/skills/todoffice/SKILL.md',
           installedVersion: '2.0.0',
           older: true,
         },
@@ -125,6 +130,13 @@ async function openIntegrations(
 }
 
 describe('Settings → Integrations', () => {
+  it('keeps bundled installation available but hides an unconfigured network command', async () => {
+    await openIntegrations({ status: async () => baseStatus() })
+    expect(NPX_INSTALL_COMMAND).toBe('')
+    expect(host.textContent).not.toContain('npx skills add')
+    expect(buttonWithText('Install', host)).toBeTruthy()
+  })
+
   it('lists detected agents with their state and offers the matching actions', async () => {
     await openIntegrations({ status: async () => baseStatus(), copyText: async () => {} })
     const rows = [...host.querySelectorAll('.set-intg-row')]
@@ -151,25 +163,27 @@ describe('Settings → Integrations', () => {
       "Older copy in Codex's own folder. Codex now reads the skill from the shared folder (~/.agents); once it is installed there, you can remove this copy.",
     )
     // CLI block: launcher path, PATH state in plain words, the manual command as copyable code
-    expect(host.textContent).toContain('/Applications/IeumOffice.app/Contents/Resources/cli')
+    expect(host.textContent).toContain('/Applications/TodOffice.app/Contents/Resources/cli')
     expect(host.textContent).toContain("not on your terminal's PATH")
     expect(host.querySelector('.set-intg-cli code')?.textContent).toContain('sudo ln -sf')
     expect(host.textContent).toContain('skill 2.1.0')
-    // guidance: hero steps, one-of-three note, example prompts, npx command shown inline
+    // The unconfigured public repository leaves two bundled installation routes.
     expect(host.querySelectorAll('.set-intg-hero-steps li')).toHaveLength(3)
-    expect(host.textContent).toContain('Pick one of these three ways')
+    expect(
+      host.querySelectorAll('.set-intg-details')[0]!.querySelectorAll('.set-intg-option'),
+    ).toHaveLength(2)
     // the same three prompts appear under both the CLI and the MCP part
     expect(host.querySelectorAll('.set-intg-example')).toHaveLength(6)
-    expect(host.textContent).toContain('npx skills add pblsketch/ieumoffice')
+    expect(host.textContent).not.toContain('npx skills add')
     // MCP block: the launcher itself while genoffice is not on the PATH, as a command and as JSON
     const mcp = [...host.querySelectorAll('.set-intg-mcp code')].map((c) => c.textContent)
     expect(mcp[0]).toBe(
-      'claude mcp add --transport stdio ieumoffice -- /Applications/IeumOffice.app/Contents/Resources/cli/ieumoffice mcp',
+      'claude mcp add --transport stdio todoffice -- /Applications/TodOffice.app/Contents/Resources/cli/todoffice mcp',
     )
     expect(JSON.parse(mcp[1]!)).toEqual({
       mcpServers: {
-        ieumoffice: {
-          command: '/Applications/IeumOffice.app/Contents/Resources/cli/ieumoffice',
+        todoffice: {
+          command: '/Applications/TodOffice.app/Contents/Resources/cli/todoffice',
           args: ['mcp'],
         },
       },
@@ -181,25 +195,25 @@ describe('Settings → Integrations', () => {
     expect(
       mcpLaunch({
         status: 'present',
-        launcherDir: '/Applications/IeumOffice.app/Contents/Resources/cli',
+        launcherDir: '/Applications/TodOffice.app/Contents/Resources/cli',
       }),
-    ).toEqual({ command: 'ieumoffice', args: ['mcp'] })
-    const winDir = 'C:\\Users\\Jane Doe\\AppData\\Local\\Programs\\IeumOffice\\resources\\cli'
+    ).toEqual({ command: 'todoffice', args: ['mcp'] })
+    const winDir = 'C:\\Users\\Jane Doe\\AppData\\Local\\Programs\\TodOffice\\resources\\cli'
     const win = {
-      command: `${winDir}\\..\\..\\IeumOffice.exe`,
+      command: `${winDir}\\..\\..\\TodOffice.exe`,
       args: [`${winDir}\\genoffice.cjs`, 'mcp'],
       env: { ELECTRON_RUN_AS_NODE: '1' },
     }
     expect(mcpLaunch({ status: 'missing', launcherDir: winDir })).toEqual(win)
     expect(mcpLaunch({ status: 'present', launcherDir: winDir })).toEqual(win)
     expect(mcpClaudeCommand(win)).toBe(
-      `claude mcp add -e ELECTRON_RUN_AS_NODE=1 --transport stdio ieumoffice -- "${win.command}" "${win.args[0]}" mcp`,
+      `claude mcp add -e ELECTRON_RUN_AS_NODE=1 --transport stdio todoffice -- "${win.command}" "${win.args[0]}" mcp`,
     )
-    expect(JSON.parse(mcpConfigJson(win))).toEqual({ mcpServers: { ieumoffice: win } })
+    expect(JSON.parse(mcpConfigJson(win))).toEqual({ mcpServers: { todoffice: win } })
     expect(
-      mcpClaudeCommand({ command: '/Applications/Gen Office.app/cli/ieumoffice', args: ['mcp'] }),
+      mcpClaudeCommand({ command: '/Applications/Gen Office.app/cli/todoffice', args: ['mcp'] }),
     ).toBe(
-      'claude mcp add --transport stdio ieumoffice -- "/Applications/Gen Office.app/cli/ieumoffice" mcp',
+      'claude mcp add --transport stdio todoffice -- "/Applications/Gen Office.app/cli/todoffice" mcp',
     )
   })
 
@@ -217,7 +231,7 @@ describe('Settings → Integrations', () => {
     const row = host.querySelector('[data-agent="claude-code"]')!
     await click(buttonWithText('Install', row))
     expect(install).not.toHaveBeenCalled()
-    expect(row.textContent).toContain('Will write: /home/u/.claude/skills/ieumoffice/SKILL.md')
+    expect(row.textContent).toContain('Will write: /home/u/.claude/skills/todoffice/SKILL.md')
 
     await click(buttonWithText('Cancel', row))
     expect(row.querySelector('.set-intg-confirm')).toBeNull()
@@ -236,7 +250,7 @@ describe('Settings → Integrations', () => {
     const status = baseStatus()
     status.agents[1]!.state = {
       status: 'missing',
-      path: '/home/u/.agents/skills/ieumoffice/SKILL.md',
+      path: '/home/u/.agents/skills/todoffice/SKILL.md',
     }
     const install = vi.fn(async () => status.agents[1]!.state)
     await openIntegrations({
@@ -246,7 +260,7 @@ describe('Settings → Integrations', () => {
     const row = host.querySelector('[data-agent="agents"]')!
     await click(buttonWithText('Install', row))
     expect(row.querySelector('.set-intg-confirm')!.textContent).toContain(
-      'Will write: /home/u/.agents/skills/ieumoffice/SKILL.md The older copies at /home/u/.codex/skills/ieumoffice/SKILL.md are updated as well.',
+      'Will write: /home/u/.agents/skills/todoffice/SKILL.md The older copies at /home/u/.codex/skills/todoffice/SKILL.md are updated as well.',
     )
     await click(buttonWithText('Confirm', row))
     expect(install).toHaveBeenCalledWith({ agentId: 'agents' })
@@ -256,7 +270,7 @@ describe('Settings → Integrations', () => {
     const status = baseStatus()
     status.agents[2]!.state = {
       status: 'missing',
-      path: '/home/u/.codex/skills/ieumoffice/SKILL.md',
+      path: '/home/u/.codex/skills/todoffice/SKILL.md',
     }
     await openIntegrations({ status: async () => status })
     const row = host.querySelector('[data-agent="codex"]')!
@@ -266,10 +280,10 @@ describe('Settings → Integrations', () => {
   it('installs into a picked folder and saves the zip through the main process', async () => {
     const install = vi.fn(async () => ({
       status: 'installed' as const,
-      path: '/x/ieumoffice/SKILL.md',
+      path: '/x/todoffice/SKILL.md',
       installedVersion: '2.1.0',
     }))
-    const saveZip = vi.fn(async () => '/Users/u/Downloads/ieumoffice-skill-2.1.0.zip')
+    const saveZip = vi.fn(async () => '/Users/u/Downloads/todoffice-skill-2.1.0.zip')
     await openIntegrations({
       status: async () => baseStatus(),
       pickSkillDir: async () => '/x',
@@ -277,13 +291,13 @@ describe('Settings → Integrations', () => {
       saveSkillZip: saveZip,
     })
     await click(buttonWithText('Install into another folder…'))
-    expect(host.textContent).toContain('Will write: /x/ieumoffice/SKILL.md')
+    expect(host.textContent).toContain('Will write: /x/todoffice/SKILL.md')
     await click(buttonWithText('Confirm'))
     expect(install).toHaveBeenCalledWith({ dir: '/x' })
 
     await click(buttonWithText('Download skill (zip)'))
     expect(saveZip).toHaveBeenCalledWith('Save skill')
-    expect(host.textContent).toContain('Saved to /Users/u/Downloads/ieumoffice-skill-2.1.0.zip')
+    expect(host.textContent).toContain('Saved to /Users/u/Downloads/todoffice-skill-2.1.0.zip')
   })
 
   it('marks the Integrations entry while a detected assistant holds an older skill', async () => {

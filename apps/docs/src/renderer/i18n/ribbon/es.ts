@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const es = {
+  ribbonLangMongolianCyrillic: 'mongol (cirílico)',
+  ribbonLangMongolBichig: 'mongol (mongol)',
+  layoutTextDirection: 'Dirección del texto',
+  layoutTextHorizontal: 'Horizontal',
+  layoutTextMongolBichig: 'Mongol bichig · de arriba abajo, de izquierda a derecha',
+  layoutTextVerticalCjk: 'Vertical · de derecha a izquierda',
+
   ribbonAiRewriteConfirm:
     'Esta acción llama a la IA y puede reescribir todo el contenido. ¿Continuar? (No se volverá a preguntar.)',
   ribbonTabFile: 'Archivo',

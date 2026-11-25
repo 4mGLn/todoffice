@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import { certSignStringsFor } from './cert-sign-strings'
 import { convertStrings } from './strings-convert'
 import { aiReadStrings } from './strings-ai-read'
@@ -2405,7 +2406,7 @@ const fillFormStringsFor = (lang: string) => ({
   ...(localizedFillFormStrings[lang as keyof typeof localizedFillFormStrings] ?? {}),
 })
 
-export const strings = {
+export const strings = withMongolianLocales({
   zh: {
     ...fillFormStringsFor('zh'),
     ...certSignStringsFor('zh'),
@@ -12884,4 +12885,4 @@ export const strings = {
     propCreated: '建立時間',
     propModified: '修改時間',
   },
-}
+})

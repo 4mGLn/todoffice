@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const tr = {
+  ribbonLangMongolianCyrillic: 'Moğolca (Kiril)',
+  ribbonLangMongolBichig: 'Moğolca (Moğol)',
+
   ribbonAiCreditNote: 'Yapay zekayı kullanır ve yapay zeka kullanımınıza dahil edilir',
   ribbonAiRewriteConfirm:
     'Bu işlem yapay zeka asistanını çağırır: yapay zeka kullanımınıza dahil edilir ve tüm içeriği yeniden yazabilir. Devam edilsin mi? (Bir daha sorulmaz.)',

@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import { aiStrings } from './strings-ai'
 import { appStrings } from './strings-app'
 import { editorStrings } from './strings-editor'
@@ -5,7 +6,7 @@ import { ribbonStrings } from './strings-ribbon'
 import { tableStrings } from './strings-table'
 import { zoteroStrings } from './strings-zotero'
 
-export const strings = {
+export const strings = withMongolianLocales({
   zh: {
     ...appStrings.zh,
     ...ribbonStrings.zh,
@@ -183,4 +184,4 @@ export const strings = {
     ...aiStrings['zh-TW'],
     ...zoteroStrings['zh-TW'],
   },
-}
+})

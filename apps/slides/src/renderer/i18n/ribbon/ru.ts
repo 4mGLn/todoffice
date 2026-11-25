@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const ru = {
+  ribbonLangMongolianCyrillic: 'монгольский (кириллица)',
+  ribbonLangMongolBichig: 'монгольский (монгольская)',
+
   ribbonAiCreditNote: 'Использует ИИ и расходует лимит использования ИИ',
   ribbonAiRewriteConfirm:
     'Это действие вызывает ИИ: расходуется лимит использования ИИ, и всё содержимое может быть переписано. Продолжить? (Вопрос больше не появится.)',

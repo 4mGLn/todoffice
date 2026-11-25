@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 
 /** "Attach from documents" in every editor's AI panel */
@@ -6,7 +7,7 @@ export interface DocAttachStrings {
   busy: string
 }
 
-export const DOC_ATTACH_STRINGS: Record<Lang, DocAttachStrings> = {
+export const DOC_ATTACH_STRINGS: Record<Lang, DocAttachStrings> = withMongolianLocales({
   zh: {
     label: '从 GenOffice 文档附加',
     busy: '文档列表窗口已经打开',
@@ -95,4 +96,4 @@ export const DOC_ATTACH_STRINGS: Record<Lang, DocAttachStrings> = {
     label: 'GenOffice belgelerinden ekle',
     busy: 'Belge listesi penceresi zaten açık',
   },
-}
+})

@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const cs = {
+  ribbonLangMongolianCyrillic: 'mongolština (cyrilice)',
+  ribbonLangMongolBichig: 'mongolština (mongolské)',
+
   ribbonAiCreditNote: 'Používá AI a započítává se do limitu využití AI',
   ribbonAiRewriteConfirm:
     'Tato akce volá asistenta AI: započítává se do limitu využití AI a může přepsat celý obsah. Pokračovat? (Příště se již nebudeme ptát.)',

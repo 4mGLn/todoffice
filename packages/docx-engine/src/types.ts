@@ -479,8 +479,9 @@ export interface ParaFrame {
 }
 
 /** text flow of a frame, cell or section (w:textDirection): tbRl = vertical with
- *  upright CJK, tbRlV = everything rotated 90° clockwise, btLr = rotated counterclockwise */
-export type TextFlowDirection = 'tbRl' | 'tbRlV' | 'btLr'
+ *  upright CJK, tbRlV = everything rotated 90° clockwise, btLr = rotated counterclockwise,
+ *  tbLrV = Mongolian top-to-bottom lines progressing left-to-right. */
+export type TextFlowDirection = 'tbRl' | 'tbRlV' | 'btLr' | 'tbLrV'
 
 /**
  * Picture color adjustments from the blip (a:lum bright/contrast, a:grayscl,
@@ -1519,7 +1520,7 @@ export interface TableCell {
   vAlign?: 'top' | 'center' | 'bottom'
   /** vertical text (w:textDirection): tbRl = vertical right-to-left, btLr = horizontal rotated 90° (bottom-up);
    *  lrTb = explicitly horizontal (an edit clearing a parsed direction) */
-  textDirection?: 'tbRl' | 'btLr' | 'lrTb'
+  textDirection?: 'tbRl' | 'btLr' | 'lrTb' | 'tbLrV'
   /** w:noWrap: the cell never wraps its text */
   noWrap?: boolean
   /** w:hideMark: the end-of-cell mark does not count toward the row height */

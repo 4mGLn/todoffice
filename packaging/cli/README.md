@@ -28,7 +28,7 @@ Layout (the app's `resources/`):
 
 ```
 ieumoffice-cli/
-  cli/{ieumoffice, genoffice.cjs, package.json, node_modules/, skills/ieumoffice/SKILL.md}
+  cli/{todoffice, genoffice.cjs, package.json, node_modules/, skills/todoffice/SKILL.md}
   wasm/{pdfium.wasm, rhwp_bg.wasm, hb-subset.wasm}
   native/xlsx-sidecar
   LICENSE  NOTICE  THIRD-PARTY-NOTICES.txt

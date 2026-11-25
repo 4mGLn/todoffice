@@ -41,7 +41,7 @@ import {
 } from '@genoffice/ui'
 import { isSubscriptionProvider } from '@genoffice/ai-provider/browser'
 import type { AiSettings } from '@genoffice/ai-provider/browser'
-import { productName } from '@genoffice/i18n'
+import { mongolianMessage, productName } from '@genoffice/i18n'
 import { RELEASE_IS_BETA } from '../../shared/release-stage'
 import { fileCountLabel, visiblePageCount } from './counts'
 import { useI18n } from './locale'
@@ -1993,7 +1993,9 @@ export function Home({
                 <span className="quick-title-row">
                   <span className="quick-title">{t('pdfToolsCard')}</span>
                 </span>
-                <span className="quick-sub">{t('pdfToolsCardSub')}</span>
+                <span className="quick-sub" data-localized-caption="">
+                  {t('pdfToolsCardSub')}
+                </span>
               </span>
             </button>
           ) : (
@@ -2004,7 +2006,9 @@ export function Home({
                   <span className="quick-title">{t(HOME_KIND_LABEL[kind].title)}</span>
                   {/* "AI Docs" already says it; the chip is for titles that do not */}
                   {!/\bAI\b/.test(t(HOME_KIND_LABEL[kind].title)) && (
-                    <span className="ai-chip">AI</span>
+                    <span className="ai-chip">
+                      {lang === 'mn-Mong' ? mongolianMessage(lang, 'AI').text : 'AI'}
+                    </span>
                   )}
                 </span>
                 <span className="quick-sub">{HOME_KIND_LABEL[kind].sub}</span>

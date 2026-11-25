@@ -1,4 +1,5 @@
-import type { Lang } from '@genoffice/i18n'
+import { withMongolianLocales } from '@genoffice/i18n'
+import type { Lang, LegacyLang } from '@genoffice/i18n'
 
 /** Labels for the queued-messages strip above the AI composer (all editors share them). */
 export interface AiQueueStripLabels {
@@ -19,7 +20,9 @@ export interface AiQueueStripLabels {
   queuePlaceholder: string
 }
 
-export const AI_QUEUE_LABELS: Record<Lang, AiQueueStripLabels> = {
+export const AI_QUEUE_LABELS: Record<Lang, AiQueueStripLabels> = withMongolianLocales<
+  Record<LegacyLang, AiQueueStripLabels>
+>({
   zh: {
     queuedCount: (n) => `${n} 条排队中`,
     clearTitle: '清空排队消息',
@@ -262,4 +265,4 @@ export const AI_QUEUE_LABELS: Record<Lang, AiQueueStripLabels> = {
     moveTitle: 'Sırayı değiştirmek için sürükleyin (veya Alt+↑/↓)',
     queuePlaceholder: 'Sıraya almak için Enter · Durdurmak için Esc',
   },
-}
+})

@@ -8,7 +8,7 @@ const showMessageBox = vi.fn()
 vi.mock('electron', () => ({ dialog: { showMessageBox } }))
 
 import type { BrowserWindow } from 'electron'
-import { LANGS } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage } from '@genoffice/i18n'
 import {
   confirmOverwriteIfConflicted,
   isModifiedSince,
@@ -269,10 +269,10 @@ describe('save conflict labels', () => {
     }
   })
 
-  it('keeps a localized copy of every string (no English fallback)', () => {
+  it('keeps a localized copy of every string in established locales', () => {
     const en = saveConflictLabels('en')
     for (const lang of LANGS) {
-      if (lang === 'en') continue
+      if (lang === 'en' || isPreviewUiLanguage(lang)) continue
       const labels = saveConflictLabels(lang)
       for (const key of ['message', 'detail', 'overwrite', 'cancel'] as const) {
         expect(labels[key], `${lang}.${key} is the English string`).not.toBe(en[key])

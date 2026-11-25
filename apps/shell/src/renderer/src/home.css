@@ -15,8 +15,7 @@
   /* lift for the active segment in gray-track tab pills */
   --shadow-pill: 0 1px 2px rgb(0 0 0 / 8%);
 
-  /* genoffice-logo.svg is pure black-and-white; dark themes flip it to 1 */
-  --logo-invert: 0;
+  --sidebar-wordmark: normal;
   /* lift for the kb-ask composer box */
   --shadow-composer: 0 1px 3px rgb(0 0 0 / 5%);
 }
@@ -34,7 +33,7 @@
   --timeline-user-bg: #2a2a3a;
   --timeline-user-text: #b0b0c0;
   --shadow-pill: 0 1px 2px rgb(0 0 0 / 40%);
-  --logo-invert: 1;
+  --sidebar-wordmark: url('./assets/todoffice-logo-dark.svg');
   --shadow-composer: 0 1px 3px rgb(0 0 0 / 25%);
 }
 
@@ -50,7 +49,7 @@
     --timeline-user-bg: #2a2a3a;
     --timeline-user-text: #b0b0c0;
     --shadow-pill: 0 1px 2px rgb(0 0 0 / 40%);
-    --logo-invert: 1;
+    --sidebar-wordmark: url('./assets/todoffice-logo-dark.svg');
     --shadow-composer: 0 1px 3px rgb(0 0 0 / 25%);
   }
 }
@@ -136,7 +135,7 @@ body.vib .home {
   display: block;
   height: 28px;
   width: auto;
-  filter: invert(var(--logo-invert));
+  content: var(--sidebar-wordmark);
 }
 
 /* shown while RELEASE_IS_BETA */

@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const ar = {
+  ribbonLangMongolianCyrillic: 'المنغولية (السيريلية)',
+  ribbonLangMongolBichig: 'المنغولية (المغولية)',
+  layoutTextDirection: 'اتجاه النص',
+  layoutTextHorizontal: 'أفقي',
+  layoutTextMongolBichig: 'Mongol bichig · من أعلى إلى أسفل، من اليسار إلى اليمين',
+  layoutTextVerticalCjk: 'عمودي · من اليمين إلى اليسار',
+
   ribbonAiRewriteConfirm:
     'هذا الإجراء يستدعي الذكاء الاصطناعي وقد يعيد كتابة المحتوى بالكامل. هل تريد المتابعة؟ (لن يتم السؤال مرة أخرى.)',
   ribbonTabFile: 'ملف',

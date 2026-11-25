@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const tr = {
+  appLangMongolianCyrillic: 'Moğolca (Kiril)',
+  appLangMongolBichig: 'Moğolca (Moğol)',
+
   appLegacyDocImported:
     '.{ext} dosyası dönüştürülmüş bir .docx kopyası olarak açıldı. Özgün dosya değişmez; kaydetmek yeni bir .docx dosyası yazar.',
   appScTitle: 'Klavye Kısayolları',

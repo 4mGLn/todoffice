@@ -751,6 +751,11 @@ const FONTS = [
  */
 const TEMPLATE_FONTS_DIR = join(ROOT, 'packages/ui/template-fonts')
 const TEMPLATE_FONTS = [
+  [
+    'Noto Sans Mongolian 3.103',
+    'NotoSansMongolian-OFL.txt',
+    'Copyright 2022 The Noto Project Authors (https://github.com/notofonts/mongolian).',
+  ],
   ['Pretendard 1.309', 'Pretendard-OFL.txt'],
   [
     'Noto Serif KR 2.003',
@@ -791,6 +796,36 @@ https://www.unicode.org/Public/17.0.0/ucd/EquivalentUnifiedIdeograph.txt
 
 `
 out += readFileSync(join(ROOT, 'LICENSE-UNICODE.txt'), 'utf8').trim() + '\n'
+
+// TodOffice's new locale previews reuse a small, context-reviewed set of
+// upstream UI labels. Keep their source notices in every binary distribution,
+// independently of the product name used by the surrounding application.
+out += hr('Mongolian interface translation sources')
+const LOCALIZATION_SOURCES = join(ROOT, 'packages/i18n/localization-sources')
+out += `
+Selected Mongolian Cyrillic UI labels are adapted from Android framework
+resources. Copyright (C) The Android Open Source Project, Apache License 2.0.
+https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/res/res/values-mn/strings.xml
+The Apache License 2.0 is reproduced below and in LICENSE.txt beside this file.
+
+Selected Mongol bichig UI actions are adapted from mongol-library and
+Chimee-iOS by suragch, under their respective MIT licenses reproduced below.
+These selected labels do not constitute a complete or certified translation.
+
+Pinned source revisions, selected resource IDs and local adaptation notes:
+`
+out += readFileSync(join(LOCALIZATION_SOURCES, 'provenance.json'), 'utf8').trim() + '\n'
+out += sub('TodOffice contextual translation drafts — native review required')
+out += readFileSync(join(LOCALIZATION_SOURCES, 'ui-drafts.json'), 'utf8').trim() + '\n'
+out += sub('Android framework translation resources — Apache License 2.0')
+out += readFileSync(join(ROOT, 'LICENSE'), 'utf8').trim() + '\n'
+for (const [name, file] of [
+  ['mongol-library translation labels', 'LICENSE-mongol-library.txt'],
+  ['Chimee-iOS translation labels', 'LICENSE-Chimee-iOS.txt'],
+]) {
+  out += sub(`${name} — MIT License`)
+  out += readFileSync(join(LOCALIZATION_SOURCES, file), 'utf8').trim() + '\n'
+}
 
 // Hancom's condition for using its published HWP format document; the wording is fixed
 out += hr('6. Hangul (HWP) document format and trademarks')

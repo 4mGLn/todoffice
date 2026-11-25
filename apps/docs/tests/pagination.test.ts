@@ -5243,6 +5243,22 @@ describe('vertical-text sections (sectPr w:textDirection)', () => {
     expect(h.contentHeight).toBeCloseTo(px(11906 - 3600), 3)
   })
 
+  it('Mongol bichig uses top-to-bottom lines and left-to-right columns', () => {
+    const secs = [vert({ textDirection: 'tbLrV' })]
+    const geoms = sectionGeoms(secs)
+    expect(geoms[0].vertical).toBe('tbLrV')
+    expect(geoms[0].contentHeight).toBeCloseTo(px(16838 - 2880), 3)
+    expect(geoms[0].contentWidth).toBeCloseTo(px(11906 - 3600), 3)
+    const els = [document.createElement('p'), document.createElement('p')]
+    const blocks: BlockBox[] = [
+      { ...lineBlock(0, [40]), section: 0, el: els[0] },
+      { ...lineBlock(50, [100]), section: 0, el: els[1] },
+    ]
+    const specs = verticalTextSpecs(blocks, [{ start: 0, end: 150, section: 0 }], secs, geoms)
+    expect(specs[0]).toMatchObject({ dx: 0, dy: 0, vertical: { mode: 'tbLrV' } })
+    expect(specs[1]).toMatchObject({ dx: 50, dy: -50, vertical: { mode: 'tbLrV' } })
+  })
+
   it('verticalTextSpecs places blocks from the right edge and trims their flow footprint', () => {
     const els = Array.from({ length: 3 }, () => document.createElement('p'))
     const blocks: BlockBox[] = [

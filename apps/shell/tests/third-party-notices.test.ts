@@ -103,7 +103,8 @@ describe('third-party license aggregation', () => {
 
   it('opens with the NOTICE of the work, then names the product in its own header', () => {
     const text = readFileSync(join(root, 'apps/shell/build/THIRD-PARTY-NOTICES.txt'), 'utf8')
-    // Apache-2.0 §4(d): the attribution notice, upstream name included, comes first
+    expect(text.split('\n', 1)[0]).toBe('TodOffice — Project license')
+    expect(NOTICE).toContain('GenOffice\nCopyright 2026 Mainfunc, Inc.')
     expect(text.startsWith(NOTICE)).toBe(true)
     const afterNotice = text.slice(NOTICE.length)
     expect(afterNotice).toMatch(/^\s+The Apache License, Version 2\.0, .*\n.*LICENSE\.txt next/)
@@ -129,6 +130,7 @@ describe('third-party license aggregation', () => {
       /dompurify v\S+ — Apache-2\.0 \(dual MPL-2\.0\/Apache-2\.0, used under Apache-2\.0\)/,
     )
     for (const family of [
+      'Noto Sans Mongolian',
       'Pretendard',
       'Noto Serif KR',
       'Black Han Sans',
@@ -146,6 +148,17 @@ describe('third-party license aggregation', () => {
     }
     expect(text).toContain('Copyright (c) 2021, Kil Hyung-jin')
     expect(text).toContain('3. Rust crates (rhwp HWP engine, compiled into rhwp_bg.wasm)')
+  })
+
+  it('redistributes source credits and license grants for the Mongolian preview labels', () => {
+    const text = readFileSync(join(root, 'apps/shell/build/THIRD-PARTY-NOTICES.txt'), 'utf8')
+    expect(text).toContain('The Android Open Source Project')
+    expect(text).toContain('1cdfff555f4a21f71ccc978290e2e212e2f8b168')
+    for (const file of ['LICENSE-mongol-library.txt', 'LICENSE-Chimee-iOS.txt']) {
+      const license = readFileSync(join(root, 'packages/i18n/localization-sources', file), 'utf8')
+      expect(text).toContain(license.trim())
+    }
+    expect(text).toContain('not constitute a complete or certified translation')
   })
 })
 
@@ -189,6 +202,13 @@ const VALID_NOTICE = [
   'Apache License',
   '144 crates, all under permissive terms:',
   '138 crates, all under permissive terms:',
+  ...[
+    'packages/i18n/localization-sources/provenance.json',
+    'packages/i18n/localization-sources/LICENSE-mongol-library.txt',
+    'packages/i18n/localization-sources/LICENSE-Chimee-iOS.txt',
+    'packages/ui/template-fonts/NotoSansMongolian-OFL.txt',
+    'LICENSE',
+  ].map((file) => readFileSync(join(root, file), 'utf8').trim()),
   '',
 ].join('\n')
 
@@ -248,6 +268,20 @@ function packWithNotice(notice: string | null, regenerated: string | null) {
 }
 
 describe('packaging gate on the third-party notice', () => {
+  it('rejects a cached notice without current Mongolian source and font grants', async () => {
+    for (const file of [
+      'packages/i18n/localization-sources/provenance.json',
+      'packages/i18n/localization-sources/LICENSE-mongol-library.txt',
+      'packages/i18n/localization-sources/LICENSE-Chimee-iOS.txt',
+      'packages/ui/template-fonts/NotoSansMongolian-OFL.txt',
+    ]) {
+      const stale = VALID_NOTICE.replace(readFileSync(join(root, file), 'utf8').trim(), '')
+      const { pack, generatorRuns } = packWithNotice(stale, stale)
+      await expect(pack(), file).rejects.toThrow(/missing or stale/)
+      expect(generatorRuns).toHaveLength(1)
+    }
+  })
+
   it('packages a complete, current notice as it is', async () => {
     const { pack, generatorRuns } = packWithNotice(VALID_NOTICE, null)
     await pack()

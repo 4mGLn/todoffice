@@ -51,3 +51,9 @@ _scratch-*
 
 # draw.io release downloaded and verified by vendor/drawio/bundle.mjs
 /vendor/drawio/.cache/
+
+# Local agent records, analysis caches and workspace-only reports
+/.agents/*
+!/.agents/skills
+!/.agents/README.md
+!/.agents/docs

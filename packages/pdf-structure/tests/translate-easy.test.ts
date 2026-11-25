@@ -1,3 +1,8 @@
+import {
+  ESTABLISHED_TEST_LANGS,
+  PREVIEW_TEST_LANGS,
+  expectPreviewDictionary,
+} from '../../i18n/tests/preview-assertions'
 /**
  * The easy explanation as a translation mode (spec 5.1, 5.2): its
  * instruction, the model call in that mode, the job writing to the easy
@@ -16,7 +21,6 @@ import {
   startTranslationJob,
   type TranslationJobItem,
 } from '../src/jobs'
-import { LANGS } from '../../i18n/src/index'
 import { ResultStore, translationBlockKeys } from '../src/store'
 import { sha256Hex, type DocumentTree, type InlineRun, type TextUnit } from '../src/tree'
 import {
@@ -519,10 +523,17 @@ describe('the default target language', () => {
 })
 
 describe('easyExplanationLabel', () => {
+  it.each(PREVIEW_TEST_LANGS)(
+    'reports %s marker wording as an explicit preview fallback',
+    (lang) => {
+      expectPreviewDictionary(lang, easyExplanationLabel(lang), easyExplanationLabel('en'))
+    },
+  )
+
   it('has words for every UI language, each its own', () => {
-    const labels = LANGS.map((l) => easyExplanationLabel(l))
+    const labels = ESTABLISHED_TEST_LANGS.map((l) => easyExplanationLabel(l))
     for (const label of labels) expect(label.trim()).not.toBe('')
-    expect(new Set(labels).size).toBe(LANGS.length)
+    expect(new Set(labels).size).toBe(ESTABLISHED_TEST_LANGS.length)
     expect(easyExplanationLabel('ko')).toBe('쉬운 풀이')
     expect(easyExplanationLabel('en')).toBe('Plain-language version')
   })

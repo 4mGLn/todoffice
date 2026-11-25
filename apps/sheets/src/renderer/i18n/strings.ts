@@ -1,8 +1,9 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import { aiStrings } from './strings-ai'
 import { appStrings } from './strings-app'
 import { dialogStrings } from './strings-dialogs'
 
-export const strings = {
+export const strings = withMongolianLocales({
   zh: { ...appStrings.zh, ...dialogStrings.zh, ...aiStrings.zh },
   en: { ...appStrings.en, ...dialogStrings.en, ...aiStrings.en },
   ja: { ...appStrings.ja, ...dialogStrings.ja, ...aiStrings.ja },
@@ -26,4 +27,4 @@ export const strings = {
   vi: { ...appStrings.vi, ...dialogStrings.vi, ...aiStrings.vi },
   tr: { ...appStrings.tr, ...dialogStrings.tr, ...aiStrings.tr },
   'zh-TW': { ...appStrings['zh-TW'], ...dialogStrings['zh-TW'], ...aiStrings['zh-TW'] },
-}
+})

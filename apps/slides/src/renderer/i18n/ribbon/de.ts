@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const de = {
+  ribbonLangMongolianCyrillic: 'Mongolisch (Kyrillisch)',
+  ribbonLangMongolBichig: 'Mongolisch (Mongolisch)',
+
   ribbonAiCreditNote: 'Ruft KI auf und zählt zu Ihrem KI-Kontingent',
   ribbonAiRewriteConfirm:
     'Diese Aktion ruft die KI auf: Sie zählt zu Ihrem KI-Kontingent und kann den gesamten Inhalt umschreiben. Fortfahren? (Sie werden nicht erneut gefragt.)',

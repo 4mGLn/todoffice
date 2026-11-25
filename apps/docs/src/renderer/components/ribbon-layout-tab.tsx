@@ -599,6 +599,25 @@ export function LayoutTab({
               </div>
             )}
           </div>
+          <label className="layout-writing-direction">
+            <span>{t('layoutTextDirection')}</span>
+            <select
+              aria-label={t('layoutTextDirection')}
+              disabled={!enabled || odtOff}
+              value={section?.textDirection ?? 'lrTb'}
+              onChange={(event) => {
+                if (section) onSection({ ...section, textDirection: event.target.value })
+              }}
+            >
+              <option value="lrTb">{t('layoutTextHorizontal')}</option>
+              <option value="tbLrV">{t('layoutTextMongolBichig')}</option>
+              <option value="tbRl">{t('layoutTextVerticalCjk')}</option>
+              {section?.textDirection &&
+                !['lrTb', 'tbLrV', 'tbRl'].includes(section.textDirection) && (
+                  <option value={section.textDirection}>{section.textDirection}</option>
+                )}
+            </select>
+          </label>
         </div>
         <div className="ribbon-group-label">{t('ribbonGroupPageSetup')}</div>
       </div>

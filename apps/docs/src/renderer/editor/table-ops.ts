@@ -633,7 +633,7 @@ export function setCellAlignment(v: CellVAlign, h: CellHAlign): Command {
   }
 }
 
-export type CellTextDirection = 'lrTb' | 'tbRl' | 'btLr'
+export type CellTextDirection = 'lrTb' | 'tbRl' | 'btLr' | 'tbLrV'
 
 export function setCellTextDirection(dir: CellTextDirection): Command {
   return setCellProps({ textDirection: dir === 'lrTb' ? null : dir })

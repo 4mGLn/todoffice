@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const en = {
+  ribbonLangMongolianCyrillic: 'Mongolian (Cyrillic)',
+  ribbonLangMongolBichig: 'Mongolian Traditional Script',
+
   ribbonAiCreditNote: 'Uses AI and counts toward your AI usage',
   ribbonAiRewriteConfirm:
     'This action calls the AI assistant: it counts toward your AI usage and may rewrite the entire content. Continue? (You will not be asked again.)',

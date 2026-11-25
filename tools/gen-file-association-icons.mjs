@@ -15,9 +15,9 @@
  *   the EPUB editor's src/renderer/ai/assets copies)
  *       the AI panel's attachment-card icons, one identical set per editor
  *
- * The icons form one family, a notebook page kept to one idea: a white page
- * with rounded corners, a solid colored spine on the left, and one bold
- * pictogram of the content in the same color. Formats are told apart by that
+ * The icons form one family, a notebook page kept to one idea: an ivory page
+ * with rounded corners, a vermilion spine on the left, and one bold
+ * format-colored content pictogram. Formats are told apart by that
  * color and pictogram, never by a vendor's logo, monogram or signature glyph.
  * The attachment kinds that are not one format (image, video, audio, plain
  * document, unknown file) use the same page with their own pictogram.
@@ -61,7 +61,7 @@ const GLYPH_FONT = join(root, 'packages/ui/template-fonts/Pretendard-Bold.otf')
 // ── the family ──────────────────────────────────────────────────────────────
 
 /**
- * One entry per format icon: the spine and pictogram color, and the
+ * One entry per format icon: the pictogram color, and the
  * pictogram. Formats that share an icon (xlsm/xls/csv/tsv on xlsx, hwpx on
  * hwp, htm on html, markdown on md, odt on docx, drawio/dio/vsdx and the
  * draw.io pictures on diagram) are mapped in Home.tsx,
@@ -90,7 +90,7 @@ const GENERIC = {
   video: { color: '#6E5AAE', picto: 'play' }, // blue violet
   voice: { color: '#C25A3C', picto: 'wave' }, // terracotta
   document: { color: '#858D9B', picto: 'lines' }, // gray
-  general: { color: '#A0A7B2', picto: 'none' }, // light gray
+  general: { color: '#655F59', picto: 'none' }, // light gray
 }
 
 // Rendered sizes (CSS px) up to SMALL_MAX_PX draw the 16 px drawing, from
@@ -98,10 +98,11 @@ const GENERIC = {
 const SMALL_MAX_PX = 23.98
 const LARGE_MIN_PX = 40
 
-const PAGE_FILL = '#FFFFFF'
-// a hairline and a soft shadow set the white page off a light background
-const EDGE_COLOR = '#0F172A'
-const SHADOW_COLOR = '#0F172A'
+const SPINE_COLOR = '#E6482E'
+const PAGE_FILL = '#F3F1EC'
+// a hairline and a soft shadow set the ivory page off a light background
+const EDGE_COLOR = '#111111'
+const SHADOW_COLOR = '#111111'
 
 // ── outputs ─────────────────────────────────────────────────────────────────
 
@@ -456,7 +457,7 @@ function drawing(key, size) {
     out += `<defs><filter id="${shadowId}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="${geometry.shadow.dy}" stdDeviation="${geometry.shadow.blur}" flood-color="${SHADOW_COLOR}" flood-opacity="0.14"/></filter></defs>`
   }
   out += `<path d="${outline}" fill="${PAGE_FILL}"${geometry.shadow ? ` filter="url(#${shadowId})"` : ''}/>`
-  out += `<path d="${spinePath(geometry.page, geometry.spine)}" fill="${color}"/>`
+  out += `<path d="${spinePath(geometry.page, geometry.spine)}" fill="${SPINE_COLOR}"/>`
   out += pictogram(picto, geometry.box, color, PAGE_FILL, geometry.stroke, size === 'small')
   // the edge runs just inside the page, so at 16 px it covers whole pixels
   const inset = geometry.edgeWidth / 2
@@ -629,7 +630,7 @@ async function writePreview(page, svgs, outFile) {
     `<div style="background:${background};color:${color};padding:16px 24px">` +
     [...svgs].map(([key, svg]) => row(key, svg)).join('') +
     '</div>'
-  await page.setViewportSize({ width: 1500, height: 900 })
+  await page.setViewportSize({ width: 1500, height: (Math.max(...sizes) + 16) * svgs.size + 32 })
   await page.setContent(
     `<body style="margin:0;display:flex">${block('#f3f3f3', '#1f1f1f')}${block('#1e1e1e', '#e8e8e8')}</body>`,
   )

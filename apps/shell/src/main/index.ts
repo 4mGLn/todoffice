@@ -39,6 +39,7 @@ import { atomicWriteFile } from './atomic-write'
 import { openTrash } from './trash'
 import { tabStripOverlay } from './title-bar-overlay'
 import { shellWindowBackground } from './window-background'
+import { mainProcessProxyUrl } from './main-process-proxy'
 import { installPointerSize } from './pointer-size'
 import {
   applyUiScaleTo,
@@ -808,7 +809,7 @@ function bundledCliRunner(): ReturnType<typeof createCliRunner> {
  * project folder only through its write guard, after the conversion succeeded.
  */
 async function markdownDocxBytes(markdown: string): Promise<Uint8Array> {
-  const dir = mkdtempSync(join(tmpdir(), 'ieumoffice-kb-docx-'))
+  const dir = mkdtempSync(join(tmpdir(), 'todoffice-kb-docx-'))
   try {
     const out = join(dir, 'document.docx')
     await createFileViaCli(bundledCliRunner(), {
@@ -5194,6 +5195,7 @@ function ensureFolderWatchers(): void {
  * copied or opened; the app sends nothing itself.
  */
 async function openFeedbackSurvey(): Promise<void> {
+  if (!FEEDBACK_SURVEY_URL) return
   const lang = currentLang()
   const detail = feedbackDetails(lang, {
     version: app.getVersion(),
@@ -5245,6 +5247,7 @@ function withHelpItems(): void {
   }
   const feedback: MenuItemConstructorOptions = {
     id: FEEDBACK_MENU_ID,
+    enabled: Boolean(FEEDBACK_SURVEY_URL),
     label: feedbackText(currentLang(), 'menuLabel'),
     click: () => void openFeedbackSurvey(),
   }
@@ -7629,6 +7632,7 @@ function registerHomeIpc(): void {
   })
 
   ipcMain.handle(HOME_CHANNELS.openGitHubRepo, () => {
+    if (!GITHUB_REPO_URL) return
     shell.openExternal(GITHUB_REPO_URL).catch(() => {
       // no browser handler available; nothing actionable for the user here
     })
@@ -7643,6 +7647,7 @@ function registerHomeIpc(): void {
   })
 
   ipcMain.handle(HOME_CHANNELS.openRightsContact, () => {
+    if (!PRODUCT_CONTACT_EMAIL) return
     const url = safeExternalUrl(`mailto:${PRODUCT_CONTACT_EMAIL}`, {
       allowedProtocols: ['mailto:'],
     })
@@ -9946,7 +9951,7 @@ async function openPdfAsHwp(): Promise<void> {
 const markdownImportDeps: MarkdownImportDeps = {
   defaultFormat: () => readHwpDefaultFormat(app),
   makeDir: () => {
-    const dir = join(app.getPath('temp'), 'ieumoffice-hwp-imports', randomUUID())
+    const dir = join(app.getPath('temp'), 'todoffice-hwp-imports', randomUUID())
     mkdirSync(dir, { recursive: true })
     return dir
   },
@@ -9979,7 +9984,7 @@ const markdownImportDeps: MarkdownImportDeps = {
 /** The copy of `pdfPath` as a new, untitled Hangul tab that imports it; the copy goes with the tab. */
 function openPdfCopyAsHwp(pdfPath: string): void {
   if (!tabManager) return
-  const dir = join(app.getPath('temp'), 'ieumoffice-pdf-imports', randomUUID())
+  const dir = join(app.getPath('temp'), 'todoffice-pdf-imports', randomUUID())
   const baseName = basename(pdfPath).replace(/\.pdf$/i, '')
   let tabId: string
   try {
@@ -10061,26 +10066,9 @@ function installDockMenu(): void {
 // env vars, so fall back to the system HTTP proxy. The renderer uses Chromium's system proxy and
 // is unaffected. Same bootstrap as slides-main startSlidesStandalone.
 async function installMainProcessProxy(): Promise<void> {
-  let proxyUrl = [
-    process.env.HTTPS_PROXY,
-    process.env.https_proxy,
-    process.env.HTTP_PROXY,
-    process.env.http_proxy,
-    process.env.ALL_PROXY,
-    process.env.all_proxy,
-  ].find((v) => v && /^https?:\/\//.test(v))
-  if (!proxyUrl) {
-    try {
-      // PAC/rule proxies answer per-host; one dispatcher serves every main-process
-      // request (AI key providers, web search, image fetches), so probe with the
-      // project's own host as a neutral public destination
-      const resolved = await session.defaultSession.resolveProxy(GITHUB_REPO_URL)
-      const m = /PROXY\s+([^;\s]+)/.exec(resolved)
-      if (m) proxyUrl = `http://${m[1]}`
-    } catch {
-      /* no system proxy */
-    }
-  }
+  const proxyUrl = await mainProcessProxyUrl(process.env, (url) =>
+    session.defaultSession.resolveProxy(url),
+  )
   if (!proxyUrl) return
   try {
     const { ProxyAgent, setGlobalDispatcher } = await import('undici')
@@ -10190,8 +10178,8 @@ registerIntegrationsIpc({
     ? join(process.resourcesPath, 'cli')
     : join(APPS_ROOT, '..', 'packages', 'cli', 'bin'),
   skillPath: app.isPackaged
-    ? join(process.resourcesPath, 'cli', 'skills', 'ieumoffice', 'SKILL.md')
-    : join(APPS_ROOT, '..', 'skills', 'ieumoffice', 'SKILL.md'),
+    ? join(process.resourcesPath, 'cli', 'skills', 'todoffice', 'SKILL.md')
+    : join(APPS_ROOT, '..', '.agents', 'skills', 'todoffice', 'SKILL.md'),
   cliPackageJson: app.isPackaged
     ? join(process.resourcesPath, 'cli', 'package.json')
     : join(APPS_ROOT, '..', 'packages', 'cli', 'package.json'),
@@ -10219,7 +10207,7 @@ registerPdfConvertUiIpc({
 
 // The person's skills (settings → skills, the AI windows' `/` list and skill
 // reads, skill cards, the agent session's skills). Writes go only to
-// ~/.ieumoffice/skills; removing is the OS trash; GitHub only on request.
+// ~/.todoffice/skills; removing is the OS trash; GitHub only on request.
 const builtinSkillsDir = (): string =>
   builtinSkillsDirFor({
     isPackaged: app.isPackaged,
@@ -10230,7 +10218,7 @@ const userSkills = createUserSkillsService({
   homeDir: () => homedir(),
   builtinDir: builtinSkillsDir,
   settingsPath: APP_SETTINGS_PATH,
-  tempDir: () => join(tmpdir(), 'ieumoffice-skills'),
+  tempDir: () => join(tmpdir(), 'todoffice-skills'),
   trash: (path) => shell.trashItem(path),
   // Node's fetch: no browser cookies; the core sets no-redirect and no-credentials per request
   fetch: (url, init) => fetch(url, init),
@@ -10264,7 +10252,7 @@ const userSkillsIpc = registerUserSkillsIpc({
 // through its own send gate. The skill folder is only read here.
 const templateTabs = createTemplateTabs({
   makeCopyDir: async () => {
-    const dir = join(app.getPath('temp'), 'ieumoffice-template-copies', randomUUID())
+    const dir = join(app.getPath('temp'), 'todoffice-template-copies', randomUUID())
     mkdirSync(dir, { recursive: true })
     return dir
   },
@@ -10873,7 +10861,7 @@ app.whenReady().then(async () => {
         withProject ? enabled : enabled.filter((skill) => skill.source !== 'project'),
         // not under userData: that folder is protected from sessions, and the
         // copied skills' scripts must be readable to run
-        join(process.env.LOCALAPPDATA ?? tmpdir(), 'IeumOffice', 'agent-skills'),
+        join(process.env.LOCALAPPDATA ?? tmpdir(), 'TodOffice', 'agent-skills'),
       )
     },
     projectSkills: {

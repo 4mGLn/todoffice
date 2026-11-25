@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const vi = {
+  ribbonLangMongolianCyrillic: 'Tiếng Mông Cổ (Chữ Kirin)',
+  ribbonLangMongolBichig: 'Tiếng Mông Cổ (Chữ Mông Cổ)',
+  layoutTextDirection: 'Hướng văn bản',
+  layoutTextHorizontal: 'Ngang',
+  layoutTextMongolBichig: 'Mongol bichig · từ trên xuống dưới, từ trái sang phải',
+  layoutTextVerticalCjk: 'Dọc · từ phải sang trái',
+
   ribbonAiRewriteConfirm:
     'Thao tác này sẽ gọi trợ lý AI và có thể viết lại toàn bộ nội dung. Tiếp tục? (Bạn sẽ không được hỏi lại nữa.)',
   ribbonTabFile: 'Tệp',

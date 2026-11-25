@@ -1,3 +1,4 @@
+import { withoutUpstreamProductLinks } from './help-product-links'
 /**
  * The in-app manual's topic registry (issue #1520).
  *
@@ -576,9 +577,9 @@ export function helpLangSuffix(lang: string): string {
 export async function helpBody(id: string, lang: string): Promise<string | null> {
   const own = helpLangSuffix(lang)
   const direct = bodies[`./topics/${id}.${own}.md`]
-  if (direct) return brandText((await direct()) as string, own)
+  if (direct) return brandText(withoutUpstreamProductLinks((await direct()) as string), own)
   const english = bodies[`./topics/${id}.en.md`]
-  if (english) return brandText((await english()) as string, 'en')
+  if (english) return brandText(withoutUpstreamProductLinks((await english()) as string), 'en')
   return null
 }
 

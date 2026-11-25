@@ -38,6 +38,8 @@ export const TRANSLATE_LANGS = [
   { code: 'zh-TW', key: 'TraditionalChinese' },
   { code: 'vi', key: 'Vietnamese' },
   { code: 'tr', key: 'Turkish' },
+  { code: 'mn-Cyrl', key: 'MongolianCyrillic' },
+  { code: 'mn-Mong', key: 'MongolBichig' },
 ] as const
 
 export type TranslateLang = (typeof TRANSLATE_LANGS)[number]['code']

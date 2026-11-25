@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const he = {
+  appLangMongolianCyrillic: 'מונגולית (קירילי)',
+  appLangMongolBichig: 'מונגולית (מונגולי)',
+
   appLegacyDocImported:
     'קובץ ה-.{ext} נפתח כעותק .docx מומר. הקובץ המקורי נשאר כפי שהיה; השמירה כותבת קובץ .docx חדש.',
   appScTitle: 'קיצורי מקלדת',

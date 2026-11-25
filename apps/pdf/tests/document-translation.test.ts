@@ -15,7 +15,7 @@ import {
   type AiSubscriptionState,
   type SubscriptionStatusMap,
 } from '@genoffice/ai-provider/browser'
-import { createI18n } from '@genoffice/i18n'
+import { LANGS, createI18n } from '@genoffice/i18n'
 import { aiRunErrorText } from '@genoffice/ui'
 import { DocumentJobRegistry } from '../../../packages/pdf-structure/src/jobs'
 import { blockKeyString } from '../../../packages/pdf-structure/src/store/keys'
@@ -534,7 +534,14 @@ describe('translation window: choices', () => {
     const m = await mount({ lang: 'ko' })
     await openWindow(m)
     expect((q(m.el, '[data-field="language"]') as HTMLSelectElement).value).toBe('ko')
-    expect(m.el.querySelectorAll('[data-field="language"] option')).toHaveLength(22)
+    const options = [...m.el.querySelectorAll<HTMLOptionElement>('[data-field="language"] option')]
+    expect(options.map((option) => option.value).sort()).toEqual([...LANGS].sort())
+    for (const option of options) expect(option.textContent?.trim(), option.value).toBeTruthy()
+    const cyrl = options.find((option) => option.value === 'mn-Cyrl')!
+    const mong = options.find((option) => option.value === 'mn-Mong')!
+    expect(cyrl.textContent).not.toBe(mong.textContent)
+    expect(cyrl.textContent).not.toBe('mn-Cyrl')
+    expect(mong.textContent).not.toBe('mn-Mong')
     expect((q(m.el, 'input[name="pdf-translate-pages"]') as HTMLInputElement).checked).toBe(true)
     expect(checked(m.el, 'format-pdf')).toBe(true)
     expect(checked(m.el, 'format-md')).toBe(false)

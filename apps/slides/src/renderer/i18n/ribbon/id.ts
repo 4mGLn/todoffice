@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const id = {
+  ribbonLangMongolianCyrillic: 'Mongolia (Sirilik)',
+  ribbonLangMongolBichig: 'Mongolia (Mongolia)',
+
   ribbonAiCreditNote: 'Menggunakan AI dan mengurangi kuota penggunaan AI Anda',
   ribbonAiRewriteConfirm:
     'Tindakan ini memanggil AI: mengurangi kuota penggunaan AI Anda dan dapat menulis ulang seluruh konten. Lanjutkan? (Tidak akan ditanya lagi.)',

@@ -38,6 +38,8 @@ const LATIN = [
   'Space Grotesk',
   'Playfair Display',
   'Archivo Black',
+  // Shipped Mongol bichig face, available regardless of installed OS fonts.
+  'Noto Sans Mongolian',
 ]
 
 export const BUILTIN_FONT_FAMILIES: readonly string[] = [

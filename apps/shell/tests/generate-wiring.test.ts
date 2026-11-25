@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -93,7 +94,7 @@ describe('generate strings', () => {
 
   it('translates rather than copying English', () => {
     const en = generateStrings.en as Record<string, string>
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       if (lang === 'en') continue
       const dict = generateStrings[lang] as Record<string, string>
       const same = keys.filter((k) => dict[k] === en[k])
@@ -103,11 +104,11 @@ describe('generate strings', () => {
 
   it('never types the product name', () => {
     const all = JSON.stringify([generateStrings, DEFAULT_GENERATE_PROMPTS])
-    expect(all).not.toMatch(/IeumOffice|이음오피스|GenOffice/)
+    expect(all).not.toMatch(/TodOffice|TodOffice|GenOffice/)
   })
 
   it('has a default request per kind in every language', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       for (const kind of ['slides', 'html', 'mindmap'] as const) {
         const text = DEFAULT_GENERATE_PROMPTS[lang][kind]
         expect(text.trim(), `${lang}.${kind}`).not.toBe('')

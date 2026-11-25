@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 
 /**
@@ -24,7 +25,7 @@ export interface AiRunStopLabels {
   continueAction: string
 }
 
-export const AI_RUN_STOP_LABELS: Record<Lang, AiRunStopLabels> = {
+export const AI_RUN_STOP_LABELS: Record<Lang, AiRunStopLabels> = withMongolianLocales({
   zh: {
     toolInput: 'AI 发来的编辑内容连续多次无法读取，因此已停止。',
     truncated: '它一次要写入的内容太长，中途被截断了。',
@@ -295,4 +296,12 @@ export const AI_RUN_STOP_LABELS: Record<Lang, AiRunStopLabels> = {
     unchanged: 'Belge değiştirilmedi. İsteği yeniden gönderin veya daha küçük isteklere bölün.',
     continueAction: 'Devam et',
   },
+})
+
+// The instruction quotes its action label. Keep this fallback bundle coherent
+// until the whole instruction has a sourced Mongolian translation.
+for (const lang of ['mn-Cyrl', 'mn-Mong'] as const) {
+  if (AI_RUN_STOP_LABELS[lang].keptChanges === AI_RUN_STOP_LABELS.en.keptChanges) {
+    AI_RUN_STOP_LABELS[lang].continueAction = AI_RUN_STOP_LABELS.en.continueAction
+  }
 }

@@ -150,6 +150,24 @@ function heading(root: HTMLDivElement): string {
 }
 
 describe('the manual renders in the reader’s language', () => {
+  it.each(['mn-Cyrl', 'mn-Mong'] as const)(
+    'labels untranslated %s help as English and resets its text direction',
+    async (lang) => {
+      const view = await render(lang, BODIES.en!, lang)
+      const notice = view.querySelector('.help-language-fallback')
+      const article = view.querySelector<HTMLElement>('.help-article')
+      expect(notice?.textContent).toContain(`not yet available in ${lang}`)
+      expect(notice?.textContent).toContain('Showing the English manual')
+      expect(notice?.getAttribute('lang')).toBe('en')
+      expect(article?.textContent).toContain(BODIES.en!)
+      expect(article?.lang).toBe('en')
+      expect(article?.dir).toBe('ltr')
+      expect(article?.style.writingMode).toBe('horizontal-tb')
+      expect(article?.style.textOrientation).toBe('mixed')
+      expect(heading(view)).toBe(TITLES.en)
+    },
+  )
+
   it('resolves each topic body in the language asked for', async () => {
     for (const [lang, phrase] of Object.entries(BODIES) as Array<[Lang, string]>) {
       const body = await helpBody(TOPIC, lang)
@@ -167,6 +185,7 @@ describe('the manual renders in the reader’s language', () => {
       // the document tag is deliberately a tag the lookups have to reject
       const view = await render(lang, title, `${lang}-XX`)
       expect(heading(view), `heading for ${lang}`).toBe(title)
+      expect(view.querySelector('.help-language-fallback')).toBeNull()
     }
   })
 

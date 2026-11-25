@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import { aiStrings } from './strings-ai'
 import { appStrings } from './strings-app'
 import { editStrings } from './strings-edit'
@@ -8,7 +9,7 @@ import { translateStrings } from './strings-translate'
  * editing (`edit/`), the AI panel (`ai/`) and book translation
  * (`translate/`). The per-language shards are never merged into one object.
  */
-export const strings = {
+export const strings = withMongolianLocales({
   zh: {
     ...appStrings.zh,
     ...editStrings.zh,
@@ -141,4 +142,4 @@ export const strings = {
     ...aiStrings['zh-TW'],
     ...translateStrings['zh-TW'],
   },
-}
+})

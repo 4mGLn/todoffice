@@ -40,7 +40,7 @@ describe('feedback strings', () => {
   })
 
   it('never types the product name', () => {
-    expect(JSON.stringify(FEEDBACK_STRINGS)).not.toMatch(/IeumOffice|이음오피스|GenOffice/)
+    expect(JSON.stringify(FEEDBACK_STRINGS)).not.toMatch(/TodOffice|TodOffice|GenOffice/)
   })
 })
 
@@ -70,13 +70,10 @@ describe('the diagnostics block', () => {
 })
 
 describe('the survey address', () => {
-  it('is the published Google Form, not a repository or a local path', () => {
-    expect(FEEDBACK_SURVEY_URL).toMatch(
-      /^https:\/\/(docs\.google\.com\/forms\/d\/e\/|forms\.gle\/)/,
-    )
-    expect(FEEDBACK_SURVEY_URL).not.toMatch(/REPLACE|example\.com/)
-    expect(FEEDBACK_SURVEY_URL).not.toMatch(/github\.com/)
-    expect(FEEDBACK_SURVEY_URL).not.toMatch(/[\\/](Users|home)[\\/]/)
+  it('disables the former upstream survey until a TodOffice endpoint exists', () => {
+    expect(FEEDBACK_SURVEY_URL).toBe('')
+    expect(index).toContain('if (!FEEDBACK_SURVEY_URL) return')
+    expect(index).toContain('enabled: Boolean(FEEDBACK_SURVEY_URL)')
   })
 })
 

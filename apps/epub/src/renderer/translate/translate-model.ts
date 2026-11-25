@@ -1,3 +1,4 @@
+import { sameLanguageAndScript } from '@genoffice/i18n'
 /**
  * Book translation (spec §8), the parts of the screen that are plain
  * functions: language names, the chapter list of the window, which units a
@@ -55,12 +56,15 @@ const AUTONYMS: Record<Lang, string> = {
   'zh-TW': '繁體中文',
   vi: 'Tiếng Việt',
   tr: 'Türkçe',
+  'mn-Cyrl': 'Монгол (кирилл)',
+  'mn-Mong': 'Монгол бичиг',
 }
 
 /** a target language as the user reads it, in the UI language */
 export function languageName(code: string, uiLang: string): string {
   // the two Chinese targets differ by script, which the platform names by region
-  if (code === 'zh' || code === 'zh-TW') return AUTONYMS[code]
+  if (code === 'zh' || code === 'zh-TW' || code === 'mn-Cyrl' || code === 'mn-Mong')
+    return AUTONYMS[code]
   try {
     const name = new Intl.DisplayNames([uiLang], { type: 'language' }).of(code)
     if (name && name !== code) return name
@@ -70,11 +74,9 @@ export function languageName(code: string, uiLang: string): string {
   return (AUTONYMS as Record<string, string>)[code] ?? code
 }
 
-const primary = (tag: string): string => tag.toLowerCase().split(/[-_]/)[0]!
-
-/** the target is the book's own language (same primary subtag) */
+/** the target is the book's own language (same language and Mongolian writing system) */
 export function sameLanguage(bookLanguage: string | undefined, target: string): boolean {
-  return bookLanguage !== undefined && primary(bookLanguage) === primary(target)
+  return bookLanguage !== undefined && sameLanguageAndScript(bookLanguage, target)
 }
 
 // ── the chapter list ──

@@ -106,33 +106,38 @@ ipcRenderer.on(
     openSettingsInbox.push(target),
 )
 
-const UI_LANGUAGES: readonly UiLanguage[] = [
-  'zh',
-  'en',
-  'ja',
-  'ko',
-  'fr',
-  'de',
-  'es',
-  'th',
-  'id',
-  'ru',
-  'ar',
-  'pt',
-  'it',
-  'pl',
-  'cs',
-  'nl',
-  'ms',
-  'he',
-  'hi',
-  'zh-TW',
-  'vi',
-  'tr',
-]
+// Keep this entry self-contained: a shared runtime import can split a sandboxed
+// preload into unloadable chunks. Record coverage and API tests enforce parity
+// with UiLanguage and the canonical LANGS list.
+const UI_LANGUAGES: Readonly<Record<UiLanguage, true>> = {
+  zh: true,
+  en: true,
+  ja: true,
+  ko: true,
+  fr: true,
+  de: true,
+  es: true,
+  th: true,
+  id: true,
+  ru: true,
+  ar: true,
+  pt: true,
+  it: true,
+  pl: true,
+  cs: true,
+  nl: true,
+  ms: true,
+  he: true,
+  hi: true,
+  'zh-TW': true,
+  vi: true,
+  tr: true,
+  'mn-Cyrl': true,
+  'mn-Mong': true,
+}
 
 function isUiLanguage(value: unknown): value is UiLanguage {
-  return UI_LANGUAGES.includes(value as UiLanguage)
+  return typeof value === 'string' && Object.hasOwn(UI_LANGUAGES, value)
 }
 
 const EMPTY_PAGE: RecentPage = { entries: [], total: 0, totalAll: 0 }

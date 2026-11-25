@@ -1,5 +1,6 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 /** home-screen dictionary; zh defines the key set, en must match (type-checked) */
-export const strings = {
+export const strings = withMongolianLocales({
   zh: {
     addFolderRoot: '添加文件夹…',
     removeFolderRoot: '从列表移除',
@@ -13326,4 +13327,4 @@ export const strings = {
     setLocalVisionUnsupported: '不支援圖片輸入',
     setLocalVisionWarn: '使用此模型時，附加圖片可能會失敗。',
   },
-} as const
+} as const)

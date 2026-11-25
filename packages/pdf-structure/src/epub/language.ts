@@ -28,6 +28,7 @@ export const LANGUAGE_SAMPLE_CHARS = 100_000
 /** alphabetic and abugida scripts → language tag */
 const SCRIPT_LANGUAGES: [string, RegExp][] = [
   ['en', /\p{Script=Latin}/gu],
+  ['mn-Mong', /\p{Script=Mongolian}/gu],
   ['ru', /\p{Script=Cyrillic}/gu],
   ['el', /\p{Script=Greek}/gu],
   ['ar', /\p{Script=Arabic}/gu],

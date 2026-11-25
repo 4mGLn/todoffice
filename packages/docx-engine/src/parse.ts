@@ -4252,7 +4252,8 @@ function pPrOnlyFormat(pPr: XNode, theme?: ThemeColors | null): ParaFormat {
     }
   }
   const flow = attrsOf(findChild(pPr, 'w:textDirection') ?? {})['w:val']
-  if (flow === 'tbRl' || flow === 'tbRlV' || flow === 'btLr') format.textDirection = flow
+  if (flow === 'tbRl' || flow === 'tbRlV' || flow === 'btLr' || flow === 'tbLrV')
+    format.textDirection = flow
   return format
 }
 
@@ -5924,7 +5925,8 @@ function extractCell(
     const tcMar = cellMarginsOf(findChild(tcPr, 'w:tcMar'))
     if (tcMar) cell.cellMarTwips = tcMar
     const dir = attrsOf(findChild(tcPr, 'w:textDirection') ?? {})['w:val']
-    if (dir === 'tbRl' || dir === 'tbRlV') cell.textDirection = 'tbRl'
+    if (dir === 'tbLrV') cell.textDirection = 'tbLrV'
+    else if (dir === 'tbRl' || dir === 'tbRlV') cell.textDirection = 'tbRl'
     else if (dir === 'btLr' || dir === 'btLrV') cell.textDirection = 'btLr'
     // table-layout: allow — a cell property carried to the model as declared
     if (boolProp(tcPr, 'w:noWrap')) cell.noWrap = true

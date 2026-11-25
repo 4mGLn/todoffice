@@ -14,7 +14,7 @@ import {
 } from '../../shared/integrations-api'
 
 // ── Settings → Integrations ─────────────────────────────────
-// Installs the bundled `ieumoffice` skill into the coding agents found on this
+// Installs the bundled `todoffice` skill into the coding agents found on this
 // machine. Every write starts with a click and shows the absolute path first,
 // because the app does not see the shell's CODEX_HOME-style overrides and the
 // user has to be able to spot a wrong target.
@@ -32,7 +32,7 @@ interface Pending {
   agentId?: AgentId
 }
 
-export const NPX_INSTALL_COMMAND = `npx skills add ${PRODUCT_REPO_SLUG}`
+export const NPX_INSTALL_COMMAND = PRODUCT_REPO_SLUG ? `npx skills add ${PRODUCT_REPO_SLUG}` : ''
 
 /** some detected assistant holds an older copy of the skill than the bundled one */
 export const skillUpdateDue = (s: IntegrationsStatus): boolean =>
@@ -315,7 +315,9 @@ export function IntegrationsPane({
 
         <details className="set-intg-details" open={status.agents.length === 0}>
           <summary>{t('intgOtherToggle')}</summary>
-          <div className="set-field-desc set-intg-lead">{t('intgOtherDesc')}</div>
+          {NPX_INSTALL_COMMAND && (
+            <div className="set-field-desc set-intg-lead">{t('intgOtherDesc')}</div>
+          )}
 
           <div className="set-intg-option">
             <span className="set-intg-option-letter">A</span>
@@ -339,19 +341,21 @@ export function IntegrationsPane({
             </button>
           </div>
 
-          <div className="set-intg-option">
-            <span className="set-intg-option-letter">C</span>
-            <div className="set-field-stack">
-              <div className="set-field-label">{t('intgOtherNpxTitle')}</div>
-              <div className="set-field-desc">{t('intgOtherNpxDesc')}</div>
-              <div className="set-intg-code">
-                <code>{NPX_INSTALL_COMMAND}</code>
-                <button className="set-btn" onClick={() => copy(NPX_INSTALL_COMMAND, 'npx')}>
-                  {copied === 'npx' ? t('intgCopied') : t('intgCopy')}
-                </button>
+          {NPX_INSTALL_COMMAND && (
+            <div className="set-intg-option">
+              <span className="set-intg-option-letter">C</span>
+              <div className="set-field-stack">
+                <div className="set-field-label">{t('intgOtherNpxTitle')}</div>
+                <div className="set-field-desc">{t('intgOtherNpxDesc')}</div>
+                <div className="set-intg-code">
+                  <code>{NPX_INSTALL_COMMAND}</code>
+                  <button className="set-btn" onClick={() => copy(NPX_INSTALL_COMMAND, 'npx')}>
+                    {copied === 'npx' ? t('intgCopied') : t('intgCopy')}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {pending && !pending.agentId && confirmBlock(pending)}
           {notice && !notice.agentId && (

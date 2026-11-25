@@ -662,11 +662,23 @@ async function systemLocale(): Promise<string> {
   }
 }
 
-async function blankDocxBytes(): Promise<Uint8Array> {
-  return buildBlankDocx({
-    eastAsiaFont: defaultEastAsiaFontFor(getLang()),
+async function blankDocxBytes(forNewDocument = false): Promise<Uint8Array> {
+  const lang = getLang()
+  const bytes = await buildBlankDocx({
+    eastAsiaFont: defaultEastAsiaFontFor(lang),
     paperSize: paperSizeForLocale(await systemLocale()),
   })
+  // A new Mongol bichig draft starts in real vertical section layout. Opening
+  // an existing file (including a zero-byte placeholder) keeps its own policy.
+  if (!forNewDocument || lang !== 'mn-Mong') return bytes
+  const blank = await parseDocx(bytes)
+  return saveDocx(
+    blank,
+    blank.blocks
+      .filter((block) => !block.hidden)
+      .map((block) => ({ kind: 'original' as const, docxIndex: block.docxIndex! })),
+    { section: { ...readSectionSettings(blank), textDirection: 'tbLrV' } },
+  )
 }
 
 /** new document from the built-in blank template (AI can then generate into it) */
@@ -674,7 +686,7 @@ export async function newFile(ctx: FileActionContext): Promise<boolean | undefin
   if (!ctx.editor) return
   const generation = ++openGeneration
   try {
-    const bytes = await blankDocxBytes()
+    const bytes = await blankDocxBytes(true)
     const parsed = await parseDocx(bytes)
     if (generation !== openGeneration) return
     setLazyMediaHashes([])

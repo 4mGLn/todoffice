@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /** @vitest-environment jsdom */
 // The print preview with the shared page layout panel attached. With every
 // layout option at its default, Print and PDF go the way they always went:
@@ -8,7 +9,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { LANGS } from '@genoffice/i18n'
 import { LocaleProvider } from '../src/renderer/i18n/locale'
 import { strings } from '../src/renderer/i18n/strings'
 import { PrintPreview } from '../src/renderer/preview/PrintPreview'
@@ -409,7 +409,7 @@ describe('the page sizes of the layout diagram', () => {
 
 describe('the arranged save notice', () => {
   it('is in every language, and translated outside English', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       expect(strings[lang].printLayoutSaved, lang).toMatch(/\S/)
       if (lang !== 'en') {
         expect(strings[lang].printLayoutSaved, lang).not.toBe(strings.en.printLayoutSaved)

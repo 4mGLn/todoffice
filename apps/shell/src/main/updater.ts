@@ -865,6 +865,7 @@ export function applyUpdateChannel(channel: UpdateChannel): void {
  * self-update mechanism (dev runs, Linux .deb) are pointed at the download
  * page instead of being told they're current. */
 export async function checkForUpdatesNow(): Promise<void> {
+  if (!GITHUB_LATEST_RELEASE_URL) return
   if (manualCheckInFlight) return
   manualCheckInFlight = true
   try {
@@ -926,6 +927,7 @@ export function initAutoUpdater(
   /** Settings › "Check for updates automatically"; read at every background check (genoffice#2127) */
   autoCheckEnabled: () => boolean = () => true,
 ): void {
+  if (!GITHUB_LATEST_RELEASE_URL) return
   if (started) return
   started = true
   setUpdateParentWindow(getWindow)
@@ -1045,7 +1047,7 @@ export function initAutoUpdater(
     if (process.platform !== 'win32') return false
     installDirOk ??= installDirWritable(
       dirname(process.execPath),
-      `.ieumoffice-update-check-${process.pid}`,
+      `.todoffice-update-check-${process.pid}`,
     )
     return !installDirOk
   }

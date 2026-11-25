@@ -6,9 +6,9 @@ import type { McpLaunch } from './mcp-launch'
 import { APP_BINARY_NAME, CLI_BUNDLE_FILE, CLI_COMMAND, MCP_SERVER_NAME } from './names'
 
 /**
- * Registering `ieumoffice mcp` (stdio) in each coding agent's MCP config, the
+ * Registering `todoffice mcp` (stdio) in each coding agent's MCP config, the
  * MCP twin of agent-skills.ts. One key per file is set or removed; an entry
- * named ieumoffice that starts something other than an ieumoffice launcher is
+ * named todoffice that starts something other than an todoffice launcher is
  * never replaced unless forced. Paths and shapes follow each agent's docs.
  * The upstream app's `genoffice` entry is another program's: never read as
  * ours, never replaced, never removed.
@@ -17,13 +17,13 @@ import { APP_BINARY_NAME, CLI_BUNDLE_FILE, CLI_COMMAND, MCP_SERVER_NAME } from '
 export { MCP_SERVER_NAME }
 
 export type McpEntryStatus =
-  /** no ieumoffice entry in the file */
+  /** no todoffice entry in the file */
   | 'absent'
-  /** ieumoffice entry starting our launcher, exactly as this CLI would write it */
+  /** todoffice entry starting our launcher, exactly as this CLI would write it */
   | 'registered'
-  /** an ieumoffice launcher, but another path or extra fields */
+  /** an todoffice launcher, but another path or extra fields */
   | 'stale'
-  /** an entry named ieumoffice that starts something else */
+  /** an entry named todoffice that starts something else */
   | 'occupied'
   /** the file cannot be edited safely (unparsable, or a shape we do not know) */
   | 'manual'
@@ -190,7 +190,7 @@ export function readMcpEntry(id: AgentId, file: string, launch: McpLaunch): McpE
   return { status: isGenofficeLauncher(command, args) ? 'stale' : 'occupied', command }
 }
 
-/** Set the ieumoffice entry (replacing any existing one); the caller has already decided that is allowed. */
+/** Set the todoffice entry (replacing any existing one); the caller has already decided that is allowed. */
 export function writeMcpEntry(id: AgentId, file: string, launch: McpLaunch): void {
   const def = MCP_AGENTS.find((a) => a.id === id)!
   const text = existsSync(file) ? readFileSync(file, 'utf-8') : ''
@@ -207,7 +207,7 @@ export function writeMcpEntry(id: AgentId, file: string, launch: McpLaunch): voi
   save(file, `${JSON.stringify(doc, null, 2)}\n`)
 }
 
-/** Remove the ieumoffice entry; false when there was none. Other keys stay. */
+/** Remove the todoffice entry; false when there was none. Other keys stay. */
 export function removeMcpEntry(id: AgentId, file: string): boolean {
   const def = MCP_AGENTS.find((a) => a.id === id)!
   if (!existsSync(file)) return false
@@ -237,7 +237,7 @@ const LAUNCHER_NAMES = new Set(
 const UPSTREAM_LAUNCHER_NAMES = new Set(['genoffice', 'genoffice.cmd', 'genoffice.exe'])
 
 /**
- * Any ieumoffice launcher, whatever install it came from (an older app path is
+ * Any todoffice launcher, whatever install it came from (an older app path is
  * ours to update): the launcher scripts, or the app run as Node on the CLI
  * bundle. The bundle keeps the upstream file name, so an entry running it on
  * the upstream binary is the upstream's, not ours.
@@ -300,9 +300,9 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 const TOML_HEADER =
-  /^\s*\[\s*mcp_servers\s*\.\s*(?:"ieumoffice"|'ieumoffice'|ieumoffice)\s*(\.[^\]]*)?\]/
+  /^\s*\[\s*mcp_servers\s*\.\s*(?:"todoffice"|'todoffice'|todoffice)\s*(\.[^\]]*)?\]/
 
-/** `env` becomes the `[mcp_servers.ieumoffice.env]` sub-table Codex reads its `env` map from. */
+/** `env` becomes the `[mcp_servers.todoffice.env]` sub-table Codex reads its `env` map from. */
 function tomlTable(launch: McpLaunch): string {
   const head = `[mcp_servers.${MCP_SERVER_NAME}]\ncommand = ${JSON.stringify(launch.command)}\nargs = ${JSON.stringify(launch.args)}\n`
   const env = Object.entries(launch.env ?? {})
@@ -311,7 +311,7 @@ function tomlTable(launch: McpLaunch): string {
   return `${head}\n[mcp_servers.${MCP_SERVER_NAME}.env]\n${body}\n`
 }
 
-/** The `[mcp_servers.ieumoffice]` table and its sub-tables (`[mcp_servers.ieumoffice.env]`), as line ranges. */
+/** The `[mcp_servers.todoffice]` table and its sub-tables (`[mcp_servers.todoffice.env]`), as line ranges. */
 function tomlTableLines(lines: string[]): Array<[number, number]> {
   const out: Array<[number, number]> = []
   for (let i = 0; i < lines.length; i++) {

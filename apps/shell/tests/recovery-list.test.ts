@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * @vitest-environment jsdom
  */
@@ -5,7 +6,6 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import type {
   RecoveryListApi,
   RecoveryListItem,
@@ -295,7 +295,7 @@ describe('the launch list on Home', () => {
 describe('recovery list strings', () => {
   it('covers every UI language with the zh key set, translated', () => {
     const keys = Object.keys(recoveryListStrings.zh).sort()
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const dict = recoveryListStrings[lang] as Record<string, string>
       expect(Object.keys(dict).sort(), lang).toEqual(keys)
       for (const key of keys) expect(dict[key], `${lang}.${key}`).toBeTruthy()

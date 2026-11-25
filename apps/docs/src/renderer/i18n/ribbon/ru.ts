@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const ru = {
+  ribbonLangMongolianCyrillic: 'монгольский (кириллица)',
+  ribbonLangMongolBichig: 'монгольский (монгольская)',
+  layoutTextDirection: 'Направление текста',
+  layoutTextHorizontal: 'Горизонтальное',
+  layoutTextMongolBichig: 'Mongol bichig · сверху вниз, слева направо',
+  layoutTextVerticalCjk: 'Вертикальное · справа налево',
+
   ribbonAiRewriteConfirm:
     'Это действие вызывает ИИ, и всё содержимое может быть переписано. Продолжить? (Вопрос больше не появится.)',
   ribbonTabFile: 'Файл',

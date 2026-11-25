@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 // The word editor's print dialog with the shared page layout panel (decision
 // 0141): with every option at its default and a page range, Print calls the
 // current print exactly as before; any option, or a printed selection, takes
@@ -6,7 +7,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { LANGS } from '@genoffice/i18n'
 import { PrintDialog } from '../src/renderer/components/PrintDialog'
 import { appStrings } from '../src/renderer/i18n/strings-app'
 
@@ -343,7 +343,7 @@ describe('print dialog strings', () => {
   ] as const
   it('exist in every language and are translated', () => {
     const table = appStrings as unknown as Record<string, Record<string, string>>
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       for (const key of KEYS) {
         expect(table[lang]?.[key], `${lang}.${key}`).toBeTruthy()
         if (lang !== 'en') expect(table[lang]![key], `${lang}.${key}`).not.toBe(table.en![key])

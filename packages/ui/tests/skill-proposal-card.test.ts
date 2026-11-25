@@ -3,7 +3,7 @@ import { act, createElement, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SKILL_EDITORS, type SkillProposal } from '@genoffice/agent-core'
-import { LANGS } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage } from '@genoffice/i18n'
 import { SkillProposalCard, SkillUsedNotes } from '../src/SkillProposalCard'
 import { useSkillProposals, type SkillProposals } from '../src/use-skill-proposals'
 import type { SkillCardBridge, StoredToolRecord } from '../src/skill-card-model'
@@ -608,12 +608,13 @@ describe('SkillProposalCard: where the skill is used', () => {
     )
   })
 
-  it('has the two buttons in every language, as translations', () => {
+  it('has the two buttons in every locale, translated in established locales', () => {
     for (const lang of LANGS) {
       const words = [skillEditorsText(lang, 'checkAll'), skillEditorsText(lang, 'clearAll')]
       expect(words[0], lang).not.toBe(words[1])
       for (const word of words) expect(word.trim(), lang).not.toBe('')
-      if (lang !== 'en') expect(words, lang).not.toEqual(['Check all', 'Clear all'])
+      if (lang !== 'en' && !isPreviewUiLanguage(lang))
+        expect(words, lang).not.toEqual(['Check all', 'Clear all'])
     }
   })
 

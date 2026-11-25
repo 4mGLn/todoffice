@@ -1,4 +1,5 @@
-import type { Lang } from '@genoffice/i18n'
+import { withMongolianLocales } from '@genoffice/i18n'
+import type { Lang, LegacyLang } from '@genoffice/i18n'
 
 /** Labels of the card under an AI reply that changed the document (all editors share them). */
 export interface AiChangesLabels {
@@ -26,7 +27,9 @@ export interface AiChangesLabels {
   partial: string
 }
 
-export const AI_CHANGES_LABELS: Record<Lang, AiChangesLabels> = {
+export const AI_CHANGES_LABELS: Record<Lang, AiChangesLabels> = withMongolianLocales<
+  Record<LegacyLang, AiChangesLabels>
+>({
   zh: {
     changedCount: (n) => `已修改文档 ${n} 处`,
     changed: '已修改文档',
@@ -346,4 +349,4 @@ export const AI_CHANGES_LABELS: Record<Lang, AiChangesLabels> = {
       'Bu tur artık tek adımda geri alınamaz. Düzenleyicinin kendi Geri Al işlevini (Ctrl+Z) kullanın.',
     partial: 'Değişikliklerin bir kısmı geri alınamadı. Lütfen belgeyi kontrol edin.',
   },
-}
+})

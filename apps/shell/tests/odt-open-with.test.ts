@@ -21,7 +21,7 @@ function loadBuilderConfig(platform: string) {
   runInNewContext(readFileSync(join(SHELL, 'electron-builder.cjs'), 'utf8'), {
     module: configModule,
     __dirname: SHELL,
-    process: { platform, arch: 'x64', env: {} },
+    process: { platform, arch: 'x64', execPath: process.execPath, env: {} },
     require: (id: string) =>
       id === 'node:fs' ? { ...require(id), existsSync: () => true } : require(id),
   })
@@ -43,13 +43,13 @@ function instructions(name: string): string[] {
     .filter((line) => line !== '' && !line.startsWith(';'))
 }
 
-const PROGID = 'IeumOffice.OpenDocumentText'
+const PROGID = 'TodOffice.OpenDocumentText'
 const UPSTREAM_PROGIDS = ['Word Document', 'Excel Workbook', 'PowerPoint Presentation']
 
 describe('the ODT "Open with" registration', () => {
   it('uses a ProgId of this product that the upstream app never registers', () => {
     expect(nsh).toContain(`!define GENOFFICE_ODT_PROGID "${PROGID}"`)
-    expect(PROGID).toMatch(/^IeumOffice\.[A-Za-z][A-Za-z0-9]*$/)
+    expect(PROGID).toMatch(/^TodOffice\.[A-Za-z][A-Za-z0-9]*$/)
     // Windows limits a ProgId to 39 characters
     expect(PROGID.length).toBeLessThanOrEqual(39)
     expect(UPSTREAM_PROGIDS).not.toContain(PROGID)

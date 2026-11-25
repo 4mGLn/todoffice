@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * Advanced print in the slides print dialog (decision 0141): defaults keep the
  * current `slides:print` call, the "selected slides" range, layout modes only
@@ -8,7 +9,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { RenderSlide } from '@genoffice/pptx-render'
-import { LANGS } from '@genoffice/i18n'
 
 vi.mock('../src/renderer/export-render', () => ({
   renderSlidesToPngBase64: vi.fn(async (slides: unknown[]) =>
@@ -336,7 +336,7 @@ describe('options on', () => {
 
 describe('strings', () => {
   it('every language has the selected-slides range and the blocked reason', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const s = appStrings[lang]
       expect(s.appPrintRangeSelected, `${lang}.appPrintRangeSelected`).toBeTruthy()
       expect(s.appPrintLayoutBlocked, `${lang}.appPrintLayoutBlocked`).toBeTruthy()

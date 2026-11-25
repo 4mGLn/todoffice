@@ -660,13 +660,13 @@ export function mirrorMarginSpecs(
 /** sectPr w:textDirection modes the renderer lays out sideways (lrTbV and unknown values stay horizontal) */
 export function sectionVertical(set: SectionSettings | undefined): TextFlowDirection | undefined {
   const d = set?.textDirection
-  return d === 'tbRl' || d === 'tbRlV' || d === 'btLr' ? d : undefined
+  return d === 'tbRl' || d === 'tbRlV' || d === 'btLr' || d === 'tbLrV' ? d : undefined
 }
 
 /**
  * Where a block of a vertical-text page paints: `off` is its flow offset from
  * the page start (negative for a paragraph continued from the previous page),
- * `extentPx` its block-axis size. tbRl/tbRlV fill from the right edge, btLr from
+ * `extentPx` its block-axis size. tbRl/tbRlV fill from the right edge, btLr/tbLrV from
  * the left; the translate lifts the block's flow position back to the page top.
  */
 export function verticalBlockShift(
@@ -675,7 +675,10 @@ export function verticalBlockShift(
   off: number,
   extentPx: number,
 ): { dx: number; dy: number } {
-  return { dx: mode === 'btLr' ? off : fillWidthPx - off - extentPx, dy: 0 - off }
+  return {
+    dx: mode === 'btLr' || mode === 'tbLrV' ? off : fillWidthPx - off - extentPx,
+    dy: 0 - off,
+  }
 }
 
 /**

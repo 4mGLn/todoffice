@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LANGS, type Lang } from '@genoffice/i18n'
+import { LANGS, isPreviewUiLanguage, type Lang } from '@genoffice/i18n'
 import {
   PRINT_LAYOUT_STRINGS,
   printLayoutText,
@@ -38,9 +38,9 @@ describe('PRINT_LAYOUT_STRINGS', () => {
     }
   })
 
-  it('is translated, not copied from English', () => {
+  it('is translated, not copied from English, in established locales', () => {
     for (const lang of LANGS) {
-      if (lang === 'en') continue
+      if (lang === 'en' || isPreviewUiLanguage(lang)) continue
       const allowed = new Set([...TECHNICAL, ...(COGNATES[lang] ?? [])])
       for (const key of KEYS) {
         if (allowed.has(key)) continue
@@ -55,7 +55,7 @@ describe('PRINT_LAYOUT_STRINGS', () => {
     for (const lang of LANGS) {
       for (const key of KEYS) {
         expect(PRINT_LAYOUT_STRINGS[lang][key], `${lang}.${key}`).not.toMatch(
-          /Avery|Herma|Formtec|Brother|Dymo|Microsoft|Windows|Apple|macOS|Adobe|Acrobat|Chrome|Electron|Hancom|GenOffice|IeumOffice|이음오피스/i,
+          /Avery|Herma|Formtec|Brother|Dymo|Microsoft|Windows|Apple|macOS|Adobe|Acrobat|Chrome|Electron|Hancom|GenOffice|TodOffice|TodOffice/i,
         )
       }
     }

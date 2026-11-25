@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /** @vitest-environment jsdom */
 // The print dialog with the shared page layout panel attached. With every
 // layout option at its default, Print takes the route it always took: the
@@ -8,7 +9,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { LANGS } from '@genoffice/i18n'
 import { LocaleProvider } from '../src/renderer/i18n/locale'
 import { strings } from '../src/renderer/i18n/strings'
 import { PrintPreviewDialog } from '../src/renderer/print/PrintPreviewDialog'
@@ -361,7 +361,7 @@ describe('the print dialog strings', () => {
 
   it('are in every language, and translated outside English', () => {
     const all: Record<string, Record<string, string>> = strings
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       for (const key of KEYS) {
         expect(all[lang]?.[key], `${lang}:${key}`).toMatch(/\S/)
         if (lang !== 'en') expect(all[lang]![key], `${lang}:${key}`).not.toBe(all.en![key])

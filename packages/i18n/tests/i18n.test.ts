@@ -17,7 +17,7 @@ import {
 // What else a new language needs is in packages/i18n/AGENTS.md, and
 // `npm run check:lang-count` finds documents still stating the old count.
 describe('LANGS', () => {
-  it('is the 22 UI languages, Turkish included', () => {
+  it('retains 22 existing locales and adds two Mongolian preview locales', () => {
     expect([...LANGS]).toEqual([
       'zh',
       'en',
@@ -41,6 +41,8 @@ describe('LANGS', () => {
       'zh-TW',
       'vi',
       'tr',
+      'mn-Cyrl',
+      'mn-Mong',
     ])
   })
 })
@@ -149,7 +151,8 @@ describe('htmlLang', () => {
     expect(htmlLang('ja')).toBe('ja-JP')
     expect(htmlLang('ko')).toBe('ko-KR')
     expect(htmlLang('zh-TW')).toBe('zh-TW')
-    for (const lang of LANGS) expect(htmlLang(lang)).toMatch(/^[a-z]{2}-[A-Z]{2}$/)
+    for (const lang of LANGS)
+      expect(htmlLang(lang)).toMatch(/^[a-z]{2}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?$/)
   })
 })
 

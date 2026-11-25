@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * @vitest-environment jsdom
  */
@@ -273,7 +274,7 @@ describe('home settings entry', () => {
 
 describe('the words on the home entry', () => {
   it('has Settings in every language', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       // read from the dictionary itself: the lookup falls back to English for a missing word
       const word = strings[lang].settings
       expect(word.trim(), lang).not.toBe('')

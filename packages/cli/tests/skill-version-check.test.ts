@@ -35,6 +35,8 @@ describe('check-skill-version', () => {
     git('init', '-q')
     git('config', 'user.email', 'ci@example.com')
     git('config', 'user.name', 'ci')
+    // Disposable fixture commits must not inherit the user's signing agent.
+    git('config', 'commit.gpgsign', 'false')
     writeSkill('demo', skill('demo', '1.0.0', 'Run `demo --help`.'))
     git('add', '.')
     git('commit', '-q', '-m', 'base')

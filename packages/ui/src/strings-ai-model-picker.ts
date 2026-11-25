@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 import type { AiEffort } from '@genoffice/ai-provider/browser'
 import type { Lang } from '@genoffice/i18n'
 
@@ -22,7 +23,7 @@ export interface AiEffortStrings {
   levels: Record<AiEffort, string>
 }
 
-export const AI_MODEL_PICKER_STRINGS: Record<Lang, AiModelPickerStrings> = {
+export const AI_MODEL_PICKER_STRINGS: Record<Lang, AiModelPickerStrings> = withMongolianLocales({
   zh: { title: '模型', choose: '选择模型', manage: '管理模型…' },
   en: { title: 'Model', choose: 'Choose model', manage: 'Manage models…' },
   ja: { title: 'モデル', choose: 'モデルを選択', manage: 'モデルを管理…' },
@@ -45,9 +46,9 @@ export const AI_MODEL_PICKER_STRINGS: Record<Lang, AiModelPickerStrings> = {
   'zh-TW': { title: '模型', choose: '選擇模型', manage: '管理模型…' },
   vi: { title: 'Mô hình', choose: 'Chọn mô hình', manage: 'Quản lý mô hình…' },
   tr: { title: 'Model', choose: 'Model seç', manage: 'Modelleri yönet…' },
-}
+})
 
-export const AI_EFFORT_STRINGS: Record<Lang, AiEffortStrings> = {
+export const AI_EFFORT_STRINGS: Record<Lang, AiEffortStrings> = withMongolianLocales({
   zh: {
     title: '思考深度',
     hint: '模型作答前思考的深度。越深越慢，消耗的订阅用量或 API 费用也越多。',
@@ -378,4 +379,4 @@ export const AI_EFFORT_STRINGS: Record<Lang, AiEffortStrings> = {
       max: 'En yüksek',
     },
   },
-}
+})

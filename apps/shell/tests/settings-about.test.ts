@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * @vitest-environment jsdom
  */
@@ -5,7 +6,7 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LANGS, PRODUCT_CONTACT_EMAIL, PRODUCT_REPO_SLUG } from '@genoffice/i18n'
+import { PRODUCT_CONTACT_EMAIL, PRODUCT_REPO_SLUG } from '@genoffice/i18n'
 import type { Lang } from '@genoffice/i18n'
 import type { HomeApi } from '../src/shared/home-api'
 import { LocaleProvider } from '../src/renderer/src/locale'
@@ -81,17 +82,18 @@ const buttonLabeled = (label: string): HTMLButtonElement =>
 const repoButton = (): HTMLButtonElement => buttonLabeled(strings.en.viewOnGitHub)
 
 describe('Settings → About', () => {
-  it('links to the product repository with a neutral label', async () => {
+  it('disables the repository action until a TodOffice repository is configured', async () => {
     await openAbout()
     expect(host.querySelector('.set-pane-title')!.textContent).toBe(strings.en.setSecAbout)
-    expect(host.textContent).toContain(`github.com/${PRODUCT_REPO_SLUG}`)
+    expect(PRODUCT_REPO_SLUG).toBe('')
+    expect(host.textContent).not.toContain('github.com/')
     expect(strings.en.viewOnGitHub).toBe('View on GitHub')
-
+    expect(repoButton().disabled).toBe(true)
     await act(async () => {
       repoButton().click()
       await Promise.resolve()
     })
-    expect(openGitHubRepo).toHaveBeenCalledTimes(1)
+    expect(openGitHubRepo).not.toHaveBeenCalled()
   })
 
   it('asks for no star and names the upstream project only in the acknowledgement', async () => {
@@ -104,16 +106,17 @@ describe('Settings → About', () => {
     expect(text.match(/GenOffice/g)).toHaveLength(1)
   })
 
-  it('opens the bundled license notices and starts a mail to the rights contact', async () => {
+  it('opens the bundled notices while an unconfigured rights contact remains disabled', async () => {
     await openAbout()
-    expect(host.textContent).toContain(PRODUCT_CONTACT_EMAIL)
+    expect(PRODUCT_CONTACT_EMAIL).toBe('')
+    expect(buttonLabeled(strings.en.setRightsContactSend).disabled).toBe(true)
     await act(async () => {
       buttonLabeled(strings.en.setLicensesOpen).click()
       buttonLabeled(strings.en.setRightsContactSend).click()
       await Promise.resolve()
     })
     expect(openLicenseNotices).toHaveBeenCalledTimes(1)
-    expect(openRightsContact).toHaveBeenCalledTimes(1)
+    expect(openRightsContact).not.toHaveBeenCalled()
   })
 
   it('shows the trademark, HWP and no-warranty notices under the product name', async () => {
@@ -125,8 +128,8 @@ describe('Settings → About', () => {
       '본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.',
     )
     expect(text).toContain('rhwp')
-    expect(text).toContain('이음오피스는 Microsoft, 한글과컴퓨터')
-    expect(text).toContain('이음오피스는 Apache License 2.0에 따라 있는 그대로 제공되며')
+    expect(text).toContain('TodOffice는 Microsoft, 한글과컴퓨터')
+    expect(text).toContain('TodOffice는 Apache License 2.0에 따라 있는 그대로 제공되며')
   })
 
   it('has every notice in every UI language, each naming the product by token', () => {
@@ -141,7 +144,7 @@ describe('Settings → About', () => {
       'setHwpNotice',
       'setDisclaimer',
     ] as const
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       for (const key of keys) expect(strings[lang][key], `${lang}.${key}`).not.toBe('')
       expect(strings[lang].setTrademarks, lang).toContain('GenOffice')
       expect(strings[lang].setHwpNotice, lang).toContain('rhwp')
@@ -152,13 +155,13 @@ describe('Settings → About', () => {
   })
 
   it('has the link label in every UI language, none of them about stars', () => {
-    for (const lang of LANGS) {
+    for (const lang of ESTABLISHED_TEST_LANGS) {
       const label = strings[lang].viewOnGitHub
       expect(label, lang).toContain('GitHub')
       if (lang !== 'en') expect(label, lang).not.toBe(strings.en.viewOnGitHub)
     }
     // the two Chinese scripts and the two Malay-family languages may share a wording
-    const distinct = new Set(LANGS.map((lang) => strings[lang].viewOnGitHub))
-    expect(distinct.size).toBeGreaterThanOrEqual(LANGS.length - 2)
+    const distinct = new Set(ESTABLISHED_TEST_LANGS.map((lang) => strings[lang].viewOnGitHub))
+    expect(distinct.size).toBeGreaterThanOrEqual(ESTABLISHED_TEST_LANGS.length - 2)
   })
 })

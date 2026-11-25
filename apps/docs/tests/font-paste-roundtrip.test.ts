@@ -71,19 +71,27 @@ describe('fontAttrsFromFamilyChain', () => {
   })
 
   it('never mistakes the bundled CJK tofu-fallback for a user font', () => {
-    expect(fontAttrsFromFamilyChain("'Georgia','Noto Serif CJK SC',serif")).toEqual({
+    expect(
+      fontAttrsFromFamilyChain(
+        "'Georgia','Noto Serif CJK SC','TodOffice Mongolian Fallback',serif",
+      ),
+    ).toEqual({
       font: 'Georgia',
       fontAscii: 'Georgia',
     })
     // genuinely picked as first family it still counts
-    expect(fontAttrsFromFamilyChain("'Noto Sans CJK SC',sans-serif")).toEqual({
+    expect(
+      fontAttrsFromFamilyChain("'Noto Sans CJK SC','TodOffice Mongolian Fallback',sans-serif"),
+    ).toEqual({
       font: 'Noto Sans CJK SC',
     })
   })
 
   it('skips internal GenOffice aliases even at the chain head', () => {
     expect(
-      fontAttrsFromFamilyChain("'GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif"),
+      fontAttrsFromFamilyChain(
+        "'GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC','TodOffice Mongolian Fallback',serif",
+      ),
     ).toEqual({ font: 'STSong' })
   })
 
@@ -93,7 +101,9 @@ describe('fontAttrsFromFamilyChain', () => {
       fontAscii: 'SomeCustomFont',
     })
     expect(
-      fontAttrsFromFamilyChain("'PT Serif Custom','Noto Serif CJK GO','GenOffice PUA Blank',serif"),
+      fontAttrsFromFamilyChain(
+        "'PT Serif Custom','Noto Serif CJK GO','GenOffice PUA Blank','TodOffice Mongolian Fallback',serif",
+      ),
     ).toEqual({ font: 'PT Serif Custom', fontAscii: 'PT Serif Custom' })
   })
 
@@ -103,7 +113,7 @@ describe('fontAttrsFromFamilyChain', () => {
     })
     expect(
       fontAttrsFromFamilyChain(
-        "'Naskh Digits GO','Noto Naskh Arabic TNR','Geeza Pro','Al Bayan',serif",
+        "'Naskh Digits GO','Noto Naskh Arabic TNR','Geeza Pro','Al Bayan','TodOffice Mongolian Fallback',serif",
       ),
     ).toEqual({ font: 'Geeza Pro', fontAscii: 'Geeza Pro' })
   })
@@ -175,7 +185,7 @@ describe('complex-script (w:cs) render chain', () => {
       csFont: 'Arabic Typesetting',
     })
     expect(html).toContain(
-      'font-family: &quot;Arabic Typesetting&quot;, &quot;Naskh Digits GO&quot;, &quot;Times Punct GO&quot;, &quot;Noto Naskh Arabic TNR&quot;, &quot;Calibri&quot;, &quot;Carlito GO&quot;, &quot;Calibri Arabic GO&quot;, &quot;Noto Sans CJK SC&quot;, &quot;Times New Roman&quot;, &quot;Liberation Serif&quot;, &quot;Geeza Pro&quot;, &quot;Al Bayan&quot;, sans-serif',
+      'font-family: &quot;Arabic Typesetting&quot;, &quot;Naskh Digits GO&quot;, &quot;Times Punct GO&quot;, &quot;Noto Naskh Arabic TNR&quot;, &quot;Calibri&quot;, &quot;Carlito GO&quot;, &quot;Calibri Arabic GO&quot;, &quot;Noto Sans CJK SC&quot;, &quot;Times New Roman&quot;, &quot;Liberation Serif&quot;, &quot;Geeza Pro&quot;, &quot;Al Bayan&quot;, &quot;TodOffice Mongolian Fallback&quot;, sans-serif',
     )
   })
 

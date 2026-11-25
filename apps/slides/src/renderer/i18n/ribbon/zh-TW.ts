@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const zhTW = {
+  ribbonLangMongolianCyrillic: '蒙古文（西里爾文字）',
+  ribbonLangMongolBichig: '蒙古文（蒙古文）',
+
   ribbonAiCreditNote: '將呼叫 AI 並消耗額度',
   ribbonAiRewriteConfirm:
     '此操作將呼叫 AI：會消耗額度，並可能改寫整篇內容。是否繼續？（確認後不再提示）',

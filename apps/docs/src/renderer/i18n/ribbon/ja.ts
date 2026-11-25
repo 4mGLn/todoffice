@@ -1,6 +1,13 @@
 import type { zh } from './zh'
 
 export const ja = {
+  ribbonLangMongolianCyrillic: 'モンゴル語 (キリル文字)',
+  ribbonLangMongolBichig: 'モンゴル語 (モンゴル文字)',
+  layoutTextDirection: '文字方向',
+  layoutTextHorizontal: '横書き',
+  layoutTextMongolBichig: 'Mongol bichig · 上から下、左から右',
+  layoutTextVerticalCjk: '縦書き · 右から左',
+
   ribbonAiRewriteConfirm:
     'この操作は AI を呼び出します。内容全体が書き換えられる可能性があります。続行しますか？（確認後は再表示されません）',
   // Tabs

@@ -20,7 +20,7 @@ if (args.length > 0) {
 
 // any depth under skills/, so grouped skills (skills/<group>/<name>/SKILL.md)
 // are version-gated too; basename(dirname(file)) below is the skill's own dir
-const SKILL_FILE = /^skills\/.+\/SKILL\.md$/
+const SKILL_FILE = /^(?:skills\/.+|\.agents\/skills\/todoffice)\/SKILL\.md$/
 
 function git(commandArgs, { allowFailure = false } = {}) {
   const result = spawnSync('git', commandArgs, {
@@ -37,7 +37,7 @@ if (!baseRef) baseRef = 'HEAD'
 const changed = [
   ...git(['diff', '--name-only', '--diff-filter=AMR', baseRef]).stdout.split('\n'),
   // new skills not yet committed (local runs; CI sees them as committed)
-  ...git(['ls-files', '--others', '--exclude-standard', 'skills']).stdout.split('\n'),
+  ...git(['ls-files', '--others', '--exclude-standard', 'skills', '.agents/skills/todoffice']).stdout.split('\n'),
 ].filter((f) => SKILL_FILE.test(f))
 
 /** frontmatter fields the check cares about, and the body with the frontmatter removed */

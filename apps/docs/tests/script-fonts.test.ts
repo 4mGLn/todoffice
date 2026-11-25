@@ -64,6 +64,23 @@ describe('ScriptFonts and IME composition', () => {
     return view
   }
 
+  it('keeps Mongol bichig composition controls and the composing DOM node intact', () => {
+    const original = 'ᠮᠣᠩᠭᠣᠯ'
+    const committed = ' ᠠ\u180bᠠ\u180cᠠ\u180dᠠ\u180f ᠨ\u180eᠠ ᠤ\u202fᠨ ᠠ\u200dᠠ\u200cᠠ'
+    const editor = open([original])
+    const caret = original.length + 1
+    editor.commands.setTextSelection(caret)
+    const view = startComposition(editor)
+    const textNode = view.dom.querySelector('p')!.firstChild
+    view.dispatch(view.state.tr.insertText(committed, caret).setMeta('composition', 1))
+    expect(view.composing).toBe(true)
+    expect(view.dom.querySelector('p')!.firstChild).toBe(textNode)
+    expect(editor.state.doc.textContent).toBe(original + committed)
+    view.dom.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))
+    expect(view.composing).toBe(false)
+    expect(editor.state.doc.textContent).toBe(original + committed)
+  })
+
   // The decoration spans wrap every East Asian run, so the pinyin a Chinese
   // IME keeps in the DOM splits the run in two. Rebuilding the decorations
   // while the composition runs rewrites the text node the composition lives

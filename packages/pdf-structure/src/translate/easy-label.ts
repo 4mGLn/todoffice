@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 /**
  * The words that mark an easy explanation, in each of the 21 target
  * languages. A result made in the easy mode (the EPUB result book's title,
@@ -7,7 +8,7 @@
 import { isLang, normalizeLang, type Lang } from '../../../i18n/src/index'
 
 /** "easy explanation", in the language it labels */
-const EASY_EXPLANATION_LABELS: Record<Lang, string> = {
+const EASY_EXPLANATION_LABELS: Record<Lang, string> = withMongolianLocales({
   zh: '通俗易懂版',
   en: 'Plain-language version',
   ja: 'やさしい言葉版',
@@ -30,7 +31,7 @@ const EASY_EXPLANATION_LABELS: Record<Lang, string> = {
   'zh-TW': '淺顯易懂版',
   vi: 'Bản dễ hiểu',
   tr: 'Sade dilli sürüm',
-}
+})
 
 /**
  * The easy-explanation marker in `lang` (a target language code); a tag that

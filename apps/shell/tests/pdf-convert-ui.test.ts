@@ -1,3 +1,4 @@
+import { ESTABLISHED_TEST_LANGS } from '../../../packages/i18n/tests/preview-assertions'
 /**
  * The shell's side of the pdf conversion screen: what the dialog may ask
  * around a Markdown / EPUB job, and the File menu items that open it.
@@ -5,7 +6,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { LANGS } from '@genoffice/i18n'
 import { PDF_CHANNELS } from '../../pdf/src/shared/ipc'
 import {
   createPdfConvertUiHandlers,
@@ -159,7 +159,9 @@ describe('pdf conversion screen: wiring', () => {
   })
 
   it('labels the page-image file type in every language', () => {
-    expect(index.match(/^ {4}filterPdfPageImages: '.+',$/gm)).toHaveLength(LANGS.length)
+    expect(index.match(/^ {4}filterPdfPageImages: '.+',$/gm)).toHaveLength(
+      ESTABLISHED_TEST_LANGS.length,
+    )
   })
 
   it('adds Markdown and EPUB to the pdf File menu next to the existing conversions', () => {
@@ -178,8 +180,8 @@ describe('pdf conversion screen: wiring', () => {
   })
 
   it('labels the new menu items in every language', () => {
-    expect(index.match(/^ {4}menuExportMd: '.+',$/gm)).toHaveLength(LANGS.length)
-    expect(index.match(/^ {4}menuExportEpub: '.+',$/gm)).toHaveLength(LANGS.length)
+    expect(index.match(/^ {4}menuExportMd: '.+',$/gm)).toHaveLength(ESTABLISHED_TEST_LANGS.length)
+    expect(index.match(/^ {4}menuExportEpub: '.+',$/gm)).toHaveLength(ESTABLISHED_TEST_LANGS.length)
   })
 })
 

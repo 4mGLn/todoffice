@@ -1,5 +1,5 @@
 /**
- * Target languages (spec §8): the 22 UI languages. The default is the UI
+ * Target languages (spec §8): established UI languages and Mongolian script targets. The default is the UI
  * language, or English when the document is already in the UI language. An
  * easy explanation (`mode` 'easy') defaults to the UI language always, also
  * for a document written in it: it is rewritten in plainer words.
@@ -7,10 +7,16 @@
  * The document language comes from the EPUB writer's script-based guess
  * (guessLanguageFromText), so it inherits that guess's limits: every
  * Latin-script document reads as `en` and every Han-only one as `zh`.
- * Languages are compared by their primary subtag, so a Chinese document
- * matches both Chinese UIs (`zh`, `zh-TW`).
+ * Mongolian targets distinguish Cyrillic from traditional script. Other
+ * languages compare primary subtags, so Chinese matches both Chinese UIs.
  */
-import { LANGS, isLang, normalizeLang, type Lang } from '../../../i18n/src/index'
+import {
+  LANGS,
+  isLang,
+  normalizeLang,
+  sameLanguageAndScript,
+  type Lang,
+} from '../../../i18n/src/index'
 import { guessLanguageFromText, treeSampleText } from '../epub/language'
 import type { TranslationMode } from '../store/job-keys'
 import type { DocumentTree } from '../tree/types'
@@ -46,6 +52,8 @@ const LANGUAGE_NAMES: Record<Lang, string> = {
   'zh-TW': 'Traditional Chinese',
   vi: 'Vietnamese',
   tr: 'Turkish',
+  'mn-Cyrl': 'Mongolian (Cyrillic)',
+  'mn-Mong': 'Mongolian Traditional Script',
 }
 
 /** English name of a target language; the code itself when unknown */
@@ -67,7 +75,7 @@ export function defaultTargetLanguage(
   const ui = isLang(uiLanguage) ? uiLanguage : normalizeLang(uiLanguage)
   if (mode === 'easy') return ui
   const doc = guessLanguageFromText(documentText)
-  return doc !== undefined && primary(doc) === primary(ui) ? 'en' : ui
+  return doc !== undefined && sameLanguageAndScript(doc, ui) ? 'en' : ui
 }
 
 /**

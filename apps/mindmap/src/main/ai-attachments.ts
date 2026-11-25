@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 /**
  * The AI panel's attachments and the untitled map's provisional name, on the
  * main-process side. The same contract as the other editors' attachment
@@ -42,7 +43,7 @@ import type {
   AttachmentReadResult,
 } from '../shared/ipc'
 
-const ATTACH_STRINGS = {
+const ATTACH_STRINGS = withMongolianLocales({
   zh: {
     dlgAddAttachment: '添加附件',
     filterSupported: '支持的文件',
@@ -369,7 +370,7 @@ const ATTACH_STRINGS = {
     errImageNoText: '圖片附件不提供文字,已作為影像隨使用者訊息傳送,直接看圖即可',
     errNotImage: '不是支援的圖片類型',
   },
-}
+})
 
 const tAttach = createI18n(ATTACH_STRINGS)
 type AttachKey = keyof (typeof ATTACH_STRINGS)['zh']

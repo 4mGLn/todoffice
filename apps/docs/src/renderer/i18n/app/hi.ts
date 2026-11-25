@@ -1,6 +1,9 @@
 import type { zh } from './zh'
 
 export const hi = {
+  appLangMongolianCyrillic: 'मंगोलियाई (सिरिलिक)',
+  appLangMongolBichig: 'मंगोलियाई (मंगोलियाई)',
+
   appLegacyDocImported:
     '.{ext} फ़ाइल को परिवर्तित .docx प्रति के रूप में खोला गया। मूल फ़ाइल वैसी ही रहती है; सहेजने पर नई .docx फ़ाइल लिखी जाती है।',
   appScTitle: 'कीबोर्ड शॉर्टकट',

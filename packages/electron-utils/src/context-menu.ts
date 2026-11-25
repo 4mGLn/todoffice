@@ -1,3 +1,4 @@
+import { withMongolianLocales } from '@genoffice/i18n'
 /// Native right-click menu for surfaces without a self-drawn one (AI panel,
 /// inputs, chrome). Renderer-drawn menus call preventDefault() on the DOM
 /// contextmenu event, which suppresses this webContents event entirely
@@ -30,7 +31,7 @@ const EN: ContextMenuLabels = {
 
 // One shared table instead of 7 keys × every UI language duplicated into each
 // app's main-process dictionary; strings match the docs Edit menu.
-const LABELS: Record<string, ContextMenuLabels> = {
+const LABELS: Record<string, ContextMenuLabels> = withMongolianLocales({
   zh: {
     cut: '剪切',
     copy: '复制',
@@ -221,7 +222,7 @@ const LABELS: Record<string, ContextMenuLabels> = {
     copyImage: '複製圖片',
     saveImageAs: '另存圖片為…',
   },
-}
+})
 
 export const baseLang = (lang: string): string => lang.split('-')[0] ?? lang
 

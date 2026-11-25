@@ -1,6 +1,8 @@
 import { brandText } from './product'
+import { mongolianLangFromTag, type MongolianLang } from './mongolian-locales'
+import { withMongolianLocales } from './mongolian'
 
-export type Lang =
+export type LegacyLang =
   | 'zh'
   | 'en'
   | 'ja'
@@ -23,6 +25,8 @@ export type Lang =
   | 'zh-TW'
   | 'vi'
   | 'tr'
+
+export type Lang = LegacyLang | MongolianLang
 
 export const LANGS: readonly Lang[] = [
   'zh',
@@ -47,6 +51,8 @@ export const LANGS: readonly Lang[] = [
   'zh-TW',
   'vi',
   'tr',
+  'mn-Cyrl',
+  'mn-Mong',
 ]
 
 export function isLang(value: unknown): value is Lang {
@@ -57,6 +63,8 @@ export function isLang(value: unknown): value is Lang {
 export function normalizeLang(raw: string | null | undefined): Lang {
   const value = raw?.trim().toLowerCase()
   if (!value) return 'en'
+  const mongolian = mongolianLangFromTag(value)
+  if (mongolian) return mongolian
   // traditional-script Chinese variants must win over the generic 'zh' prefix
   if (/^zh[-_](tw|hk|mo|hant)/.test(value)) return 'zh-TW'
   for (const lang of LANGS) {
@@ -93,6 +101,8 @@ const HTML_LANGS: Record<Lang, string> = {
   'zh-TW': 'zh-TW',
   vi: 'vi-VN',
   tr: 'tr-TR',
+  'mn-Cyrl': 'mn-Cyrl-MN',
+  'mn-Mong': 'mn-Mong',
 }
 
 /** BCP-47 tag for document.documentElement.lang (drives CSS :lang() and Chromium's per-language font fallback) */
@@ -180,12 +190,19 @@ export type LangDicts<D extends Record<string, string>> = { zh: D } & {
   [L in Exclude<Lang, 'zh'>]: Record<keyof D, string>
 }
 
+/** Existing locales retain mandatory key coverage while Mongolian is previewed. */
+export type LegacyLangDicts<D extends Record<string, string>> = { zh: D } & {
+  [L in Exclude<LegacyLang, 'zh'>]: Record<keyof D, string>
+}
+
 /**
- * Identity helper for dictionary shards: keeps literal key inference while
- * type-checking that every other language covers exactly the zh key set.
+ * Dictionary helper: preserves established locales and their typed key
+ * completeness, then adds explicitly incomplete Mongolian previews.
  */
-export function defineStrings<D extends Record<string, string>>(dicts: LangDicts<D>): LangDicts<D> {
-  return dicts
+export function defineStrings<D extends Record<string, string>>(
+  dicts: LegacyLangDicts<D>,
+): LangDicts<D> {
+  return withMongolianLocales(dicts)
 }
 
 // ---- process-wide current language ----
@@ -212,19 +229,20 @@ export function onUiLangChange(listener: (lang: Lang) => void): () => void {
 
 /**
  * Build a translator over per-language dictionaries. The zh dictionary defines
- * the key set; every other language must cover exactly the same keys
- * (compile-time checked), so a missing translation is a type error, not a
- * runtime fallback.
+ * the key set; every established locale must cover those keys at compile time.
+ * Mongolian previews use sourced translations and tracked English fallback;
+ * the separate strict coverage gate reports unfinished translations.
  *
  * Dictionaries spell the product name as upstream does ("GenOffice"); every
  * string leaves here with the product name of its language instead (see
  * ./product). Write `{{GenOffice}}` where the upstream name itself is meant.
  */
-export function createI18n<D extends Record<string, string>>(dicts: LangDicts<D>) {
+export function createI18n<D extends Record<string, string>>(dicts: LegacyLangDicts<D>) {
+  const localized = withMongolianLocales(dicts)
   return (lang: Lang, key: keyof D, params?: Params): string => {
     // A shard that predates a key must degrade (en, then zh, then the key)
     // instead of throwing inside format()
-    const text = dicts[lang]?.[key] ?? dicts.en[key] ?? dicts.zh[key] ?? String(key)
+    const text = localized[lang]?.[key] ?? dicts.en[key] ?? dicts.zh[key] ?? String(key)
     // the product name is swapped into the template, never into a param value
     return format(brandText(platformShortcuts(text), lang), params)
   }
@@ -232,3 +250,4 @@ export function createI18n<D extends Record<string, string>>(dicts: LangDicts<D>
 
 export * from './font-names'
 export * from './product'
+export * from './mongolian'
