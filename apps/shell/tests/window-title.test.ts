@@ -56,8 +56,12 @@ describe('shell window title wiring', () => {
   })
 
   it('re-titles when the interface language changes', () => {
-    const handler = main.slice(main.indexOf('HOME_CHANNELS.setLanguage,'))
-    expect(handler.slice(0, handler.indexOf('})')).includes('syncShellWindowTitle()')).toBe(true)
+    const change = main.slice(main.indexOf('function changeUiLanguage('))
+    expect(change.slice(0, change.indexOf('\n}'))).toContain('syncShellWindowTitle()')
+    expect(main).toMatch(
+      /HOME_CHANNELS\.setLanguage,[^]*?if \(isLang\(lang\)\) changeUiLanguage\(lang\)/,
+    )
+    expect(main).toMatch(/TABS_CHANNELS\.showLanguageMenu,[^]*?changeUiLanguage\(value\)/)
   })
 
   it('keeps the renderer document title from replacing it', () => {

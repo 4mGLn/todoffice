@@ -5,6 +5,8 @@ import { HOME_CHANNELS, type HomeApi } from '../src/shared/home-api'
 const electronMocks = vi.hoisted(() => ({
   exposed: new Map<string, unknown>(),
   invoke: vi.fn(),
+  on: vi.fn(),
+  removeListener: vi.fn(),
 }))
 vi.mock('electron', () => ({
   contextBridge: {
@@ -13,8 +15,8 @@ vi.mock('electron', () => ({
   ipcRenderer: {
     invoke: electronMocks.invoke,
     send: vi.fn(),
-    on: vi.fn(),
-    removeListener: vi.fn(),
+    on: electronMocks.on,
+    removeListener: electronMocks.removeListener,
   },
   webUtils: { getPathForFile: () => '' },
 }))
@@ -44,5 +46,17 @@ describe('the actual shell preload language boundary', () => {
     const setUntrusted = api.setLanguage as (lang: unknown) => Promise<void>
     await expect(setUntrusted(value)).rejects.toThrow('Invalid language.')
     expect(electronMocks.invoke).not.toHaveBeenCalled()
+  })
+
+  it('delivers valid native language changes and unsubscribes', () => {
+    const handler = vi.fn()
+    const unsubscribe = api.onLanguageChanged(handler)
+    const [channel, listener] = electronMocks.on.mock.lastCall!
+    expect(channel).toBe('app:language-changed')
+    listener({}, 'mn-Mong')
+    listener({}, 'mn')
+    expect(handler.mock.calls).toEqual([['mn-Mong']])
+    unsubscribe()
+    expect(electronMocks.removeListener).toHaveBeenCalledWith(channel, listener)
   })
 })

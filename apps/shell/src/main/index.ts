@@ -435,6 +435,12 @@ import type {
 } from '../shared/home-api'
 import { HOME_CHANNELS } from '../shared/home-api'
 import {
+  LANG_OPTIONS,
+  OTHER_LANGUAGES_LABEL,
+  PINNED_LANG_OPTIONS,
+} from '../shared/language-options'
+import { setLanguageTooltip } from './language-tooltip'
+import {
   normalizeAiPanelPrefs,
   sameAiPanelPrefs,
   type AiPanelPrefs,
@@ -1110,6 +1116,17 @@ function persistLang(lang: Lang): void {
     uiLang = persisted
     setUiLang(persisted)
   })
+}
+
+function changeUiLanguage(lang: Lang): void {
+  if (lang === currentLang()) return
+  persistLang(lang)
+  applyMenuFor(linkMenuKind() ?? 'home')
+  installDockMenu()
+  installBackToHomeItems()
+  notifyQuickLookLangOrThemeChanged()
+  syncShellWindowTitle()
+  for (const wc of webContents.getAllWebContents()) wc.send('app:language-changed', lang)
 }
 
 let cachedUpdateChannel: UpdateChannel | null = null
@@ -7210,15 +7227,7 @@ function registerHomeIpc(): void {
   ipcMain.handle(HOME_CHANNELS.getLanguage, (): Lang => currentLang())
 
   ipcMain.handle(HOME_CHANNELS.setLanguage, (_event, lang: unknown) => {
-    if (!isLang(lang) || lang === currentLang()) return
-    persistLang(lang)
-    // the switcher lives on the home page, so the home menu is the active one
-    buildHomeMenu()
-    installDockMenu()
-    installBackToHomeItems()
-    notifyQuickLookLangOrThemeChanged()
-    syncShellWindowTitle()
-    for (const wc of webContents.getAllWebContents()) wc.send('app:language-changed', lang)
+    if (isLang(lang)) changeUiLanguage(lang)
   })
 
   ipcMain.handle(HOME_CHANNELS.getUpdateChannel, (): UpdateChannel => currentUpdateChannel())
@@ -8445,8 +8454,63 @@ function registerTabsIpc(): void {
   ipcMain.handle(TABS_CHANNELS.reorder, (_event, id: string, toIndex: number) => {
     if (typeof id === 'string' && Number.isInteger(toIndex)) tabManager?.reorderTab(id, toIndex)
   })
-  // "all tabs" overflow menu — native popup because the editors' WebContentsView
-  // would cover any DOM dropdown the shell renderer draws below the tab strip
+  ipcMain.on(TABS_CHANNELS.setLanguageTooltip, (event, anchor: unknown) => {
+    if (!shellWindow || shellWindow.isDestroyed() || event.sender !== shellWindow.webContents)
+      return
+    if (anchor === null) {
+      setLanguageTooltip(shellWindow, null)
+    } else if (
+      typeof anchor === 'object' &&
+      anchor &&
+      'x' in anchor &&
+      'y' in anchor &&
+      typeof anchor.x === 'number' &&
+      typeof anchor.y === 'number' &&
+      Number.isFinite(anchor.x) &&
+      Number.isFinite(anchor.y)
+    ) {
+      setLanguageTooltip(shellWindow, { x: anchor.x, y: anchor.y })
+    }
+  })
+  // A native menu stays above editor WebContentsViews and handles submenu navigation.
+  ipcMain.handle(TABS_CHANNELS.showLanguageMenu, (event, x: unknown, y: unknown) => {
+    if (!shellWindow || shellWindow.isDestroyed() || event.sender !== shellWindow.webContents)
+      return
+    if (
+      typeof x !== 'number' ||
+      typeof y !== 'number' ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y)
+    )
+      return
+    setLanguageTooltip(shellWindow, null)
+    const lang = currentLang()
+    const languageItem = (
+      { value, label }: { value: Lang; label: string },
+      id: string,
+    ): MenuItemConstructorOptions => ({
+      id,
+      label,
+      type: 'checkbox',
+      checked: value === lang,
+      click: () => {
+        try {
+          changeUiLanguage(value)
+        } catch (err) {
+          console.warn('language not saved', err)
+        }
+      },
+    })
+    Menu.buildFromTemplate([
+      ...PINNED_LANG_OPTIONS.map((option) => languageItem(option, option.value)),
+      { type: 'separator' },
+      {
+        id: 'other-languages',
+        label: OTHER_LANGUAGES_LABEL[lang],
+        submenu: LANG_OPTIONS.map((option) => languageItem(option, `all-${option.value}`)),
+      },
+    ]).popup({ window: shellWindow, x: Math.round(x), y: Math.round(y) })
+  })
   // the ☰ button is the Windows/Linux menu: the window's menus, then Settings…
   // and the update check as items of their own (macOS has them in the app menu)
   ipcMain.handle(TABS_CHANNELS.showAppMenu, (_event, x: unknown, y: unknown) => {

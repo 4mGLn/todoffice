@@ -2,6 +2,7 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Lang } from '@genoffice/i18n'
 import { LocaleProvider, useI18n } from '../src/renderer/src/locale'
 import { HelpScreen } from '../src/renderer/src/i18n/help/HelpScreen'
 import { topicTitle } from '../src/renderer/src/i18n/help/help-titles'
@@ -32,7 +33,16 @@ function Controls() {
 
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-  vi.stubGlobal('aiOffice', { setLanguage: vi.fn().mockResolvedValue(undefined) })
+  let onChange: ((lang: Lang) => void) | undefined
+  vi.stubGlobal('aiOffice', {
+    setLanguage: async (lang: Lang) => onChange?.(lang),
+    onLanguageChanged: (handler: (lang: Lang) => void) => {
+      onChange = handler
+      return () => {
+        onChange = undefined
+      }
+    },
+  })
   Element.prototype.scrollTo ??= function scrollTo(): void {}
   history.replaceState(null, '', '/?mode=help&topic=getting-started')
   delayed.requests.length = 0

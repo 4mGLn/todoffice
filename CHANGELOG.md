@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a globe button beside the window controls with a compact four-language tooltip, quick access to both Mongolian editions, English and Korean, and a submenu listing every language. The choice is saved for the current user.
+
 - Add a focused Playwright CLI check for Home settings and Mongolian DOCX editing in the built desktop app.
 
 - Fall back to plain file copies when Linux network mounts reject the platform copy operation. This covers shared atomic writes and copying images into HTML and Markdown document asset folders.

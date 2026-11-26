@@ -34,6 +34,8 @@ irm https://github.com/4mGLn/todoffice/releases/latest/download/install.ps1 | ie
 
 ## Mongolian language support
 
+Use the globe button near the window controls to change the interface language. TodOffice remembers your choice the next time you open it.
+
 As of 2026-11-26, the Mongolian Cyrillic (`mn-Cyrl`) and traditional Mongolian script (`mn-Mong`) translations are **previews**. All 27 help topics have draft translations in both scripts. They still need native-speaker review. Untranslated interface text appears in English.
 
 - In traditional-script mode, menus run vertically. A new blank document in the Docs editor starts with text running from top to bottom in columns that progress from left to right. Existing documents keep their saved writing direction. Docs also lets you choose the direction explicitly. Support for vertical editing in other file formats varies.
