@@ -136,9 +136,14 @@ export async function launchShell(options: LaunchOptions): Promise<LaunchedApp> 
             size: { width: 1280, height: 800 },
           },
   })
-  const page = await app.firstWindow()
-  await waitForDocumentReady(app, page)
-  return { app, page, userDataDir }
+  try {
+    const page = await app.firstWindow()
+    await waitForDocumentReady(app, page)
+    return { app, page, userDataDir }
+  } catch (error) {
+    await closeShell(app).catch(() => {})
+    throw error
+  }
 }
 
 /**
@@ -176,37 +181,40 @@ async function waitForDocumentReady(
 }
 
 /**
- * Close the app and return the recorded video path for the given page.
- *
  * Open editor tabs trigger a native Save/Don't Save/Cancel dialog on close,
  * which would block app.close() forever — stub the dialog to answer
  * "Don't Save" (button index 1) so shutdown stays unattended. If close still
  * hangs, force-kill the process after 20s and wait for close to finish.
  */
-export async function closeAndSaveVideo(
-  launched: LaunchedApp,
-  name: string,
-): Promise<string | undefined> {
-  const video = launched.page.video()
-  await launched.app
-    .evaluate(({ dialog }) => {
-      dialog.showMessageBox = (async () => ({
-        response: 1,
-        checkboxChecked: false,
-      })) as typeof dialog.showMessageBox
-    })
-    .catch(() => {})
-  const child = launched.app.process()
+export async function closeShell(app: ElectronApplication): Promise<void> {
+  const child = app.process()
   const killTimer = setTimeout(() => {
     // SIGTERM can enter Electron's graceful quit path and leave it alive.
     // child.killed only means a signal was sent, not that the process exited.
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
   }, 20_000)
   try {
-    await launched.app.close()
+    await app
+      .evaluate(({ dialog }) => {
+        dialog.showMessageBox = (async () => ({
+          response: 1,
+          checkboxChecked: false,
+        })) as typeof dialog.showMessageBox
+      })
+      .catch(() => {})
+    await app.close()
   } finally {
     clearTimeout(killTimer)
   }
+}
+
+/** Close the app and return the recorded video path for the given page. */
+export async function closeAndSaveVideo(
+  launched: LaunchedApp,
+  name: string,
+): Promise<string | undefined> {
+  const video = launched.page.video()
+  await closeShell(launched.app)
   if (!video) return undefined
   const target = join(ARTIFACTS_DIR, 'videos', `${name}.webm`)
   try {
