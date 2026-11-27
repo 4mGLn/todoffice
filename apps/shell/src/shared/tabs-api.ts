@@ -97,6 +97,8 @@ export interface TabsApi {
    * system menu bar and never shows the button.
    */
   showAppMenu(x: number, y: number): Promise<void>
+  showLanguageMenu(x: number, y: number): Promise<void>
+  setLanguageTooltip(anchor: { x: number; y: number } | null): void
   /** move a tab to a new index in the strip; Home stays pinned at index 0 */
   reorder(id: string, toIndex: number): Promise<void>
   /** subscribe to tab list changes (open/close/activate/title updates); returns unsubscribe */
@@ -138,6 +140,8 @@ export const TABS_CHANNELS = {
   dockPreview: 'tabs:dock-preview',
   dockIndex: 'tabs:dock-index',
   showAppMenu: 'tabs:show-app-menu',
+  showLanguageMenu: 'tabs:show-language-menu',
+  setLanguageTooltip: 'tabs:set-language-tooltip',
   reorder: 'tabs:reorder',
   changed: 'tabs:changed',
   chromePressed: 'tabs:chrome-pressed',

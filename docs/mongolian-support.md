@@ -4,6 +4,8 @@ Implementation record: 2026-11-25. The Mongolian interfaces are **incomplete tra
 
 ## Language and naming
 
+The globe beside the main window controls offers Mongol bichig, Mongolian Cyrillic, English and Korean in that order. Hover over the final submenu to see the full list used in Settings. The selected language applies to open editor tabs immediately and is saved in the current user's TodOffice settings for the next launch.
+
 | Locale    | User-facing name             | Interface flow                            |
 | --------- | ---------------------------- | ----------------------------------------- |
 | `mn-Cyrl` | Mongolian Cyrillic / Монгол  | Horizontal                                |

@@ -382,6 +382,13 @@ const homeApi: HomeApi = {
     if (!isUiLanguage(lang)) throw new Error('Invalid language.')
     await ipcRenderer.invoke(HOME_CHANNELS.setLanguage, lang)
   },
+  onLanguageChanged(handler) {
+    const listener = (_event: IpcRendererEvent, lang: unknown) => {
+      if (isUiLanguage(lang)) handler(lang)
+    }
+    ipcRenderer.on('app:language-changed', listener)
+    return () => ipcRenderer.removeListener('app:language-changed', listener)
+  },
   async getUpdateChannel() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.getUpdateChannel)
     return result === 'beta' ? 'beta' : 'stable'
@@ -948,6 +955,12 @@ const tabsApi: TabsApi = {
   },
   async showAppMenu(x, y) {
     await ipcRenderer.invoke(TABS_CHANNELS.showAppMenu, x, y)
+  },
+  async showLanguageMenu(x, y) {
+    await ipcRenderer.invoke(TABS_CHANNELS.showLanguageMenu, x, y)
+  },
+  setLanguageTooltip(anchor) {
+    ipcRenderer.send(TABS_CHANNELS.setLanguageTooltip, anchor)
   },
   async reorder(id, toIndex) {
     await ipcRenderer.invoke(TABS_CHANNELS.reorder, id, toIndex)

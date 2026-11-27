@@ -47,6 +47,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/renderer/index.html'),
+          'language-tooltip': resolve(__dirname, 'src/renderer/language-tooltip.html'),
           // strong-guidance update window (see src/main/update-window.ts)
           update: resolve(__dirname, 'src/renderer/update.html'),
           // PDF password prompt window (see src/main/pdf-password-dialog.ts)

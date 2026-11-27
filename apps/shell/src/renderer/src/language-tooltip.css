@@ -1,0 +1,55 @@
+@font-face {
+  font-family: 'Noto Sans Mongolian';
+  src: url('genoffice-docx-media://template-fonts/NotoSansMongolian-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font:
+    12px/1.5 system-ui,
+    sans-serif;
+}
+
+.language-tip {
+  position: relative;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 8px 8px 14px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--text-primary);
+  color: var(--surface);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.language-tip::before {
+  position: absolute;
+  top: -4px;
+  right: 18px;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: inherit;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.language-tip p {
+  margin: 0;
+}
+
+.language-tip p:lang(mn-Mong) {
+  writing-mode: vertical-lr;
+  font:
+    12px/1.25 'Noto Sans Mongolian',
+    sans-serif;
+}

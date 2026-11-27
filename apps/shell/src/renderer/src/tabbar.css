@@ -314,6 +314,7 @@ body.overlay-title-bar .tab-bar-drag-spacer {
 
 .tab-new-btn,
 .tab-overflow-btn,
+.tab-language-btn,
 .tab-app-menu-btn {
   -webkit-app-region: no-drag;
   position: relative;
@@ -335,6 +336,15 @@ body.overlay-title-bar .tab-bar-drag-spacer {
 .tab-overflow-btn:hover,
 .tab-app-menu-btn:hover {
   background: var(--tabstrip-menu-hover);
+}
+
+.tab-language-btn {
+  margin-right: 8px;
+}
+
+.tab-language-btn:hover,
+.tab-language-btn:focus-visible {
+  background: var(--hover);
 }
 
 .app-frame-content {

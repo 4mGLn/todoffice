@@ -329,6 +329,7 @@ export interface HomeApi {
   getLanguage(): Promise<UiLanguage>
   /** switch + persist the UI language; main rebuilds its menus to match */
   setLanguage(lang: UiLanguage): Promise<void>
+  onLanguageChanged(handler: (lang: UiLanguage) => void): () => void
   /** current update channel (persisted in userData/app-settings.json; default 'stable') */
   getUpdateChannel(): Promise<UpdateChannel>
   /** switch + persist the update channel; triggers an immediate update check */

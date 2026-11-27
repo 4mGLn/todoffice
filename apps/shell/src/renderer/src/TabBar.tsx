@@ -4,7 +4,8 @@ import type { SplitHint, SplitViewState } from '../../shared/split-view-api'
 import type { TabsApi, TabSummary } from '../../shared/tabs-api'
 import { TEAR_OFF_SLACK, insertionIndexForX, isBeyondBand } from '../../shared/tab-drag-geometry'
 import { notifyFilesChanged } from './file-events'
-import { productName } from '@genoffice/i18n'
+import { htmlDir, productName } from '@genoffice/i18n'
+import { LANGUAGE_MENU_TOOLTIP } from '../../shared/language-options'
 import { useI18n } from './locale'
 import iconDocx from './assets/file-docx.svg'
 import iconXlsx from './assets/file-xlsx.svg'
@@ -404,7 +405,7 @@ export function TabBar({ split }: TabBarProps) {
   }, [activeId])
 
   return (
-    <div className="tab-bar">
+    <div className="tab-bar" dir="ltr">
       <div className="tab-bar-drag-spacer" />
       {!IS_MAC && (
         <button
@@ -428,6 +429,7 @@ export function TabBar({ split }: TabBarProps) {
       )}
       <div
         className={`tab-strip ${dragVisual ? 'dragging' : ''} ${dockX !== null ? 'dock-target' : ''}`}
+        dir={htmlDir(lang)}
         ref={stripRef}
         // the strip, not the grabbed tab, owns the pointer capture: a torn-off
         // tab's element unmounts mid-gesture, and the moves must keep coming
@@ -630,6 +632,32 @@ export function TabBar({ split }: TabBarProps) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="tab-language-btn"
+        aria-label={t('language')}
+        aria-description={LANGUAGE_MENU_TOOLTIP[lang] ?? LANGUAGE_MENU_TOOLTIP.en}
+        aria-haspopup="menu"
+        onPointerEnter={(event) => {
+          if (event.pointerType !== 'mouse') return
+          const rect = event.currentTarget.getBoundingClientRect()
+          window.aiOfficeTabs.setLanguageTooltip({ x: rect.left + rect.width / 2, y: rect.bottom })
+        }}
+        onPointerLeave={() => window.aiOfficeTabs.setLanguageTooltip(null)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') window.aiOfficeTabs.setLanguageTooltip(null)
+        }}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect()
+          void window.aiOfficeTabs.showLanguageMenu(Math.round(rect.left), Math.round(rect.bottom))
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+          <ellipse cx="12" cy="12" rx="4" ry="9" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M3 12h18" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       </button>
       <div className="tab-bar-caption-spacer" />

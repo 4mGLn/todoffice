@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createI18n, htmlDir, htmlLang, productName, type Lang, type Params } from '@genoffice/i18n'
 import { strings } from './strings'
@@ -17,21 +17,23 @@ const LocaleContext = createContext<LocaleValue>({ lang: 'zh', setLang: () => {}
 
 export function LocaleProvider({ initial, children }: { initial: Lang; children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(initial)
+  useEffect(
+    () =>
+      window.aiOffice?.onLanguageChanged?.((next) => {
+        setLangState(next)
+        document.documentElement.lang = htmlLang(next)
+        document.documentElement.dir = htmlDir(next)
+        document.title = productName(next)
+      }),
+    [],
+  )
   const value = useMemo<LocaleValue>(
     () => ({
       lang,
       setLang: (next) => {
-        // the main process rejects when app-settings.json is unwritable; a language
-        // committed here first would survive only until the next launch
-        window.aiOffice.setLanguage(next).then(
-          () => {
-            setLangState(next)
-            document.documentElement.lang = htmlLang(next)
-            document.documentElement.dir = htmlDir(next)
-            document.title = productName(next)
-          },
-          (err: unknown) => console.warn('language not saved', err),
-        )
+        void window.aiOffice.setLanguage(next).catch((err: unknown) => {
+          console.warn('language not saved', err)
+        })
       },
     }),
     [lang],

@@ -23,6 +23,7 @@ import type {
   HwpDefaultFormat,
 } from '../../shared/home-api'
 import { AUTHOR_NAME_MAX } from '../../shared/home-api'
+import { LANG_OPTIONS } from '../../shared/language-options'
 import type { UpdateUiState } from '../../shared/update-api'
 import {
   DEFAULT_MAX_OUTPUT_TOKENS,
@@ -97,35 +98,6 @@ import './settings.css'
 // ── Settings modal (opened from the account menu) ─────────
 // Two-pane dialog: section nav on the left, fields on the right.
 // All values go through the existing home IPC; nothing is stored locally.
-
-// sorted by ISO 639 language code — native-script labels have no natural
-// shared alphabet, so the code is the ordering key
-const LANG_OPTIONS = [
-  { value: 'ar', label: 'العربية' },
-  { value: 'cs', label: 'Čeština' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'he', label: 'עברית' },
-  { value: 'hi', label: 'हिन्दी' },
-  { value: 'id', label: 'Bahasa Indonesia' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'ja', label: '日本語' },
-  { value: 'ko', label: '한국어' },
-  { value: 'mn-Cyrl', label: 'Монгол (кирилл) · preview' },
-  { value: 'mn-Mong', label: 'Монгол бичиг · Mongol bichig · preview' },
-  { value: 'ms', label: 'Bahasa Melayu' },
-  { value: 'nl', label: 'Nederlands' },
-  { value: 'pl', label: 'Polski' },
-  { value: 'pt', label: 'Português' },
-  { value: 'ru', label: 'Русский' },
-  { value: 'th', label: 'ไทย' },
-  { value: 'tr', label: 'Türkçe' },
-  { value: 'vi', label: 'Tiếng Việt' },
-  { value: 'zh', label: '简体中文' },
-  { value: 'zh-TW', label: '繁體中文' },
-] as const
 
 // GenMail's option order: follow-system first, then the manual picks
 const THEME_OPTIONS = [
@@ -2028,7 +2000,7 @@ export function SettingsModal({
                           ? 'ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ · ᠲᠤᠷᠰᠢᠯᠲᠠ'
                           : opt.label,
                     }))}
-                    onPick={(v) => setLang(v as typeof lang)}
+                    onPick={setLang}
                   />
                 </div>
                 {(lang === 'mn-Cyrl' || lang === 'mn-Mong') && (
